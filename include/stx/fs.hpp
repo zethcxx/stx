@@ -43,7 +43,7 @@ namespace stx
     ) {
         file.seekg(
             scast<std::streamoff>( offset.get() ),
-            std::to_underlying( dir )
+            static_cast<std::ios_base::seekdir>( dir )
         );
     }
 
@@ -115,7 +115,7 @@ namespace stx
     template<binary_readable Type = std::byte> inline
     void skipfs(
         std::istream& file,
-        const usize offset
+        const offset_t offset
     ) {
         setposfs( file, offset, origin::current );
     }
