@@ -85,3 +85,22 @@ To include STX as an interface dependency in your project:
 add_subdirectory(extern/stx)
 target_link_libraries( <target> PRIVATE stx::stx )
 ```
+
+## Integration via CMake (FetchContent)
+
+For modern CMake projects, you can integrate **STX** directly from GitHub at configure time. This ensures you always have the correct version without managing manual dependencies.
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    stx
+    GIT_REPOSITORY https://github.com/zethcxx/stx.git
+    GIT_TAG        main # Or a specific tag like v1.0.0
+)
+
+FetchContent_MakeAvailable(stx)
+
+# Now link it to your target
+target_link_libraries(${PROJECT_NAME} PRIVATE stx::stx)
+```

@@ -86,3 +86,20 @@ add_subdirectory(extern/stx)
 target_link_libraries( <target> PRIVATE stx::stx )
 ```
 
+## Integracion via CMake (FetchContent)
+Para proyectos CMake modernos, puede integrar **STX** directamente desde GitHub en el momento de la configuración. Esto garantiza que siempre tendrá la versión correcta sin tener que gestionar dependencias manuales.
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    stx
+    GIT_REPOSITORY https://github.com/zethcxx/stx.git
+    GIT_TAG        main # o especificando como: v1.0.0
+)
+
+FetchContent_MakeAvailable(stx)
+
+# Ahora linkear al target
+target_link_libraries( <target> PRIVATE stx::stx)
+```
