@@ -2,6 +2,7 @@ cmake_minimum_required( VERSION 3.15 )
 project( stx
     VERSION 1.0.0
     LANGUAGES CXX
+    DESCRIPTION "Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research."
 )
 
 add_library( stx INTERFACE )
