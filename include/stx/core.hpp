@@ -4,23 +4,21 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 namespace stx
 {
-    inline constexpr struct {
-        int major = 1;
-        int minor = 0;
-        int patch = 0;
-    } version;
+    struct version_info { int major, minor, patch; };
+    inline constexpr version_info version { 1, 0, 0 };
 
     namespace details
     {
         template< typename T, typename Tag >
         class strong_type;
 
-        struct file_offset_tag {};
-        struct rva_tag         {};
-        struct va_tag          {};
+        struct offset_tag {};
+        struct rva_tag    {};
+        struct va_tag     {};
     }
 
     // NORMAL TYPES --------------------------------------------------------------
@@ -37,8 +35,6 @@ namespace stx
     using f32   = float         ;
     using f64   = double        ;
 
-    using byte  = std::byte     ;
-
     using isize = std::ptrdiff_t;
     using usize = std::size_t   ;
 
@@ -46,7 +42,7 @@ namespace stx
     using iptr  = std::intptr_t ;
 
     // STRONG TYPES --------------------------------------------------------------
-    using offset_t = details::strong_type<usize, details::file_offset_tag>;
+    using offset_t = details::strong_type<usize, details::offset_tag>;
     using rva_t    = details::strong_type<u32  , details::rva_tag        >;
     using va_t     = details::strong_type<uptr , details::va_tag         >;
 
@@ -70,17 +66,21 @@ namespace stx
     concept binary_readable
         =       std::is_trivially_copyable_v<Type>
         and     std::is_standard_layout_v   <Type>
-        and not std::is_empty_v             <Type>;
+        and not std::is_empty_v             <Type>
+        and not std::is_pointer_v           <Type>;
 
     template<address_like Addr> [[nodiscard]]
-    constexpr uptr addr_of( Addr base ) noexcept
+    constexpr uptr normalize_addr( Addr base ) noexcept
     {
         if constexpr ( std::is_pointer_v<Addr> )
-            return reinterpret_cast<uptr>(base);
+            return reinterpret_cast<uptr>( base );
+        else if constexpr ( std::same_as<std::remove_cvref_t<Addr>, va_t> )
+            return static_cast<uptr>( base.get() );
         else
-            return static_cast<uptr>(base);
+            return static_cast<uptr>( base );
     }
 }
+
 
 // IMPLEMENTATIONS -----------------------------------------------------------
 template< typename Type, typename Tag >
@@ -95,18 +95,33 @@ class stx::details::strong_type
             : value { _value }
         {}
 
-        constexpr value_type get() const noexcept {
-            return value;
-        }
-
         template<std::integral U>
         constexpr explicit strong_type( U v ) noexcept
             : value( static_cast<value_type>( v ) )
         {}
 
-        constexpr explicit operator value_type() const noexcept
-        {
-            return value;
+        template<typename Self>
+        [[nodiscard]] constexpr auto&& get( this Self&& self ) noexcept {
+            return std::forward<Self>( self ).value;
+        }
+
+        template<typename Self>
+        constexpr explicit operator Type( this Self&& self ) noexcept {
+            return std::forward<Self>( self ).value;
+        }
+
+        friend constexpr strong_type operator+( strong_type lhs, Type rhs ) noexcept {
+            lhs.value += rhs;
+            return lhs;
+        }
+
+        friend constexpr strong_type operator-( strong_type lhs, Type rhs ) noexcept {
+            lhs.value -= rhs;
+            return lhs;
+        }
+
+        friend constexpr Type operator-( strong_type lhs, strong_type rhs ) noexcept {
+            return lhs.value - rhs.value;
         }
 
         friend constexpr auto

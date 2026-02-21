@@ -1,40 +1,121 @@
 # STX - Systems Toolbelt for C++23
+> Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-STX is a low-level, header-only library designed for systems programming, binary analysis, and high-performance data manipulation. It leverages modern C++23 features to provide an expressive API without sacrificing C-style performance.
+**Version:** 1.0.0
+
+STX is a header-only C++23 library providing a rich set of low-level abstractions and utilities for systems programming, binary analysis, runtime instrumentation, and scripting at the OS/hardware interface. It emphasizes type safety, zero-overhead abstractions, and modern C++ idioms to enhance productivity in reverse engineering, red teaming, and tooling for binary formats.
+
+---
 
 ## Technical Specifications
-* **Standard:** C++23 (requires support for `std::to_underlying`, `std::is_constant_evaluated`, and related features).
-* **Architecture:** Header-only.
-* **Memory Management:** Optimized to eliminate unnecessary zero-initialization in temporary buffers.
+
+| Feature                  | Description |
+|---------------------------|------------|
+| Language Standard         | C++23 |
+| Header-only               | Yes |
+| Dependencies              | Standard library only |
+| Memory Management         | Optimized `dirty_vector` avoids unnecessary zero-initialization |
+| Target Domains            | Binary analysis, runtime patching, low-level tooling, scripting |
 
 ---
 
-## Modules and Features
+## Core Modules
 
-### 1. Memory (mem.hpp)
-Features the `dirty_vector<T>` container, a specialized `std::vector` utilizing a custom allocator (`vec_init_allocator`).
-* **dirty_vector<T>**: Unlike the standard implementation, this container performs default-initialization rather than value-initialization. This eliminates the CPU overhead of zero-filling memory when data is intended to be overwritten immediately upon allocation.
+### 1. Memory Utilities (`mem.hpp`)
 
-### 2. File System (fs.hpp)
-Provides a streamlined interface for binary I/O operations using `std::istream`.
-* **readfs<Type>(file, offset, dir)**: Reads a fixed-size structure from a specific file position.
-* **readfs<Type>(file, offset, count, dir)**: Reads multiple elements directly into a `dirty_vector<Type>`.
-* **setposfs(file, offset, dir)**: A `seekg` wrapper utilizing the `offset_t` type for improved type safety.
+Provides safe, low-level memory access and alignment primitives, along with a colored hexadecimal dump.
 
-### 3. Core and Types (core.hpp / fn.hpp)
-* **Type Aliases**: Fixed-width integer definitions (`u8`, `u32`, `i64`, `usize`, etc.).
-* **Casting**: Implementations of `scast`, `rcast`, and `ccast` as readable alternatives to traditional C++ casts.
-* **Concepts**: Definition of the `binary_readable` concept to restrict file operations to POD types and memory-contiguous structures.
+| Component | Description |
+|-----------|-------------|
+| `read<Type>(addr, offset)` | Copy-based memory read; safe for unaligned memory |
+| `read_raw<Type>(addr, offset)` | Direct dereference; requires alignment |
+| `write<Type>(addr, offset, value)` | Copy-based write |
+| `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
+| `align_up` / `align_down` | Aligns integral or strong types to power-of-two boundaries |
+| `dump(addr, size)` | Produces ANSI-colored memory hex dump for inspection |
 
-### 4. Utilities (time.hpp / range.hpp)
-* **to_time**: Converts 32-bit Win32/PE timestamps into readable `std::chrono` objects.
-* **range**: A sequence generator for simplified `for` loop iterations.
+Intended use:
+
+- Runtime patching
+- Memory inspection tools
+- Loader implementations
+- PE/ELF/Mach-O parsers
+- Reverse engineering utilities
 
 ---
 
-## Implementation Example: PE Header Parser
+### 2. File System Utilities (`fs.hpp`)
 
-The following example demonstrates how to integrate STX modules to process a Windows executable.
+Provides type-safe, binary-oriented file operations over `std::istream`.
+
+| Function | Description |
+|----------|-------------|
+| `readfs<Type>(file, offset, dir)` | Reads a single object from a stream |
+| `readfs<Type>(file, offset, count, dir)` | Reads multiple objects into `dirty_vector<Type>` |
+| `readfs<Type, Size>(file, offset, dir)` | Reads a fixed-size array |
+| `setposfs(file, offset, dir)` | Strongly-typed stream positioning |
+| `skipfs<Type>(file, offset)` | Moves stream forward by `offset` elements |
+| `last_read_ok(file)` | Checks stream state |
+
+Characteristics:
+
+- Enforces type and offset correctness
+- Explicit stream state management
+- Minimal runtime overhead
+- Binary parsing and structured file extraction
+
+---
+
+### 3. Function Abstractions (`fn.hpp`)
+
+Provides strongly-typed wrappers around arbitrary memory addresses for callable functions.
+
+| Component | Description |
+|-----------|-------------|
+| `caller_t<Sig>` | Wraps a function pointer with compile-time signature enforcement |
+| `operator()` | Invokes the function directly |
+| `operator bool` | Checks for null |
+| `caller<Sig>(addr)` | Factory to produce a `caller_t` from any `address_like` value |
+
+Intended use:
+
+- Manual symbol resolution
+- Dynamic loader hooks
+- Low-level instrumentation
+- JIT function invocation
+
+---
+
+### 4. Time Utilities (`time.hpp`)
+
+Provides portable UNIX time conversions and high-resolution stopwatch functionality.
+
+| Component | Description |
+|-----------|-------------|
+| `from_unix_seconds(u64)` | Converts seconds since epoch to `time_point` |
+| `from_unix_millis(u64)` | Converts milliseconds since epoch to `time_point` |
+| `to_unix_seconds(tp)` / `to_unix_millis(tp)` | Converts `time_point` to integer timestamps |
+| `unix_seconds_now()` / `unix_millis_now()` | Current UNIX time |
+| `stop_watch` | Measures elapsed time in various resolutions |
+
+---
+
+### 5. Ranges (`range.hpp`)
+
+Provides domain-safe, constexpr-friendly integer and strong-type ranges for iteration.
+
+| Feature | Description |
+|---------|------------|
+| Forward / backward iteration | Controlled by `range_dir` |
+| Inclusive / exclusive bounds | Controlled by `range_mode` |
+| Step values | Customizable for loops |
+| Strong type support | Iterates over `offset_t`, `rva_t`, etc., preserving type safety |
+
+---
+
+## Example Usage: Binary Section Reader
+
+This demonstration shows STX utilities for parsing a PE file section table.
 
 ```cpp
 #include <stx/stx.hpp>
@@ -47,48 +128,52 @@ auto main() -> int
     std::ifstream file { "target.dll", std::ios::binary };
     if ( not file.is_open() ) return EXIT_FAILURE;
 
-    // Read fixed-size headers
-    auto dos_header { readfs<IMAGE_DOS_HEADER  >( file ) };
-    auto nt_header  { readfs<IMAGE_NT_HEADERS64>( file, offset_t{ dos_header.e_lfanew }) };
+    // Read DOS and NT headers
+    auto dos  = readfs<IMAGE_DOS_HEADER  >(file);
+    auto nt   = readfs<IMAGE_NT_HEADERS64>(file, offset_t{dos.e_lfanew});
 
-    // Calculate aligned offset for the Section Table
-    auto sections_offset { offset_t { 0
-        + dos_header.e_lfanew
-        + sizeof( u32 )
-        + sizeof( IMAGE_FILE_HEADER )
-        + nt_header.FileHeader.SizeOfOptionalHeader
-    }};
+    // Calculate Section Table offset
+    auto sections_offset = offset_t{
+        dos.e_lfanew
+        + sizeof(u32)
+        + sizeof(IMAGE_FILE_HEADER)
+        + nt.FileHeader.SizeOfOptionalHeader
+    };
 
-    // Bulk read into an optimized buffer (zero-fill omitted)
-    auto sections { readfs<IMAGE_SECTION_HEADER>(
+    // Bulk read sections into optimized buffer
+    auto sections = readfs<IMAGE_SECTION_HEADER>(
         file,
         sections_offset,
-        nt_header.FileHeader.NumberOfSections
-    )};
+        nt.FileHeader.NumberOfSections
+    );
 
-    for ( const auto& section : sections ) {
-        println("Section: {}", section.get_name());
+    for (const auto& sec : sections) {
+        println("Section: {}", sec.get_name());
     }
 
     return EXIT_SUCCESS;
 }
 ```
 
+Demonstrates:
+
+- Type-safe file reading
+- `dirty_vector` bulk allocation
+- Offset arithmetic with `offset_t`
+- Strong-type safe iteration
+
 ---
 
-## Integration via CMake
+## Integration with CMake
 
-To include STX as an interface dependency in your project:
+### Standard
 
 ```cmake
-# CMakeLists.txt
 add_subdirectory(extern/stx)
-target_link_libraries( <target> PRIVATE stx::stx )
+target_link_libraries(<target> PRIVATE stx::stx)
 ```
 
-## Integration via CMake (FetchContent)
-
-For modern CMake projects, you can integrate **STX** directly from GitHub at configure time. This ensures you always have the correct version without managing manual dependencies.
+### FetchContent
 
 ```cmake
 include(FetchContent)
@@ -96,11 +181,19 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        main # Or a specific tag like v1.0.0
+    GIT_TAG        v1.0.0
 )
 
 FetchContent_MakeAvailable(stx)
-
-# Now link it to your target
 target_link_libraries(${PROJECT_NAME} PRIVATE stx::stx)
 ```
+
+---
+
+## Design Principles
+
+- Header-only, zero-runtime overhead abstractions
+- Strong typing for offsets, addresses, and function signatures
+- Explicit memory and file safety, no hidden side effects
+- C++23 constexpr-friendly, usable in compile-time contexts
+- Focused on low-level tooling, scripting, reverse engineering, and red-team operations

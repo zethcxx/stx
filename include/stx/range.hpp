@@ -1,152 +1,197 @@
 #pragma once
 
 #include "./core.hpp"
+#include <cassert>
 
 namespace stx
 {
     namespace details
     {
-        template<class Type>
-        concept range_integral
-            =       std::is_integral_v<Type>
-            and not std::is_same_v    <Type, bool>;
+        template<typename Type>
+        concept rangeable
+            =  std::integral<Type>
+            or requires( Type t ) {
+                typename Type::value_type;
+                { t.get() } -> std::integral;
+            };
+
+        template<typename T>
+        struct base_type { using type = T; };
+
+        template<typename T, typename Tag>
+        struct base_type<strong_type<T, Tag>> { using type = T; };
+
+        template<typename T>
+        using base_type_t = typename base_type<T>::type;
 
         struct range_sentinel {};
 
-        template<std::integral Type>
+        template<rangeable T>
         struct range_iter;
 
-        template<std::integral Type>
+        template<rangeable T>
         struct range_view;
+
+        template<typename T>
+        constexpr auto unwrap( T value ) noexcept
+        {
+            if constexpr ( std::integral<T> )
+                return static_cast<base_type_t<T>>( value );
+            else
+                return value.get();
+        }
     }
 
-    // RANGE IMPLEMENTATION ------------------------------------------------------
-    template<details::range_integral Type> [[nodiscard]]
-    constexpr auto range( Type to ) noexcept
-    {
-        using Flag = typename details::range_iter<Type>::Flag;
+    enum class range_dir: u8 {
+        Forward,
+        Backward
+    };
 
-        return details::range_view<Type>{
-            Type{ 0 },
-            to       ,
-            Type{ 1 },
-            Flag::Forward,
-            Flag::NonInclusive
+    enum class range_mode : u8
+    {
+        Inclusive,
+        Exclusive,
+    };
+
+    // RANGE IMPLEMENTATION ------------------------------------------------------
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range(
+        Type _to,
+        range_dir  dir,
+        range_mode flag = range_mode::Exclusive
+    ) noexcept {
+        using ValueT = details::base_type_t<Type>;
+        const ValueT to { details::unwrap( _to )};
+
+        return details::range_view<Type> {
+            ValueT{ 0 },
+            to         ,
+            details::base_type_t<Type>{ 1 },
+            dir,
+            flag
         };
     }
 
-    template<std::integral Type> [[nodiscard]]
-    constexpr auto range( Type from, Type to, Type step = 1 ) noexcept
-    {
-        if ( step == 0 )
-            step = 1;
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range(
+        Type      _from,
+        Type      _to  ,
+        details::base_type_t<Type> step,
+        range_dir dir  ,
+        range_mode flag = range_mode::Exclusive
+    ) noexcept {
+        using ValueT = details::base_type_t<Type>;
 
-        using Flag = typename details::range_iter<Type>::Flag;
+        const ValueT from { details::unwrap( _from ) };
+        const ValueT to   { details::unwrap( _to   ) };
 
         return details::range_view<Type> {
             from,
             to  ,
             step,
-            ( from <= to ) ? Flag::Forward : Flag::Backward,
-            Flag::NonInclusive
+            dir,
+            flag
         };
     }
 
-    template<std::integral Type> [[nodiscard]]
-    constexpr auto irange( Type from, Type to, Type step = 1 ) noexcept
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range(
+        Type      from,
+        Type      to  ,
+        range_dir dir ,
+        range_mode flag = range_mode::Exclusive
+    ) noexcept {
+        return range( from, to, details::base_type_t<Type>{ 1 }, dir, flag );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( Type from, Type to, details::base_type_t<Type> step, range_dir dir ) noexcept
     {
-        if ( step == 0 )
-            step = 1;
+        return range( from, to, step, dir, range_mode::Inclusive );
+    }
 
-        using Flag = typename details::range_iter<Type>::Flag;
-
-        return details::range_view<Type>{
-            from,
-            to  ,
-            step,
-            ( from <= to ) ? Flag::Forward : Flag::Backward,
-            Flag::Inclusive
-        };
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( Type to, range_dir dir ) noexcept
+    {
+        return range( to, dir, range_mode::Inclusive );
     }
 }
 
 // DETAILS IMPLEMENTATIONS ---------------------------------------------------
-template<std::integral Type>
+template<stx::details::rangeable Type>
 struct stx::details::range_iter
 {
-    enum class Flag : u8
+    using ValueT = base_type_t<Type>;
+
+    ValueT cur ;
+    ValueT end ;
+    ValueT step;
+
+    range_dir  dir ;
+    range_mode mode;
+
+    constexpr Type operator*() const noexcept
     {
-        Forward     ,
-        Backward    ,
-        Inclusive   ,
-        NonInclusive,
-    };
-
-    Type cur ;
-    Type end ;
-    Type step;
-
-    Flag direction;
-    Flag inclusive;
-
-    constexpr Type operator*() const noexcept {
-        return cur;
+        if constexpr ( std::integral<Type> )
+            return cur;
+        else
+            return Type { cur };
     }
 
     constexpr range_iter& operator++() noexcept
     {
-        if ( direction == Flag::Forward )
-            if ( cur > end || end - cur < step )
-                cur = end;
-            else
-                cur += step;
-
-        else // Backward
-            if ( cur < end || cur - end < step )
-                cur = end;
-            else
-                cur -= step;
+        if ( dir == range_dir::Forward )
+            cur += step;
+        else
+            cur -= step;
 
         return *this;
     }
 
-    constexpr bool operator!=( range_sentinel ) const noexcept
+    constexpr bool operator==( range_sentinel ) const noexcept
     {
-        if ( inclusive == Flag::Inclusive )
-            return ( direction == Flag::Forward )
-                ? cur <= end
-                : cur >= end;
-
-        else // NonInclusive
-            return cur != end;
+        if ( dir == range_dir::Forward )
+        {
+            if ( mode == range_mode::Inclusive )
+                return cur > end;
+            else
+                return cur >= end;
+        }
+        else // Backward
+        {
+            if ( mode == range_mode::Inclusive )
+                return cur < end;
+            else
+                return cur <= end;
+        }
     }
 };
 
-template<std::integral Type>
+template<stx::details::rangeable T>
 struct stx::details::range_view
 {
-    using iter_t = range_iter<Type>;
-    using Flag   = typename iter_t::Flag;
+    using ValueT = stx::details::base_type_t<T>;
+    using iter_t = stx::details::range_iter<T> ;
 
-    Type from;
-    Type to  ;
-    Type step;
+    ValueT from;
+    ValueT to  ;
+    ValueT step;
 
-    Flag direction;
-    Flag inclusive;
+    range_dir  dir ;
+    range_mode mode;
 
     constexpr auto begin() const noexcept
     {
         return iter_t {
-            from     ,
-            to       ,
-            step     ,
-            direction,
-            inclusive
+            from,
+            to  ,
+            step,
+            dir ,
+            mode
         };
     }
 
     constexpr auto end() const noexcept {
-        return range_sentinel{};
+        return stx::details::range_sentinel{};
     }
 };

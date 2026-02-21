@@ -13,19 +13,56 @@
 
 namespace stx
 {
+    template<class Type, address_like Addr>
+    [[nodiscard]] STX_FORCE_INLINE
+        Type read( Addr base, offset_t off = offset_t{ 0 } ) noexcept {
+        static_assert(std::is_trivially_copyable_v<Type>);
+
+        Type value;
+
+        std::memcpy(
+            &value,
+            rcast<const std::byte*>(normalize_addr(base)) + off.get(),
+            sizeof( Type )
+        );
+
+        return value;
+    }
+
     template<class Type>
     [[nodiscard]] STX_FORCE_INLINE
-    Type read( address_like auto base, usize off = 0 ) noexcept {
+    Type read_raw(address_like auto base,
+                offset_t off = offset_t{0}) noexcept
+    {
+        static_assert(std::is_trivially_copyable_v<Type>);
+
         return *rcast<Type*>(
-            rcast<std::byte*>( addr_of( base )) + off
+            rcast<std::byte*>(normalize_addr(base)) + off.get()
         );
     }
 
-    template< class Type>
+    template< class Type, address_like Addr >
     STX_FORCE_INLINE
-    void write( address_like auto base, usize off, Type value ) noexcept {
+    void write( Addr base, offset_t off, Type value ) noexcept {
+        static_assert(std::is_trivially_copyable_v<Type>);
+
+        std::memcpy(
+            rcast<std::byte*>(normalize_addr(base)) + off.get(),
+            &value,
+            sizeof(Type)
+        );
+    }
+
+    template<class Type>
+    STX_FORCE_INLINE
+    void write_raw(address_like auto base,
+                offset_t off,
+                Type value) noexcept
+    {
+        static_assert(std::is_trivially_copyable_v<Type>);
+
         *rcast<Type*>(
-            rcast<std::byte*>( addr_of( base )) + off
+            rcast<std::byte*>(normalize_addr(base)) + off.get()
         ) = value;
     }
 
@@ -59,6 +96,18 @@ namespace stx
         return value & ~( alignment - 1 );
     }
 
+    template<typename T, typename Tag>
+    [[nodiscard]] STX_FORCE_INLINE
+    constexpr auto align_up(details::strong_type<T, Tag> st, T alignment) noexcept {
+        return details::strong_type<T, Tag>{ align_up(st.get(), alignment) };
+    }
+
+    template<typename T, typename Tag>
+    [[nodiscard]] STX_FORCE_INLINE
+    constexpr auto align_down(details::strong_type<T, Tag> st, T alignment) noexcept {
+        return details::strong_type<T, Tag>{ align_down(st.get(), alignment) };
+    }
+
     [[gnu::no_sanitize("address")]]
     void dump( address_like auto base, usize size ) noexcept;
 }
@@ -80,13 +129,13 @@ void stx::dump( address_like auto base, usize limit ) noexcept
 
     constexpr auto hex_ptr =
     [][[nodiscard]]( u8 *out, uptr value ) noexcept {
-        static constexpr u32 WIDTH = sizeof( uptr ) * 2;
+        static constexpr i32 WIDTH { sizeof( uptr ) * 2 };
 
-        for (u32 i = WIDTH - 1; i >= 0; --i)
-        {
+        for (i32 i = scast<i32>( WIDTH ) - 1; i >= 0; --i) {
             out[i] = HEX_CHARS[value & 0xF];
             value >>= 4;
         }
+
         return out + WIDTH;
     };
 
@@ -120,6 +169,7 @@ void stx::dump( address_like auto base, usize limit ) noexcept
 
         // add color for the address
         std::memcpy( iter, COLOR_ADDR.data(), COLOR_ADDR.size() );
+        iter += COLOR_ADDR.size();
 
         // 0x + addr
         *iter++ = '0';
@@ -128,14 +178,14 @@ void stx::dump( address_like auto base, usize limit ) noexcept
         const auto addr { rcast<uptr>( mem ) + offset };
         iter = hex_ptr( iter, addr );
 
-        const auto line_bytes { std::min<usize>( BYTES_PER_LINE, limit - offset ) };
-
         // reset color
         std::memcpy( iter, COLOR_RESET.data(), COLOR_RESET.size());
         iter += COLOR_RESET.size();
 
         *iter++ = ':';
         *iter++ = ' ';
+
+        const auto line_bytes { std::min<usize>( BYTES_PER_LINE, limit - offset ) };
 
         for ( usize idx {}; idx < line_bytes; idx++ )
         {
