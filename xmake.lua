@@ -10,11 +10,11 @@ target("stx")
 
     set_languages("cxx23")
     add_headerfiles(
-        "include/stx/core.hpp" ,
-        "include/stx/fn.hpp"   ,
-        "include/stx/fs.hpp"   ,
-        "include/stx/mem.hpp"  ,
-        "include/stx/range.hpp",
-        "include/stx/stx.hpp"  ,
-        "include/stx/time.hpp"
+        "include/(stx/core.hpp)" ,
+        "include/(stx/fn.hpp)"   ,
+        "include/(stx/fs.hpp)"   ,
+        "include/(stx/mem.hpp)"  ,
+        "include/(stx/range.hpp)",
+        "include/(stx/stx.hpp)"  ,
+        "include/(stx/time.hpp)"
     )

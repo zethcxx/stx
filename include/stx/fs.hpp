@@ -5,6 +5,7 @@
 #include <istream>
 #include <utility>
 #include <vector>
+#include <span>
 
 namespace stx
 {
