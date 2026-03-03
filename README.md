@@ -187,6 +187,24 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(stx)
 target_link_libraries(${PROJECT_NAME} PRIVATE stx::stx)
 ```
+### Xmake
+Since this library is not yet available on **xrepo**, you can use this quick workaround in your `xmake.lua`:
+
+```lua
+package("zethcxx.stx")
+    set_kind("library", { headeronly = true })
+    set_urls("https://github.com/zethcxx/stx.git")
+    add_versions("v1.0.0", "84b61b8d2fa93b857dc9c08ea571b304dfc1a252")
+
+    on_install( function( package )
+        import( "package.tools.xmake" ).install( package )
+    end)
+package_end()
+
+add_requires("zethcxx.stx v1.0.0", { alias = "zethcxx::stx" })
+
+-- use: add_packages("zethcxx::stx")
+```
 
 ---
 
