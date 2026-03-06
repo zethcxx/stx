@@ -11,7 +11,7 @@
     #define STX_FORCE_INLINE inline
 #endif
 
-namespace stx
+namespace lbyte::stx
 {
     template<class Type, address_like Addr>
     [[nodiscard]] STX_FORCE_INLINE
@@ -116,7 +116,7 @@ namespace stx
 
 
 // NOLINTBEGIN(*)
-void stx::dump( address_like auto base, usize limit ) noexcept
+void lbyte::stx::dump( address_like auto base, usize limit ) noexcept
 {
     constexpr u8 HEX_CHARS[]{ "0123456789abcdef" };
 

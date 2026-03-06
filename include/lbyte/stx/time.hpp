@@ -3,7 +3,7 @@
 #include "./core.hpp"
 #include <chrono>
 
-namespace stx
+namespace lbyte::stx
 {
     using sys_clock = std::chrono::system_clock;
     using hr_clock  = std::chrono::high_resolution_clock;

@@ -6,10 +6,10 @@
 #include <type_traits>
 #include <utility>
 
-namespace stx
+namespace lbyte::stx
 {
     struct version_info { int major, minor, patch; };
-    inline constexpr version_info version { 1, 0, 0 };
+    inline constexpr version_info version { 2, 0, 0 };
 
     namespace details
     {
@@ -84,7 +84,7 @@ namespace stx
 
 // IMPLEMENTATIONS -----------------------------------------------------------
 template< typename Type, typename Tag >
-class stx::details::strong_type
+class lbyte::stx::details::strong_type
 {
     public:
         using value_type = Type;
