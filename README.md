@@ -251,6 +251,7 @@ add_requires( "zethcxx.stx v2.0.0"
 -- using this in the target:
 -- add_packages("zethcxx.stx")
 -- set_policy("build.c++.modules", true)
+-- set_policy("build.c++.modules.std", false) -- if you have errors with std
 ```
 
 ## Troubleshooting
