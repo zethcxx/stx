@@ -1,7 +1,7 @@
 #pragma once
 #include "core.hpp"
 
-namespace stx
+namespace lbyte::stx
 {
     template<class Sig>
     struct caller_t;

@@ -1,7 +1,7 @@
 # STX - Systems Toolbelt for C++23
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 1.0.0
+**Version:** 2.0.0
 
 STX is a header-only C++23 library providing a rich set of low-level abstractions and utilities for systems programming, binary analysis, runtime instrumentation, and scripting at the OS/hardware interface. It emphasizes type safety, zero-overhead abstractions, and modern C++ idioms to enhance productivity in reverse engineering, red teaming, and tooling for binary formats.
 
@@ -13,6 +13,7 @@ STX is a header-only C++23 library providing a rich set of low-level abstraction
 |---------------------------|------------|
 | Language Standard         | C++23 |
 | Header-only               | Yes |
+| C++ Modules               | Yes |
 | Dependencies              | Standard library only |
 | Memory Management         | Optimized `dirty_vector` avoids unnecessary zero-initialization |
 | Target Domains            | Binary analysis, runtime patching, low-level tooling, scripting |
@@ -118,7 +119,8 @@ Provides domain-safe, constexpr-friendly integer and strong-type ranges for iter
 This demonstration shows STX utilities for parsing a PE file section table.
 
 ```cpp
-#include <stx/stx.hpp>
+// also <lbyte/stx/core.hpp>
+#include <lbyte/stx.hpp> // or import lbyte.stx if using modules
 #include <fstream>
 
 using namespace stx;
@@ -166,11 +168,19 @@ Demonstrates:
 
 ## Integration with CMake
 
+>[!IMPORTANT]
+> C++ Modules Requirements: Using modules requires CMake 3.28+ and a compatible compiler (Clang 16+, GCC 14+, or MSVC 19.34+).
+
 ### Standard
 
 ```cmake
 add_subdirectory(extern/stx)
-target_link_libraries(<target> PRIVATE stx::stx)
+
+# Option B: Enable C++23 Modules
+# set(STX_USE_MODULES ON CACHE BOOL "" FORCE)
+# add_subdirectory(extern/stx)
+
+target_link_libraries(<target> PRIVATE lbyte::stx)
 ```
 
 ### FetchContent
@@ -181,12 +191,18 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v1.0.0
+    GIT_TAG        v2.0.0
 )
 
+# To use modules with FetchContent:
+# set(STX_USE_MODULES ON CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(stx)
-target_link_libraries(${PROJECT_NAME} PRIVATE stx::stx)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE lbyte::stx)
 ```
+
+
 ### Xmake
 Since this library is not yet available on **xrepo**, you can use this quick workaround in your `xmake.lua`:
 
@@ -194,16 +210,60 @@ Since this library is not yet available on **xrepo**, you can use this quick wor
 package("zethcxx.stx")
     set_kind("library", { headeronly = true })
     set_urls("https://github.com/zethcxx/stx.git")
-    add_versions("v1.0.0", "84b61b8d2fa93b857dc9c08ea571b304dfc1a252")
+
+    add_versions( "v1.0.0", "v1.0.0" ) -- Or hash
+    add_versions( "v2.0.0", "v2.0.0" )
+
+    add_configs( "use_modules", {
+        builtin = false,
+        default = false,
+        type    = "boolean",
+        description = "Use C++ Modules"
+    })
 
     on_install( function( package )
-        import( "package.tools.xmake" ).install( package )
+        local configs = {}
+
+        if package:config( "use_modules" ) then
+            configs.use_modules = true
+        end
+
+        import("package.tools.xmake").install( package, configs )
+    end)
+
+    on_load( function( package )
+        package:add("includedirs", "include")
+
+        if package:config("use_modules") then
+            package:add("cxxmodules", "modules/stx/*.cppm")
+        end
+    end)
+
+    on_test( function (package)
+        package:check_cxxsnippets({ test = "import lbyte.stx; int main() { return 0; }"}, { configs = { languages = "c++23" }})
     end)
 package_end()
 
-add_requires("zethcxx.stx v1.0.0", { alias = "zethcxx::stx" })
+add_requires( "zethcxx.stx v2.0.0"
+    -- , { configs = { use_modules = true }} -- if modules is required
+)
 
--- use: add_packages("zethcxx::stx")
+-- using this in the target:
+-- add_packages("zethcxx.stx")
+-- set_policy("build.c++.modules", true)
+```
+
+## Troubleshooting
+
+### Missing Clang Resource Headers
+When using C++ Modules with Clang, you might encounter errors like `fatal error: 'stddef.h' file not found` or missing `__stddef_max_align_t.h`. This happens when the compiler cannot locate its internal resource directory.
+
+#### Quick Fix (Shell)
+Export the resource path to your environment:
+
+```bash
+# For Clang 21 (Adjust version if necessary)
+export CPLUS_INCLUDE_PATH="/usr/lib/clang/21/include/":$CPLUS_INCLUDE_PATH
 ```
 
 ---

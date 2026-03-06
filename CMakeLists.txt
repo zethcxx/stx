@@ -1,25 +1,51 @@
-cmake_minimum_required( VERSION 3.15 )
+cmake_minimum_required(VERSION 3.28)
+
 project( stx
-    VERSION 1.0.0
+    VERSION 2.0.0
     LANGUAGES CXX
     DESCRIPTION "Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research."
 )
 
-add_library( stx INTERFACE )
-add_library( stx::stx ALIAS stx )
+option( LBYTE_STX_USE_MODULES "Enable C++20 modules support" OFF )
 
-target_compile_features( stx INTERFACE cxx_std_23)
+if ( LBYTE_STX_USE_MODULES )
+    add_library( stx STATIC )
+    target_compile_features( stx PUBLIC cxx_std_23 )
 
-target_include_directories( stx INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+    target_sources( stx
+    PUBLIC
+        FILE_SET CXX_MODULES
+        TYPE CXX_MODULES
+        BASE_DIRS modules/stx
+        FILES
+            modules/stx/core.cppm
+            modules/stx/mem.cppm
+            modules/stx/time.cppm
+            modules/stx/stx.cppm
+    )
+else()
+    add_library(stx INTERFACE)
+    target_compile_features(stx INTERFACE cxx_std_23)
+endif()
+
+add_library(lbyte::stx ALIAS stx)
+
+target_include_directories(stx
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
 )
 
-install( DIRECTORY include/ DESTINATION include )
 
-install( TARGETS stx EXPORT stxTargets )
-install( EXPORT stxTargets
-    FILE stxConfig.cmake
-    NAMESPACE stx::
-    DESTINATION lib/cmake/stx
+install(TARGETS stx
+    EXPORT stxTargets
+
+    CXX_MODULES_SET CXX_MODULES DESTINATION lib/stx/modules
+    INCLUDES DESTINATION include
+)
+
+install(EXPORT stxTargets
+    FILE lbyte-stx-config.cmake
+    NAMESPACE lbyte::
+    DESTINATION lib/cmake/lbyte-stx
 )

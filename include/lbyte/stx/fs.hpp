@@ -7,7 +7,7 @@
 #include <vector>
 #include <span>
 
-namespace stx
+namespace lbyte::stx
 {
     namespace details
     {

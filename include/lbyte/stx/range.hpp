@@ -3,7 +3,7 @@
 #include "./core.hpp"
 #include <cassert>
 
-namespace stx
+namespace lbyte::stx
 {
     namespace details
     {
@@ -118,8 +118,8 @@ namespace stx
 }
 
 // DETAILS IMPLEMENTATIONS ---------------------------------------------------
-template<stx::details::rangeable Type>
-struct stx::details::range_iter
+template<lbyte::stx::details::rangeable Type>
+struct lbyte::stx::details::range_iter
 {
     using ValueT = base_type_t<Type>;
 
@@ -167,8 +167,8 @@ struct stx::details::range_iter
     }
 };
 
-template<stx::details::rangeable T>
-struct stx::details::range_view
+template<lbyte::stx::details::rangeable T>
+struct lbyte::stx::details::range_view
 {
     using ValueT = stx::details::base_type_t<T>;
     using iter_t = stx::details::range_iter<T> ;
