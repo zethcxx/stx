@@ -123,7 +123,7 @@ This demonstration shows STX utilities for parsing a PE file section table.
 #include <lbyte/stx.hpp> // or import lbyte.stx if using modules
 #include <fstream>
 
-using namespace stx;
+using namespace lbyte::stx;
 
 auto main() -> int
 {
