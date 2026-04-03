@@ -72,7 +72,7 @@ namespace lbyte::stx
         std::span<Type> out_buffer
     ) {
         file.read(
-            rcast<char*>( out_buffer ),
+            rcast<char*>( std::data( out_buffer )),
             scast<std::streamsize>( sizeof( Type ) * out_buffer.size() )
         );
     }
@@ -86,8 +86,6 @@ namespace lbyte::stx
         const origin   dir   = origin::begin
     ) {
         dirty_vector<Type> vec( count );
-
-        setposfs( file, offset, dir );
         readfs  ( file, std::span{ vec });
 
         return vec;
