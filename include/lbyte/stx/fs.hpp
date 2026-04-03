@@ -69,8 +69,11 @@ namespace lbyte::stx
     template<binary_readable Type> inline
     void readfs(
         std::istream& file,
-        std::span<Type> out_buffer
+        std::span<std::type_identity_t<Type>> out_buffer,
+        const offset_t offset,
+        const origin dir = origin::begin
     ) {
+        setposfs( file, offset, dir );
         file.read(
             rcast<char*>( std::data( out_buffer )),
             scast<std::streamsize>( sizeof( Type ) * out_buffer.size() )
@@ -86,7 +89,7 @@ namespace lbyte::stx
         const origin   dir   = origin::begin
     ) {
         dirty_vector<Type> vec( count );
-        readfs  ( file, std::span{ vec });
+        readfs<Type>( file, vec, offset, dir );
 
         return vec;
     }
@@ -101,12 +104,7 @@ namespace lbyte::stx
     ) {
         std::array< Type, Size > arr;
 
-        setposfs( file, offset, dir );
-        file.read (
-            rcast<char*>( arr.data()),
-            scast<std::streamsize>( sizeof( Type ) * Size )
-        );
-
+        readfs<Type>( file, arr, offset, dir );
         return arr;
     }
 
