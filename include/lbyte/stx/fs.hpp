@@ -87,8 +87,8 @@ namespace lbyte::stx
     ) {
         dirty_vector<Type> vec( count );
 
-        setposfs( file, offset    , dir   );
-        readfs  ( file, vec.data(), count );
+        setposfs( file, offset, dir );
+        readfs  ( file, std::span{ vec });
 
         return vec;
     }
