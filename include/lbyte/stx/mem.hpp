@@ -13,6 +13,36 @@
 
 namespace lbyte::stx
 {
+    template<class Type>
+    STX_FORCE_INLINE
+    Type rcast( auto value ) noexcept {
+        return reinterpret_cast<Type>( value );
+    }
+
+    template<class Type>
+    STX_FORCE_INLINE
+    constexpr Type scast( auto value ) noexcept {
+        return static_cast<Type>( value );
+    }
+
+    template<typename To, typename From>
+    [[nodiscard]] STX_FORCE_INLINE
+    constexpr To bcast( const From& from ) noexcept {
+        return std::bit_cast<To>( from );
+    }
+
+    template<class Type>
+    STX_FORCE_INLINE
+    constexpr Type ccast( auto value ) noexcept {
+        return const_cast<Type>( value );
+    }
+
+    template<class Type>
+    STX_FORCE_INLINE
+    Type dcast( auto value ) noexcept {
+        return dynamic_cast<Type>( value );
+    }
+
     template<class Type, address_like Addr>
     [[nodiscard]] STX_FORCE_INLINE
         Type read( Addr base, offset_t off = offset_t{ 0 } ) noexcept {
@@ -66,23 +96,6 @@ namespace lbyte::stx
         ) = value;
     }
 
-    template<class Type>
-    STX_FORCE_INLINE
-    Type rcast( auto value ) noexcept {
-        return reinterpret_cast<Type>( value );
-    }
-
-    template<class Type>
-    STX_FORCE_INLINE
-    constexpr Type scast( auto value ) noexcept {
-        return static_cast<Type>( value );
-    }
-
-    template<typename To, typename From>
-    [[nodiscard]] STX_FORCE_INLINE
-    constexpr To bcast( const From& from ) noexcept {
-        return std::bit_cast<To>( from );
-    }
 
     template<std::unsigned_integral T>
     [[nodiscard]] STX_FORCE_INLINE
