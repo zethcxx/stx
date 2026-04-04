@@ -39,7 +39,7 @@ namespace lbyte::stx
 
     inline void setposfs(
         std::istream& file,
-        const offset_t offset,
+        const off_t offset,
         const origin dir = origin::begin
     ) {
         file.seekg(
@@ -51,7 +51,7 @@ namespace lbyte::stx
     template<binary_readable Type> [[nodiscard]]
     Type readfs(
         std::istream& file,
-        const offset_t offset = offset_t {},
+        const off_t offset = off_t {},
         const origin dir = origin::begin
     ) {
         Type value;
@@ -70,7 +70,7 @@ namespace lbyte::stx
     void readfs(
         std::istream& file,
         std::span<std::type_identity_t<Type>> out_buffer,
-        const offset_t offset,
+        const off_t offset,
         const origin dir = origin::begin
     ) {
         setposfs( file, offset, dir );
@@ -84,7 +84,7 @@ namespace lbyte::stx
     template<binary_readable Type = u8> [[nodiscard]]
     dirty_vector<Type> readfs(
         std::istream&  file  ,
-        const offset_t offset,
+        const off_t offset,
         const usize    count ,
         const origin   dir   = origin::begin
     ) {
@@ -99,7 +99,7 @@ namespace lbyte::stx
     requires ( Size > 0 ) [[nodiscard]]
     std::array<Type, Size> readfs(
         std::istream& file  ,
-        const offset_t offset,
+        const off_t offset,
         const origin dir = origin::begin
     ) {
         std::array< Type, Size > arr;
@@ -111,7 +111,7 @@ namespace lbyte::stx
     template<binary_readable Type = std::byte> inline
     void skipfs(
         std::istream& file,
-        const offset_t offset
+        const off_t offset
     ) {
         setposfs( file, offset, origin::current );
     }

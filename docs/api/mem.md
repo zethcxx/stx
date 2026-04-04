@@ -41,7 +41,7 @@ Used to ensure minimal abstraction overhead in critical paths.
 ```cpp
 template<class Type, address_like Addr>
 [[nodiscard]] STX_FORCE_INLINE
-Type read(Addr base, offset_t off = offset_t{0}) noexcept;
+Type read(Addr base, off_t off = offset_t{0}) noexcept;
 ```
 
 ### Semantics
@@ -69,7 +69,7 @@ Type read(Addr base, offset_t off = offset_t{0}) noexcept;
 template<class Type>
 [[nodiscard]] STX_FORCE_INLINE
 Type read_raw(address_like auto base,
-              offset_t off = offset_t{0}) noexcept;
+              off_t off = offset_t{0}) noexcept;
 ```
 
 ### Semantics
@@ -97,7 +97,7 @@ Type read_raw(address_like auto base,
 ```cpp
 template<class Type, address_like Addr>
 STX_FORCE_INLINE
-void write(Addr base, offset_t off, Type value) noexcept;
+void write(Addr base, off_t off, Type value) noexcept;
 ```
 
 ### Semantics
@@ -115,7 +115,7 @@ void write(Addr base, offset_t off, Type value) noexcept;
 template<class Type>
 STX_FORCE_INLINE
 void write_raw(address_like auto base,
-               offset_t off,
+               off_t off,
                Type value) noexcept;
 ```
 
@@ -338,7 +338,7 @@ stx::write<stx::u32>(base, stx::offset_t{0x300}, 0xDEADBEEF);
 ## Alignment
 
 ```cpp
-stx::offset_t off{123};
+stx::off_t off{123};
 auto aligned = stx::align_up(off, 16);
 ```
 
