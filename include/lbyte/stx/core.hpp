@@ -42,9 +42,9 @@ namespace lbyte::stx
     using iptr  = std::intptr_t ;
 
     // STRONG TYPES --------------------------------------------------------------
-    using offset_t = details::strong_type<usize, details::offset_tag>;
-    using rva_t    = details::strong_type<u32  , details::rva_tag        >;
-    using va_t     = details::strong_type<uptr , details::va_tag         >;
+    using off_t = details::strong_type<usize, details::offset_tag>;
+    using rva_t = details::strong_type<u32  , details::rva_tag   >;
+    using va_t  = details::strong_type<uptr , details::va_tag    >;
 
     // ALTERNATIVE TO SEEKDIR ----------------------------------------------------
     enum class origin : u8
