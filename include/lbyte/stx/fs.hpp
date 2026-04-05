@@ -51,7 +51,7 @@ namespace lbyte::stx
     template<binary_readable Type> [[nodiscard]]
     Type readfs(
         std::istream& file,
-        const off_t offset = off_t {},
+        const off_t offset = off_v<0>,
         const origin dir = origin::begin
     ) {
         Type value;
