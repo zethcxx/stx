@@ -5,14 +5,11 @@
 
 namespace lbyte::stx
 {
+    // CLOCK ALIASES -------------------------------------------------------------
     using sys_clock = std::chrono::system_clock;
     using hr_clock  = std::chrono::high_resolution_clock;
 
-    // -------------------------------------------------------------------------
-    // UNIX TIME UTILITIES (UTC)
-    // Epoch: 1970-01-01 00:00:00 UTC
-    // -------------------------------------------------------------------------
-
+    // UNIX TIME UTILITIES ------------------------------------------------------
     [[nodiscard]] inline constexpr sys_clock::time_point
     from_unix_seconds(u64 seconds) noexcept
     {
@@ -61,10 +58,7 @@ namespace lbyte::stx
         return to_unix_millis(sys_clock::now());
     }
 
-    // -------------------------------------------------------------------------
-    // STOP WATCH (High Resolution Clock)
-    // -------------------------------------------------------------------------
-
+    // STOP WATCH ----------------------------------------------------------------
     struct stop_watch
     {
         hr_clock::time_point start_point{ hr_clock::now() };
@@ -72,7 +66,7 @@ namespace lbyte::stx
         template<class Duration = std::chrono::milliseconds>
         [[nodiscard]] inline u64 elapsed() const noexcept
         {
-            return scast<u64>(
+            return static_cast<u64>(
                 std::chrono::duration_cast<Duration>(
                     hr_clock::now() - start_point
                 ).count()

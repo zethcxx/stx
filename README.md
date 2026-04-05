@@ -24,7 +24,7 @@ STX is a header-only C++23 library providing a rich set of low-level abstraction
 
 ### 1. Memory Utilities (`mem.hpp`)
 
-Provides safe, low-level memory access and alignment primitives, along with a colored hexadecimal dump.
+Provides safe, low-level memory access and alignment primitives.
 
 | Component | Description |
 |-----------|-------------|
@@ -33,7 +33,8 @@ Provides safe, low-level memory access and alignment primitives, along with a co
 | `write<Type>(addr, offset, value)` | Copy-based write |
 | `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
 | `align_up` / `align_down` | Aligns integral or strong types to power-of-two boundaries |
-| `dump(addr, size)` | Produces ANSI-colored memory hex dump for inspection |
+
+> **Note:** The hex dump utility (`dump`) is provided in a separate header (`dump.hpp`) to avoid pulling in `std::println` when not needed.
 
 Intended use:
 
@@ -110,7 +111,28 @@ Provides domain-safe, constexpr-friendly integer and strong-type ranges for iter
 | Forward / backward iteration | Controlled by `range_dir` |
 | Inclusive / exclusive bounds | Controlled by `range_mode` |
 | Step values | Customizable for loops |
-| Strong type support | Iterates over `offset_t`, `rva_t`, etc., preserving type safety |
+| Strong type support | Iterates over `off_s`, `rva_s`, etc., preserving type safety |
+
+---
+
+### 6. Hex Dump (`dump.hpp`)
+
+> [!NOTE]
+> This module is optional and must be included separately.
+
+Provides a colored hexadecimal memory dump for inspection.
+
+| Component | Description |
+|-----------|-------------|
+| `dump(addr, size)` | Produces ANSI-colored memory hex dump for inspection |
+
+Usage:
+
+```cpp
+#include <lbyte/stx/dump.hpp>
+
+dump(base, 128);
+```
 
 ---
 
@@ -132,10 +154,10 @@ auto main() -> int
 
     // Read DOS and NT headers
     auto dos  = readfs<IMAGE_DOS_HEADER  >(file);
-    auto nt   = readfs<IMAGE_NT_HEADERS64>(file, offset_t{dos.e_lfanew});
+    auto nt   = readfs<IMAGE_NT_HEADERS64>(file, off_s{dos.e_lfanew});
 
     // Calculate Section Table offset
-    auto sections_offset = offset_t{
+    auto sections_offset = off_s{
         dos.e_lfanew
         + sizeof(u32)
         + sizeof(IMAGE_FILE_HEADER)
@@ -161,7 +183,7 @@ Demonstrates:
 
 - Type-safe file reading
 - `dirty_vector` bulk allocation
-- Offset arithmetic with `offset_t`
+- Offset arithmetic with `off_s`
 - Strong-type safe iteration
 
 ---
@@ -276,3 +298,4 @@ export CPLUS_INCLUDE_PATH="/usr/lib/clang/21/include/":$CPLUS_INCLUDE_PATH
 - Explicit memory and file safety, no hidden side effects
 - C++23 constexpr-friendly, usable in compile-time contexts
 - Focused on low-level tooling, scripting, reverse engineering, and red-team operations
+
