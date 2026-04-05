@@ -29,15 +29,14 @@ export namespace lbyte::stx
     using ::lbyte::stx::version;
     using ::lbyte::stx::origin;
     using ::lbyte::stx::off_s;
-    using ::lbyte::stx::rva_t;
-    using ::lbyte::stx::va_t;
+    using ::lbyte::stx::rva_s;
+    using ::lbyte::stx::va_s;
 
     using ::lbyte::stx::address_like;
     using ::lbyte::stx::binary_readable;
 
     using ::lbyte::stx::normalize_addr;
 
-    using ::lbyte::stx::off_v;
-    using ::lbyte::stx::rva_v;
     using ::lbyte::stx::gap_v;
+    using ::lbyte::stx::gap_align_v;
 }

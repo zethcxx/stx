@@ -3,6 +3,7 @@
 
 namespace lbyte::stx
 {
+    // CALLER --------------------------------------------------------------------
     template<class Sig>
     struct caller_t;
 

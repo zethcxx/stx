@@ -5,7 +5,7 @@
 `fs.hpp` provides binary-oriented utilities over `std::istream`, designed for structured file parsing under C++23. It builds on:
 
 - `binary_readable`
-- `offset_t`
+- `off_s`
 - `origin`
 - Strong typing from `core.hpp`
 
@@ -95,7 +95,7 @@ Sets the read position of a stream using strong-typed offset and custom origin e
 
 Internally converts:
 
-- `offset_t` → `std::streamoff`
+- `off_s` → `std::streamoff`
 - `origin` → `std::ios_base::seekdir`
 
 ### Example
@@ -103,26 +103,26 @@ Internally converts:
 ```cpp
 std::ifstream file("data.bin", std::ios::binary);
 
-stx::setposfs(file, stx::offset_t{128});
+stx::setposfs(file, stx::off_s{128});
 ```
 
 Move relative to current position:
 
 ```cpp
-stx::setposfs(file, stx::offset_t{32}, stx::origin::current);
+stx::setposfs(file, stx::off_s{32}, stx::origin::current);
 ```
 
 ---
 
 # Reading Single Object
 
-## `readfs<Type>(istream&, offset_t, origin)`
+## `readfs<Type>(istream&, off_s, origin)`
 
 ```cpp
 template<binary_readable Type>
 Type readfs(
     std::istream& file,
-    const off_s offset = offset_t{},
+    const off_s offset = off_s{},
     const origin dir = origin::begin
 );
 ```
@@ -144,7 +144,7 @@ struct header {
 
 static_assert(stx::binary_readable<header>);
 
-header h = stx::readfs<header>(file, stx::offset_t{0});
+header h = stx::readfs<header>(file, stx::off_s{0});
 ```
 
 ---
@@ -177,7 +177,7 @@ stx::readfs(file, std::span{arr});
 
 # Reading Into `dirty_vector`
 
-## `readfs<Type>(istream&, offset_t, usize, origin)`
+## `readfs<Type>(istream&, off_s, usize, origin)`
 
 ```cpp
 template<binary_readable Type = u8>
@@ -199,16 +199,16 @@ dirty_vector<Type> readfs(
 ### Example
 
 ```cpp
-auto bytes = stx::readfs<>(file, stx::offset_t{0}, 256);
+auto bytes = stx::readfs<>(file, stx::off_s{0}, 256);
 
-auto words = stx::readfs<stx::u16>(file, stx::offset_t{128}, 64);
+auto words = stx::readfs<stx::u16>(file, stx::off_s{128}, 64);
 ```
 
 ---
 
 # Reading Fixed-Size Array
 
-## `readfs<Type, Size>(istream&, offset_t, origin)`
+## `readfs<Type, Size>(istream&, off_s, origin)`
 
 ```cpp
 template<binary_readable Type, usize Size>
@@ -226,7 +226,7 @@ Constraint:
 ### Example
 
 ```cpp
-auto block = stx::readfs<stx::u8, 64>(file, stx::offset_t{0});
+auto block = stx::readfs<stx::u8, 64>(file, stx::off_s{0});
 ```
 
 ---
@@ -256,7 +256,7 @@ seekg(offset, std::ios::cur)
 ### Example
 
 ```cpp
-stx::skipfs(file, stx::offset_t{32});
+stx::skipfs(file, stx::off_s{32});
 ```
 
 ---
@@ -292,7 +292,7 @@ if (!stx::last_read_ok(file)) {
 | Aspect                     | Guarantee |
 |----------------------------|----------|
 | Type safety                | Enforced via `binary_readable` |
-| Offset correctness         | Enforced via `offset_t` |
+| Offset correctness         | Enforced via `off_s` |
 | No implicit domain mixing  | Yes |
 | Bounds checking            | No |
 | Endianness handling        | Not provided |

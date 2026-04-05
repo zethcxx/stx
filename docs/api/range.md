@@ -16,7 +16,7 @@ It supports:
 The design enables domain-safe iteration over:
 
 - Raw integral values
-- `stx::strong_type` wrappers (e.g., `offset_t`, `rva_t`)
+- `stx::strong_type` wrappers (e.g., `off_s`, `rav_s`)
 
 ---
 
@@ -65,8 +65,8 @@ For example:
 | Type         | `base_type_t<Type>` |
 |--------------|---------------------|
 | `u32`        | `u32`               |
-| `offset_t`   | `usize`             |
-| `rva_t`      | `u32`               |
+| `offset_s`   | `usize`             |
+| `rav_s`      | `u32`               |
 
 ---
 
@@ -342,12 +342,12 @@ for (auto i : stx::range(0, 20, 4, stx::range_dir::Forward))
 
 ```cpp
 for (auto off : stx::range(
-        stx::offset_t{0},
-        stx::offset_t{64},
+        stx::off_s{0},
+        stx::off_s{64},
         8,
         stx::range_dir::Forward))
 {
-    // off is offset_t
+    // off is off_s
 }
 ```
 

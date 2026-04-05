@@ -21,6 +21,10 @@ if ( LBYTE_STX_USE_MODULES )
             modules/stx/core.cppm
             modules/stx/mem.cppm
             modules/stx/time.cppm
+            modules/stx/fn.cppm
+            modules/stx/range.cppm
+            modules/stx/fs.cppm
+            modules/stx/dump.cppm
             modules/stx/stx.cppm
     )
 else()

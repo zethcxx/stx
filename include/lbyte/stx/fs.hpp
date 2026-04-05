@@ -9,6 +9,7 @@
 
 namespace lbyte::stx
 {
+    // ALLOCATOR ----------------------------------------------------------------
     namespace details
     {
         template<typename T, typename Allocator = std::allocator<T>>
@@ -34,9 +35,11 @@ namespace lbyte::stx
         };
     }
 
+    // DIRTY VECTOR --------------------------------------------------------------
     template<binary_readable Type = u8>
     using dirty_vector = std::vector<Type, details::vec_init_allocator<Type>>;
 
+    // FILE STREAM UTILITIES ----------------------------------------------------
     inline void setposfs(
         std::istream& file,
         const off_s offset,
@@ -51,7 +54,7 @@ namespace lbyte::stx
     template<binary_readable Type> [[nodiscard]]
     Type readfs(
         std::istream& file,
-        const off_s offset = off_v<0>,
+        const off_s offset = off_s{0},
         const origin dir = origin::begin
     ) {
         Type value;
@@ -99,7 +102,7 @@ namespace lbyte::stx
     requires ( Size > 0 ) [[nodiscard]]
     std::array<Type, Size> readfs(
         std::istream& file  ,
-        const off_s offset,
+        const off_s offset = off_s{0},
         const origin dir = origin::begin
     ) {
         std::array< Type, Size > arr;
@@ -116,7 +119,8 @@ namespace lbyte::stx
         setposfs( file, offset, origin::current );
     }
 
+    // STATUS -------------------------------------------------------------------
     inline bool last_read_ok( const std::istream& file ) noexcept {
-        return file.good() and not file.eof();
+        return not file.fail();
     }
 }

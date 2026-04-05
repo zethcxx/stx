@@ -21,11 +21,11 @@ The design emphasizes type safety, ABI clarity, and compile-time validation usin
 | Symbol        | Type          | Description                          |
 |--------------|--------------|--------------------------------------|
 | `version_info` | struct        | Semantic version container           |
-| `version`      | `constexpr`   | Current library version (`1.0.0`)    |
+| `version`      | `constexpr`   | Current library version (`2.0.0`)    |
 
 ```cpp
 struct version_info { int major, minor, patch; };
-inline constexpr version_info version { 1, 0, 0 };
+inline constexpr version_info version { 2, 0, 0 };
 ```
 
 ---
@@ -84,11 +84,13 @@ struct va_tag     {};
 
 ### Public Aliases
 
-| Alias       | Underlying Type | Semantic Meaning                |
-|------------|-----------------|---------------------------------|
-| `offset_t` | `usize`         | offset                         |
-| `rva_t`    | `u32`           | Relative virtual address       |
-| `va_t`     | `uptr`          | Absolute virtual address       |
+| Alias      | Underlying Type | Semantic Meaning                |
+|----------- |-----------------|---------------------------------|
+| `off_s`    | `usize`         | offset                         |
+| `rva_s`    | `u32`           | Relative virtual address       |
+| `va_s`     | `uptr`          | Absolute virtual address       |
+
+> **Note:** `off_s` replaces the legacy `off_t` to prevent naming collisions with POSIX/MSVC system headers.
 
 These are implemented using:
 
@@ -133,7 +135,7 @@ Satisfied if:
 - Raw pointer
 - `std::uintptr_t`
 - `std::intptr_t`
-- `va_t`
+- `va_s`
 
 ```cpp
 template<typename Type>
@@ -141,7 +143,7 @@ concept address_like =
        std::is_pointer_v<Type>
     or std::same_as<std::remove_cv_t<Type>, std::uintptr_t>
     or std::same_as<std::remove_cv_t<Type>, std::intptr_t>
-    or std::same_as<std::remove_cvref_t<Type>, va_t>;
+    or std::same_as<std::remove_cvref_t<Type>, va_s>;
 ```
 
 Purpose:
@@ -179,6 +181,75 @@ Use case:
 
 ---
 
+## Alignment Functions
+
+### `align_up`
+
+```cpp
+template<std::unsigned_integral T>
+[[nodiscard]] constexpr T align_up(T value, T alignment) noexcept;
+```
+
+Rounds a value up to the nearest aligned boundary.
+
+| Parameter | Description |
+|-----------|-------------|
+| `value` | The value to align |
+| `alignment` | Power-of-two alignment boundary |
+
+**Formula:** `(value + alignment - 1) & ~(alignment - 1)`
+
+### `align_down`
+
+```cpp
+template<std::unsigned_integral T>
+[[nodiscard]] constexpr T align_down(T value, T alignment) noexcept;
+```
+
+Rounds a value down to the nearest aligned boundary.
+
+**Formula:** `value & ~(alignment - 1)`
+
+---
+
+## Compile-Time Gap Calculators
+
+### `gap_v`
+
+```cpp
+template<typename... Args>
+inline constexpr off_s gap_v;
+```
+
+Computes the total size of all types at compile time.
+
+```cpp
+stx::off_s size = stx::gap_v<u32, u64, u16>;  // equals 14
+```
+
+### `gap_align_v`
+
+```cpp
+template<usize Align, typename... Args>
+inline constexpr off_s gap_align_v;
+```
+
+Computes the total size of all types with proper alignment padding, then aligns the final result.
+
+```cpp
+stx::off_s size = stx::gap_align_v<8, u32, u16>;  // equals 8 (4 + 2 + 2 padding)
+```
+
+### Behavior
+
+| Step | Description |
+|------|-------------|
+| 1 | Accumulate size of each type |
+| 2 | Insert alignment padding before each type |
+| 3 | Align final result to `Align` boundary |
+
+---
+
 ## Function: `normalize_addr`
 
 Normalizes any `address_like` type to `uptr`.
@@ -194,7 +265,7 @@ constexpr uptr normalize_addr(Addr base) noexcept;
 | Input Type            | Normalization Strategy                         |
 |----------------------|-----------------------------------------------|
 | Pointer              | `reinterpret_cast<uptr>`                      |
-| `va_t`               | Extract via `.get()` then cast                |
+| `va_s`               | Extract via `.get()` then cast                |
 | Integer address type | `static_cast<uptr>`                           |
 
 Purpose:
@@ -251,8 +322,18 @@ constexpr explicit operator Type(this Self&&) noexcept;
 
 ```cpp
 friend constexpr strong_type operator+(strong_type, Type) noexcept;
+friend constexpr strong_type operator+(Type, strong_type) noexcept;
 friend constexpr strong_type operator-(strong_type, Type) noexcept;
 friend constexpr Type operator-(strong_type, strong_type) noexcept;
+friend constexpr strong_type operator-(Type lhs, strong_type rhs) noexcept;
+```
+
+#### Bitwise
+
+```cpp
+constexpr strong_type operator~() const noexcept;
+friend constexpr strong_type operator&(strong_type, Type) noexcept;
+friend constexpr strong_type operator|(strong_type, Type) noexcept;
 ```
 
 #### Comparison
@@ -290,13 +371,14 @@ friend constexpr auto operator<=>(const strong_type&, const strong_type&) = defa
 
 The header provides a minimal, strongly-typed foundation for higher-level binary and memory abstractions.
 
+
 # EXAMPLES
 ---
 
 ## Versioning
 
 ```cpp
-static_assert(stx::version.major == 1);
+static_assert(stx::version.major == 2);
 static_assert(stx::version.minor == 0);
 static_assert(stx::version.patch == 0);
 ```
@@ -325,9 +407,9 @@ Strong types prevent accidental mixing of logically distinct address domains.
 
 | Alias       | Underlying | Meaning                   |
 |------------|------------|----------------------------|
-| `offset_t` | `usize`    | offset                     |
-| `rva_t`    | `u32`      | Relative virtual address   |
-| `va_t`     | `uptr`     | Absolute virtual address   |
+| `off_s`    | `usize`    | offset                     |
+| `rva_s`    | `u32`      | Relative virtual address   |
+| `va_s`     | `uptr`     | Absolute virtual address   |
 
 ---
 
@@ -337,8 +419,8 @@ Explicit construction is required.
 
 ```cpp
 stx::off_s off  { 128 };
-stx::rva_t    rva  { 0x2000 };
-stx::va_t     base { 0x140000000 };
+stx::rva_s    rva  { 0x2000 };
+stx::va_s     base { 0x140000000 };
 ```
 
 Integral construction is allowed but explicit:
@@ -352,7 +434,7 @@ stx::off_s off2 { 256u };
 ### Accessing Underlying Value
 
 ```cpp
-stx::va_t v{ 0x1000 };
+stx::va_s v{ 0x1000 };
 stx::uptr raw = v.get();
 ```
 
@@ -382,7 +464,7 @@ Cross-tag arithmetic is ill-formed:
 
 ```cpp
 // stx::off_s x{10};
-// stx::rva_t y{20};
+// stx::rav_s y{20};
 // auto invalid = x - y;  // compilation error
 ```
 
@@ -391,8 +473,8 @@ Cross-tag arithmetic is ill-formed:
 ### Comparison
 
 ```cpp
-stx::rva_t a{100};
-stx::rva_t b{200};
+stx::rva_s a{100};
+stx::rva_s b{200};
 
 if (a < b) {}
 auto cmp = (a <=> b);
@@ -423,7 +505,25 @@ Satisfied by:
 - Raw pointers
 - `std::uintptr_t`
 - `std::intptr_t`
-- `stx::va_t`
+- `stx::va_s`
+
+---
+
+## Alignment Functions
+
+### Integral Alignment
+
+```cpp
+stx::usize aligned = stx::align_up(123, 16);    // returns 128
+stx::usize down    = stx::align_down(123, 16);  // returns 112
+```
+
+### Compile-Time Gap Calculation
+
+```cpp
+constexpr auto total = stx::gap_v<u32, u16, u64>;           // equals 14
+constexpr auto aligned = stx::gap_align_v<8, u32, u16, u64>; // equals 16
+```
 
 # Usage Examples
 
@@ -444,13 +544,13 @@ int value = 0;
 
 print_addr(&value);
 print_addr(static_cast<std::uintptr_t>(0x1000));
-print_addr(stx::va_t{0x140000000});
+print_addr(stx::va_s{0x140000000});
 ```
 
 Invalid:
 
 ```cpp
-// print_addr(stx::rva_t{0x200});  // not address_like
+// print_addr(stx::rva_s{0x200});  // not address_like
 ```
 
 ---
@@ -469,7 +569,7 @@ Behavior:
 | Input              | Result                         |
 |-------------------|--------------------------------|
 | `T*`               | Reinterpreted to `uptr`        |
-| `va_t`             | Extracted underlying value     |
+| `va_s`             | Extracted underlying value     |
 | Integer type       | Static cast to `uptr`          |
 
 ### Example
@@ -478,7 +578,7 @@ Behavior:
 int x = 0;
 
 stx::uptr a = stx::normalize_addr(&x);
-stx::uptr b = stx::normalize_addr(stx::va_t{0x1000});
+stx::uptr b = stx::normalize_addr(stx::va_s{0x1000});
 stx::uptr c = stx::normalize_addr(std::uintptr_t{0x2000});
 ```
 

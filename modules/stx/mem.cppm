@@ -20,6 +20,4 @@ export namespace lbyte::stx
 
     using ::lbyte::stx::align_up;
     using ::lbyte::stx::align_down;
-
-    using ::lbyte::stx::dump;
 }

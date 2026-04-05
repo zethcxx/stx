@@ -1,5 +1,11 @@
 #pragma once
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define STX_FORCE_INLINE [[gnu::always_inline]] inline
+#else
+    #define STX_FORCE_INLINE inline
+#endif
+
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -11,7 +17,6 @@ namespace lbyte::stx
     struct version_info { int major, minor, patch; };
     inline constexpr version_info version { 2, 0, 0 };
 
-    // NORMAL TYPES --------------------------------------------------------------
     using u8    = std::uint8_t  ;
     using u16   = std::uint16_t ;
     using u32   = std::uint32_t ;
@@ -69,18 +74,8 @@ namespace lbyte::stx
                     return *this;
                 }
 
-                constexpr strong_type& operator-=( Type rhs ) noexcept {
-                    value -= rhs;
-                    return *this;
-                }
-
                 friend constexpr strong_type operator+( strong_type lhs, Type rhs ) noexcept {
                     lhs.value += rhs;
-                    return lhs;
-                }
-
-                friend constexpr strong_type operator-( strong_type lhs, Type rhs ) noexcept {
-                    lhs.value -= rhs;
                     return lhs;
                 }
 
@@ -88,8 +83,26 @@ namespace lbyte::stx
                     return lhs += rhs.value;
                 }
 
-                friend constexpr strong_type operator-( strong_type lhs, strong_type rhs ) noexcept {
-                    return lhs -= rhs.value;
+                friend constexpr Type operator+( Type lhs, strong_type rhs ) noexcept {
+                    return lhs + rhs.value ;
+                }
+
+                constexpr strong_type& operator-=( Type rhs ) noexcept {
+                    value -= rhs;
+                    return *this;
+                }
+
+                friend constexpr Type operator-( strong_type lhs, strong_type rhs ) noexcept {
+                    return lhs.get() - rhs.get();
+                }
+
+                friend constexpr strong_type operator-( strong_type lhs, Type rhs ) noexcept {
+                    lhs.value -= rhs;
+                    return lhs;
+                }
+
+                friend constexpr Type operator-( Type lhs, strong_type rhs ) noexcept {
+                    return lhs - rhs.value;
                 }
 
                 friend constexpr auto
@@ -110,25 +123,10 @@ namespace lbyte::stx
         };
     }
 
-    // STRONG TYPES --------------------------------------------------------------
     using off_s = details::strong_type<usize, details::offset_tag>;
-    using rva_t = details::strong_type<u32  , details::rva_tag   >;
-    using va_t  = details::strong_type<uptr , details::va_tag    >;
+    using rva_s = details::strong_type<u32  , details::rva_tag   >;
+    using va_s  = details::strong_type<uptr , details::va_tag    >;
 
-    // STRONG VALUES ------------------------------------------------------------
-    template<usize N>
-    inline constexpr off_s off_v = off_s{ N };
-
-    template<u32 N>
-    inline constexpr rva_t rva_v = rva_t{ N };
-
-    template<uptr N>
-    inline constexpr va_t va_v   = va_t { N };
-
-    template<typename... Args>
-    inline constexpr off_s gap_v = off_v<( sizeof(Args) + ... )>;
-
-    // ALTERNATIVE TO SEEKDIR ----------------------------------------------------
     enum class origin : u8
     {
         begin  ,
@@ -136,13 +134,50 @@ namespace lbyte::stx
         end    ,
     };
 
-    // CONCEPTS ------------------------------------------------------------------
+    // ALIGNMENT -------------------------------------------------------------
+    template<std::unsigned_integral T>
+    [[nodiscard]] constexpr T align_up( T value, T alignment ) noexcept {
+        return ( value + alignment - 1 ) & ~( alignment - 1 );
+    }
+
+    template<std::unsigned_integral T>
+    [[nodiscard]] constexpr T align_down( T value, T alignment ) noexcept {
+        return value & ~( alignment - 1 );
+    }
+
+    template<typename T, typename Tag, typename U>
+    [[nodiscard]] STX_FORCE_INLINE
+    constexpr auto align_up(details::strong_type<T, Tag> st, U alignment) noexcept {
+        return details::strong_type<T, Tag>{ align_up(st.get(), static_cast<T>(alignment)) };
+    }
+
+    template<typename T, typename Tag, typename U>
+    [[nodiscard]] STX_FORCE_INLINE
+    constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept {
+        return details::strong_type<T, Tag>{ align_down(st.get(), static_cast<T>(alignment)) };
+    }
+
+    template<typename... Args>
+    inline constexpr off_s gap_v = off_s{( sizeof(Args) + ... )};
+
+    template<usize Align, typename... Args>
+    inline constexpr off_s gap_align_v = [] {
+        usize total = 0;
+        auto accumulate = [&total]<typename T>() {
+            total = align_up(total, alignof(T));
+            total += sizeof(T);
+        };
+
+        ( accumulate.template operator()<Args>(), ... );
+        return off_s( align_up( total, Align ));
+    }();
+
     template<typename Type>
     concept address_like
         =  std::is_pointer_v<Type>
         or std::same_as<std::remove_cv_t   <Type>, std::uintptr_t>
         or std::same_as<std::remove_cv_t   <Type>, std::intptr_t >
-        or std::same_as<std::remove_cvref_t<Type>, va_t          >;
+        or std::same_as<std::remove_cvref_t<Type>, va_s          >;
 
     template<class Type>
     concept binary_readable
@@ -156,9 +191,12 @@ namespace lbyte::stx
     {
         if constexpr ( std::is_pointer_v<Addr> )
             return reinterpret_cast<uptr>( base );
-        else if constexpr ( std::same_as<std::remove_cvref_t<Addr>, va_t> )
+        else if constexpr ( std::same_as<std::remove_cvref_t<Addr>, va_s> )
             return static_cast<uptr>( base.get() );
         else
             return static_cast<uptr>( base );
     }
 }
+
+#undef STX_FORCE_INLINE
+

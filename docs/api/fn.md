@@ -140,9 +140,9 @@ Because it uses `address_like`, the following are valid inputs:
 | Raw pointer       | Yes      |
 | `std::uintptr_t`  | Yes      |
 | `std::intptr_t`   | Yes      |
-| `stx::va_t`       | Yes      |
-| `stx::rva_t`      | No       |
-| `stx::offset_t`   | No       |
+| `stx::va_s`       | Yes      |
+| `stx::rav_s`      | No       |
+| `stx::offset_s`   | No       |
 
 ---
 
@@ -165,10 +165,10 @@ int result = c(10, 20);  // 30
 
 ---
 
-## 2. Using `va_t`
+## 2. Using `va_s`
 
 ```cpp
-stx::va_t address{ reinterpret_cast<stx::uptr>(&add) };
+stx::va_s address{ reinterpret_cast<stx::uptr>(&add) };
 
 auto c = stx::caller<int(int, int)>(address);
 
