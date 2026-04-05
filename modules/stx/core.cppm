@@ -28,7 +28,7 @@ export namespace lbyte::stx
     using ::lbyte::stx::version_info;
     using ::lbyte::stx::version;
     using ::lbyte::stx::origin;
-    using ::lbyte::stx::offset_t;
+    using ::lbyte::stx::off_t;
     using ::lbyte::stx::rva_t;
     using ::lbyte::stx::va_t;
 
@@ -36,4 +36,8 @@ export namespace lbyte::stx
     using ::lbyte::stx::binary_readable;
 
     using ::lbyte::stx::normalize_addr;
+
+    using ::lbyte::stx::off_v;
+    using ::lbyte::stx::rva_v;
+    using ::lbyte::stx::gap_v;
 }
