@@ -45,7 +45,7 @@ namespace lbyte::stx
 
     template<class Type, address_like Addr>
     [[nodiscard]] STX_FORCE_INLINE
-        Type read( Addr base, off_t off = offset_t{ 0 } ) noexcept {
+        Type read( Addr base, off_t off = off_v<0> ) noexcept {
         static_assert(std::is_trivially_copyable_v<Type>);
 
         Type value;
@@ -62,7 +62,7 @@ namespace lbyte::stx
     template<class Type>
     [[nodiscard]] STX_FORCE_INLINE
     Type read_raw(address_like auto base,
-                off_t off = offset_t{0}) noexcept
+                off_t off = off_v<0>) noexcept
     {
         static_assert(std::is_trivially_copyable_v<Type>);
 
