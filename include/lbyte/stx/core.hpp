@@ -46,6 +46,30 @@ namespace lbyte::stx
     using rva_t = details::strong_type<u32  , details::rva_tag   >;
     using va_t  = details::strong_type<uptr , details::va_tag    >;
 
+    // ALIGNMENT ----------------------------------------------------------------
+    template<typename T, typename Tag>
+    [[nodiscard]] constexpr auto align_up(details::strong_type<T, Tag> st, T alignment) noexcept {
+        return details::strong_type<T, Tag>{ align_up(st.get(), alignment) };
+    }
+
+    template<typename T, typename Tag>
+    [[nodiscard]] constexpr auto align_down(details::strong_type<T, Tag> st, T alignment) noexcept {
+        return details::strong_type<T, Tag>{ align_down(st.get(), alignment) };
+    }
+
+    // STRONG VALUES ------------------------------------------------------------
+    template<typename... Args>
+    inline constexpr off_t gap_v = off_t{ (sizeof(Args) + ...) };
+
+    template<usize N>
+    inline constexpr off_t off_v = off_t{ N };
+
+    template<u32 N>
+    inline constexpr rva_t rva_v = rva_t{ N };
+
+    template<uptr N>
+    inline constexpr va_t va_v   = va_t { N };
+
     // ALTERNATIVE TO SEEKDIR ----------------------------------------------------
     enum class origin : u8
     {
@@ -110,6 +134,16 @@ class lbyte::stx::details::strong_type
             return std::forward<Self>( self ).value;
         }
 
+        constexpr strong_type& operator+=( Type rhs ) noexcept {
+            value += rhs;
+            return *this;
+        }
+
+        constexpr strong_type& operator-=( Type rhs ) noexcept {
+            value -= rhs;
+            return *this;
+        }
+
         friend constexpr strong_type operator+( strong_type lhs, Type rhs ) noexcept {
             lhs.value += rhs;
             return lhs;
@@ -120,12 +154,26 @@ class lbyte::stx::details::strong_type
             return lhs;
         }
 
-        friend constexpr Type operator-( strong_type lhs, strong_type rhs ) noexcept {
-            return lhs.value - rhs.value;
+        friend constexpr strong_type operator+( strong_type lhs, strong_type rhs ) noexcept {
+            return lhs += rhs.value;
+        }
+
+        friend constexpr strong_type operator-( strong_type lhs, strong_type rhs ) noexcept {
+            return lhs -= rhs.value;
         }
 
         friend constexpr auto
-        operator<=>(const strong_type&, const strong_type&) = default;
+        operator<=>(const strong_type&, const strong_type&) = default
+
+        template<typename T>
+        struct effective_size {
+            static constexpr usize value = sizeof(T);
+        };
+
+        template<typename T, typename Tag>
+        struct effective_size<strong_type<T, Tag>> {
+            static constexpr usize value = sizeof(T);
+        };
 
     private:
         Type value{};
