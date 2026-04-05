@@ -336,7 +336,7 @@ Strong types prevent accidental mixing of logically distinct address domains.
 Explicit construction is required.
 
 ```cpp
-stx::off_t off  { 128 };
+stx::off_s off  { 128 };
 stx::rva_t    rva  { 0x2000 };
 stx::va_t     base { 0x140000000 };
 ```
@@ -344,7 +344,7 @@ stx::va_t     base { 0x140000000 };
 Integral construction is allowed but explicit:
 
 ```cpp
-stx::off_t off2 { 256u };
+stx::off_s off2 { 256u };
 ```
 
 ---
@@ -369,19 +369,19 @@ stx::uptr raw2 = static_cast<stx::uptr>(v);
 Arithmetic is restricted to the underlying type.
 
 ```cpp
-stx::off_t off{100};
+stx::off_s off{100};
 off = off + 20;        // ok
 off = off - 10;        // ok
 
-stx::off_t a{200};
-stx::off_t b{150};
+stx::off_s a{200};
+stx::off_s b{150};
 stx::usize diff = a - b;   // returns underlying difference
 ```
 
 Cross-tag arithmetic is ill-formed:
 
 ```cpp
-// stx::off_t x{10};
+// stx::off_s x{10};
 // stx::rva_t y{20};
 // auto invalid = x - y;  // compilation error
 ```
@@ -411,7 +411,7 @@ stx::origin o = stx::origin::begin;
 Example usage in a file abstraction:
 
 ```cpp
-void seek(stx::off_t offset, stx::origin where);
+void seek(stx::off_s offset, stx::origin where);
 ```
 
 ---
