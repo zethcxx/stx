@@ -28,7 +28,7 @@ export namespace lbyte::stx
     using ::lbyte::stx::version_info;
     using ::lbyte::stx::version;
     using ::lbyte::stx::origin;
-    using ::lbyte::stx::off_t;
+    using ::lbyte::stx::off_s;
     using ::lbyte::stx::rva_t;
     using ::lbyte::stx::va_t;
 
