@@ -10,7 +10,8 @@ It defines:
 - Raw pointer-based reads and writes (direct dereference).
 - Casting helpers (`rcast`, `scast`, `bcast`).
 - Alignment utilities for integral and strong types.
-- A colored hexadecimal memory dump facility.
+
+> **Note:** The hex dump facility (`dump`) is provided in a separate header `dump.hpp`.
 
 The module is intended for controlled low-level environments such as:
 
@@ -41,7 +42,7 @@ Used to ensure minimal abstraction overhead in critical paths.
 ```cpp
 template<class Type, address_like Addr>
 [[nodiscard]] STX_FORCE_INLINE
-Type read(Addr base, off_s off = offset_t{0}) noexcept;
+Type read(Addr base, off_s off = off_s{0}) noexcept;
 ```
 
 ### Semantics
@@ -69,7 +70,7 @@ Type read(Addr base, off_s off = offset_t{0}) noexcept;
 template<class Type>
 [[nodiscard]] STX_FORCE_INLINE
 Type read_raw(address_like auto base,
-              off_s off = offset_t{0}) noexcept;
+              off_s off = off_s{0}) noexcept;
 ```
 
 ### Semantics
@@ -185,31 +186,11 @@ Used for safe reinterpretation of object representation.
 
 # Alignment Utilities
 
-## 1. Integral Alignment
+## Strong Type Alignment
 
-```cpp
-template<std::unsigned_integral T>
-constexpr T align_up(T value, T alignment) noexcept;
+> **Note:** Integral alignment functions (`align_up`, `align_down`) are defined in `core.hpp`.
 
-template<std::unsigned_integral T>
-constexpr T align_down(T value, T alignment) noexcept;
-```
-
-### Behavior
-
-| Function | Formula |
-|----------|---------|
-| `align_up` | `(value + alignment - 1) & ~(alignment - 1)` |
-| `align_down` | `value & ~(alignment - 1)` |
-
-### Requirements
-
-- `alignment` must be power-of-two.
-- Undefined behavior otherwise.
-
----
-
-## 2. Strong Type Alignment
+Provides alignment operations that preserve strong type semantics:
 
 ```cpp
 template<typename T, typename Tag>
@@ -223,49 +204,11 @@ Preserves strong type domain.
 
 | Input | Output |
 |--------|--------|
-| `offset_t` | `offset_t` |
-| `rva_t` | `rva_t` |
-| `va_t` | `va_t` |
+| `off_s` | `off_s` |
+| `rva_s` | `rva_s` |
+| `va_s` | `va_s` |
 
 No domain leakage occurs.
-
----
-
-# Hex Dump Facility
-
-## dump
-
-```cpp
-[[gnu::no_sanitize("address")]]
-void dump(address_like auto base, usize size) noexcept;
-```
-
-Produces a colored hexadecimal dump of memory.
-
-### Output Format
-
-Per line:
-
-```
-0xADDRESS: XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX |ASCII..........|
-```
-
-### Characteristics
-
-| Property | Value |
-|----------|--------|
-| Bytes per line | 16 |
-| Address width | 8 (32-bit) / 16 (64-bit) |
-| ASCII filtering | Non-printable → `.` |
-| Colorized address | Yes (ANSI escape) |
-| Thread safety | Thread-local buffer |
-
-### Implementation Notes
-
-- Uses manual hex encoding.
-- Avoids iostream formatting overhead.
-- Suppresses ASan for direct memory inspection.
-- Uses `std::println` (C++23).
 
 ---
 
@@ -292,7 +235,8 @@ This header assumes:
 - Zero dynamic allocation.
 - constexpr-friendly where possible.
 - Explicit separation between defined and raw memory semantics.
-- Strong type compatibility (`offset_t`, `va_t`, `rva_t`).
+- Strong type compatibility (`off_s`, `rva_s`, `va_s`).
+- Integral alignment utilities provided by `core.hpp`.
 - C++23 compliant.
 
 ---
@@ -311,9 +255,9 @@ struct header
     stx::u16 flags;
 };
 
-stx::va_t base{0x140000000};
+stx::va_s base{0x140000000};
 
-header h = stx::read<header>(base, stx::offset_t{0x100});
+header h = stx::read<header>(base, stx::off_s{0x100});
 ```
 
 ---
@@ -322,7 +266,7 @@ header h = stx::read<header>(base, stx::offset_t{0x100});
 
 ```cpp
 stx::u32 value =
-    stx::read_raw<stx::u32>(base, stx::offset_t{0x200});
+    stx::read_raw<stx::u32>(base, stx::off_s{0x200});
 ```
 
 ---
@@ -330,24 +274,16 @@ stx::u32 value =
 ## Write
 
 ```cpp
-stx::write<stx::u32>(base, stx::offset_t{0x300}, 0xDEADBEEF);
+stx::write<stx::u32>(base, stx::off_s{0x300}, 0xDEADBEEF);
 ```
 
 ---
 
-## Alignment
+## Strong Type Alignment
 
 ```cpp
 stx::off_s off{123};
-auto aligned = stx::align_up(off, 16);
-```
-
----
-
-## Hex Dump
-
-```cpp
-stx::dump(base, 128);
+auto aligned = stx::align_up(off, 16);  // returns off_s{128}
 ```
 
 ---

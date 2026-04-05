@@ -10,10 +10,8 @@ namespace lbyte::stx
         template<typename Type>
         concept rangeable
             =  std::integral<Type>
-            or requires( Type t ) {
-                typename Type::value_type;
-                { t.get() } -> std::integral;
-            };
+            or requires { typename Type::value_type; }
+            or requires( Type t ) { { t.get() } -> std::integral; };
 
         template<typename T>
         struct base_type { using type = T; };
@@ -38,10 +36,11 @@ namespace lbyte::stx
             if constexpr ( std::integral<T> )
                 return static_cast<base_type_t<T>>( value );
             else
-                return value.get();
+        return value.get();
         }
     }
 
+    // ENUMS ---------------------------------------------------------------------
     enum class range_dir: u8 {
         Forward,
         Backward
@@ -53,7 +52,7 @@ namespace lbyte::stx
         Exclusive,
     };
 
-    // RANGE IMPLEMENTATION ------------------------------------------------------
+    // FACTORY FUNCTIONS ----------------------------------------------------------
     template<details::rangeable Type> [[nodiscard]]
     constexpr auto range(
         Type _to,
@@ -167,6 +166,7 @@ struct lbyte::stx::details::range_iter
     }
 };
 
+// RANGE VIEW -----------------------------------------------------------------
 template<lbyte::stx::details::rangeable T>
 struct lbyte::stx::details::range_view
 {
