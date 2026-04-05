@@ -111,13 +111,13 @@ namespace lbyte::stx
     }
 
     // STRONG TYPES --------------------------------------------------------------
-    using off_t = details::strong_type<usize, details::offset_tag>;
+    using off_s = details::strong_type<usize, details::offset_tag>;
     using rva_t = details::strong_type<u32  , details::rva_tag   >;
     using va_t  = details::strong_type<uptr , details::va_tag    >;
 
     // STRONG VALUES ------------------------------------------------------------
     template<usize N>
-    inline constexpr off_t off_v = off_t{ N };
+    inline constexpr off_s off_v = off_s{ N };
 
     template<u32 N>
     inline constexpr rva_t rva_v = rva_t{ N };
@@ -126,7 +126,7 @@ namespace lbyte::stx
     inline constexpr va_t va_v   = va_t { N };
 
     template<typename... Args>
-    inline constexpr off_t gap_v = off_v<( sizeof(Args) + ... )>;
+    inline constexpr off_s gap_v = off_v<( sizeof(Args) + ... )>;
 
     // ALTERNATIVE TO SEEKDIR ----------------------------------------------------
     enum class origin : u8

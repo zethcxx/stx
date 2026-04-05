@@ -84,7 +84,7 @@ stx::dirty_vector<stx::u32> buffer(100);
 ```cpp
 void setposfs(
     std::istream& file,
-    const off_t offset,
+    const off_s offset,
     const origin dir = origin::begin
 );
 ```
@@ -122,7 +122,7 @@ stx::setposfs(file, stx::offset_t{32}, stx::origin::current);
 template<binary_readable Type>
 Type readfs(
     std::istream& file,
-    const off_t offset = offset_t{},
+    const off_s offset = offset_t{},
     const origin dir = origin::begin
 );
 ```
@@ -183,7 +183,7 @@ stx::readfs(file, std::span{arr});
 template<binary_readable Type = u8>
 dirty_vector<Type> readfs(
     std::istream& file,
-    const off_t offset,
+    const off_s offset,
     const usize count,
     const origin dir = origin::begin
 );
@@ -214,7 +214,7 @@ auto words = stx::readfs<stx::u16>(file, stx::offset_t{128}, 64);
 template<binary_readable Type, usize Size>
 std::array<Type, Size> readfs(
     std::istream& file,
-    const off_t offset,
+    const off_s offset,
     const origin dir = origin::begin
 );
 ```
@@ -239,7 +239,7 @@ auto block = stx::readfs<stx::u8, 64>(file, stx::offset_t{0});
 template<binary_readable Type = std::byte>
 void skipfs(
     std::istream& file,
-    const off_t offset
+    const off_s offset
 );
 ```
 
