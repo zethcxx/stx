@@ -16,6 +16,12 @@ export namespace lbyte::stx
     using ::lbyte::stx::i32;
     using ::lbyte::stx::i64;
 
+    using ::lbyte::stx::uchar;
+    using ::lbyte::stx::ushort;
+    using ::lbyte::stx::uint;
+    using ::lbyte::stx::ulong;
+    using ::lbyte::stx::ulonglong;
+
     using ::lbyte::stx::f32;
     using ::lbyte::stx::f64;
 

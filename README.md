@@ -1,7 +1,7 @@
 # STX - Systems Toolbelt for C++23
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 
 STX is a header-only C++23 library providing a rich set of low-level abstractions and utilities for systems programming, binary analysis, runtime instrumentation, and scripting at the OS/hardware interface. It emphasizes type safety, zero-overhead abstractions, and modern C++ idioms to enhance productivity in reverse engineering, red teaming, and tooling for binary formats.
 
@@ -22,7 +22,22 @@ STX is a header-only C++23 library providing a rich set of low-level abstraction
 
 ## Core Modules
 
-### 1. Memory Utilities (`mem.hpp`)
+### 1. Core Types (`core.hpp`)
+
+Foundation for the entire library.
+
+| Component | Description |
+|-----------|-------------|
+| `off_s` | **Strong offset type** (replaces legacy `off_t`) |
+| `rva_s` | Strong RVA |
+| `va_s` | Strong virtual address |
+| `address_like` | Concept for address types |
+| `binary_readable` | Concept for binary-safe types |
+| `gap_v` / `gap_align_v` | Compile-time size calculators |
+
+---
+
+### 2. Memory Utilities (`mem.hpp`)
 
 Provides safe, low-level memory access and alignment primitives.
 
@@ -46,7 +61,7 @@ Intended use:
 
 ---
 
-### 2. File System Utilities (`fs.hpp`)
+### 3. File System Utilities (`fs.hpp`)
 
 Provides type-safe, binary-oriented file operations over `std::istream`.
 
@@ -68,7 +83,7 @@ Characteristics:
 
 ---
 
-### 3. Function Abstractions (`fn.hpp`)
+### 4. Function Abstractions (`fn.hpp`)
 
 Provides strongly-typed wrappers around arbitrary memory addresses for callable functions.
 
@@ -88,7 +103,7 @@ Intended use:
 
 ---
 
-### 4. Time Utilities (`time.hpp`)
+### 5. Time Utilities (`time.hpp`)
 
 Provides portable UNIX time conversions and high-resolution stopwatch functionality.
 
@@ -102,7 +117,7 @@ Provides portable UNIX time conversions and high-resolution stopwatch functional
 
 ---
 
-### 5. Ranges (`range.hpp`)
+### 6. Ranges (`range.hpp`)
 
 Provides domain-safe, constexpr-friendly integer and strong-type ranges for iteration.
 
@@ -115,7 +130,7 @@ Provides domain-safe, constexpr-friendly integer and strong-type ranges for iter
 
 ---
 
-### 6. Hex Dump (`dump.hpp`)
+### 7. Hex Dump (`dump.hpp`)
 
 > [!NOTE]
 > This module is optional and must be included separately.
