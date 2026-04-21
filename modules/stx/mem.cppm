@@ -11,6 +11,7 @@ export namespace lbyte::stx
     using ::lbyte::stx::rcast;
     using ::lbyte::stx::scast;
     using ::lbyte::stx::bcast;
+    using ::lbyte::stx::ccast;
 
     using ::lbyte::stx::read;
     using ::lbyte::stx::read_raw;
