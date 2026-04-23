@@ -261,20 +261,17 @@ package("zethcxx.stx")
 
     on_install( function( package )
         local configs = {}
+        local includedir = package:installdir("include")
 
         if package:config( "use_modules" ) then
             configs.use_modules = true
         end
 
-        import("package.tools.xmake").install( package, configs )
+        import("package.tools.xmake").install( package, configs, { includedirs = includedir })
     end)
 
-    on_load( function( package )
+    on_load(function (package)
         package:add("includedirs", "include")
-
-        if package:config("use_modules") then
-            package:add("cxxmodules", "modules/stx/*.cppm")
-        end
     end)
 
     on_test( function (package)

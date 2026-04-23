@@ -7,7 +7,7 @@
 
 namespace lbyte::stx::details
 {
-    static constexpr u8 HEX_CHARS[]{ "0123456789abcdef" };
+    inline constexpr u8 HEX_CHARS[]{ "0123456789abcdef" };
 
     [[gnu::always_inline]]
     inline u8* hex_byte( u8 *out, u8 value ) noexcept {
