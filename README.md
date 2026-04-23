@@ -228,7 +228,7 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v2.0.0
+    GIT_TAG        v2.1.0
 )
 
 # To use modules with FetchContent:
@@ -250,6 +250,7 @@ package("zethcxx.stx")
 
     add_versions( "v1.0.0", "v1.0.0" ) -- Or hash
     add_versions( "v2.0.0", "v2.0.0" )
+    add_versions( "v2.1.0", "v2.1.0" )
 
     add_configs( "use_modules", {
         builtin = false,
