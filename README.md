@@ -282,7 +282,7 @@ package("zethcxx.stx")
     end)
 package_end()
 
-add_requires( "zethcxx.stx v2.0.0"
+add_requires( "zethcxx.stx v2.1.0" -- or other version
     -- , { configs = { use_modules = true }} -- if modules is required
 )
 
