@@ -31,7 +31,7 @@
 
 | Type | Description |
 |------|-------------|
-| `ptr<T>` | Typed non-owning pointer with `->`, `*`, `read()`, `call()` |
+| `ptr<T>` | Typed non-owning pointer with `->`, `read<T>()`, `write<T>()`, `call<Sig>()` |
 | `wptr<T>` | Walk pointer for pointer chasing / chain traversal |
 
 ### Fundamental Aliases
@@ -66,10 +66,6 @@ auto main() -> int
     {
         // iteration
     }
-
-    // Typed pointer
-    ptr<void> p{nullptr};
-    if (!p) { /* null */ }
 
     return EXIT_SUCCESS;
 }

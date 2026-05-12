@@ -4,6 +4,12 @@ set_license( "MIT"   )
 
 set_description("Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research.")
 
+-- patch for win11
+if is_host("windows") then
+    set_config("plat", "win")
+    set_config("toolchain", "clang")
+end
+
 option( "use_modules" )
     set_default ( false )
     set_showmenu( true  )

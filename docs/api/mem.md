@@ -237,21 +237,27 @@ public:
 | `operator bool` | Non-null check |
 | `operator uptr` | Implicit conversion to `uptr` |
 
+### Address Rebind
+
+| Member | Description |
+|--------|-------------|
+| `operator=(address_like)` | Change pointed address |
+| `as<U>()` | Rebind to `ptr<U>` |
+| `as_w<U>()` | Rebind to `wptr<U>` |
+
 ### Typed Access
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `ref()` | `!std::is_void_v<T>` | Returns `T&` reference to pointed object |
 | `operator->()` | `!std::is_void_v<T>` | Pointer-style member access |
-| `operator*()` | `!std::is_void_v<T>` | Dereference to `T&` |
-| `read(off)` | `binary_readable<T>` | Copy-based read with optional offset |
 
-### Rebind
+### Binary Read / Write
 
-| Member | Description |
-|--------|-------------|
-| `as<U>()` | Rebind to `ptr<U>` |
-| `as_w<U>()` | Rebind to `wptr<U>` |
+| Member | Requirements | Description |
+|--------|-------------|-------------|
+| `read<T>(off)` | `binary_readable<T>` | Copy-based read with optional offset |
+| `write<T>(off, val)` | `binary_readable<T>` | Copy-based write with offset |
+| `write<T>(val)` | `binary_readable<T>` | Copy-based write at address |
 
 ### Call
 
@@ -262,15 +268,16 @@ public:
 ### Example
 
 ```cpp
-int value = 42;
-stx::ptr<int> p{&value};
+stx::ptr<IMAGE_DOS_HEADER> dos{some_addr};
 
-int x = *p;              // 42
-*p = 10;                 // write through pointer
-int y = p.ref();         // explicit reference
+auto magic = dos->e_magic;               // member access
+dos = another_addr;                       // rebind
+auto val = dos.read<stx::u32>(off_s{8});  // read with offset
+dos.write<stx::u32>(off_s{12}, 0xDEAD);   // write with offset
+dos.write<stx::u32>(0xBEEF);              // write at address
 
-// Void pointer, rebind
-stx::ptr<void> vp{&value};
+// Void pointer, typed rebind
+stx::ptr<void> vp{some_addr};
 auto ip = vp.as<int>();  // ptr<int>
 ```
 
@@ -442,9 +449,11 @@ auto aligned = stx::align_up(off, 16);  // returns off_s{128}
 ```cpp
 stx::ptr<int> p{some_address};
 
-int val = *p;         // dereference
-p.ref() = 10;         // write via reference
-auto cp = p.as<short>();  // rebind
+p->x = 10;            // member access
+p = another_addr;     // rebind
+auto val = p.read<stx::u32>();  // binary read
+p.write(42);          // write value
+auto cp = p.as<short>();  // type rebind
 ```
 
 ---
