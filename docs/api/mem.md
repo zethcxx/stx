@@ -11,8 +11,6 @@ It defines:
 - Casting helpers (`rcast`, `scast`, `bcast`).
 - Alignment utilities for integral and strong types.
 
-> **Note:** The hex dump facility (`dump`) is provided in a separate header `dump.hpp`.
-
 The module is intended for controlled low-level environments such as:
 
 - Binary parsing
@@ -212,6 +210,157 @@ No domain leakage occurs.
 
 ---
 
+# Typed Pointer Wrappers
+
+## `ptr<T>`
+
+Non-owning typed pointer. Stores a normalized address and provides typed access to the underlying object.
+
+```cpp
+template<typename T = void>
+class ptr
+{
+    uptr address = 0;
+public:
+    using value_type = T;
+
+    constexpr ptr() noexcept = default;
+    constexpr explicit ptr(address_like auto addr) noexcept;
+};
+```
+
+### Base Operations
+
+| Member | Description |
+|--------|-------------|
+| `raw()` | Returns underlying `uptr` |
+| `operator bool` | Non-null check |
+| `operator uptr` | Implicit conversion to `uptr` |
+
+### Typed Access
+
+| Member | Requirements | Description |
+|--------|-------------|-------------|
+| `ref()` | `!std::is_void_v<T>` | Returns `T&` reference to pointed object |
+| `operator->()` | `!std::is_void_v<T>` | Pointer-style member access |
+| `operator*()` | `!std::is_void_v<T>` | Dereference to `T&` |
+| `read(off)` | `binary_readable<T>` | Copy-based read with optional offset |
+
+### Rebind
+
+| Member | Description |
+|--------|-------------|
+| `as<U>()` | Rebind to `ptr<U>` |
+| `as_w<U>()` | Rebind to `wptr<U>` |
+
+### Call
+
+| Member | Description |
+|--------|-------------|
+| `call<Sig>()` | Invoke address as function with signature `Sig` |
+
+### Example
+
+```cpp
+int value = 42;
+stx::ptr<int> p{&value};
+
+int x = *p;              // 42
+*p = 10;                 // write through pointer
+int y = p.ref();         // explicit reference
+
+// Void pointer, rebind
+stx::ptr<void> vp{&value};
+auto ip = vp.as<int>();  // ptr<int>
+```
+
+---
+
+## `wptr<T>`
+
+Walk pointer — non-owning pointer with offset arithmetic and pointer-chasing (walk/chain) operations.
+
+```cpp
+template<typename T = void>
+class wptr
+{
+    uptr address = 0;
+public:
+    using value_type = T;
+
+    constexpr wptr() noexcept = default;
+    constexpr explicit wptr(address_like auto addr) noexcept;
+};
+```
+
+### Base Operations
+
+| Member | Description |
+|--------|-------------|
+| `raw()` | Returns underlying `uptr` |
+| `operator bool` | Non-null check |
+| `operator uptr` | Implicit conversion to `uptr` |
+
+### Offset Arithmetic
+
+| Member | Description |
+|--------|-------------|
+| `operator+(usize)` | Returns new `wptr` advanced by offset |
+| `operator+(off_s)` | Returns new `wptr` advanced by strong offset |
+
+### Walk / Chain (Pointer Chasing)
+
+Reads a `uptr` from the target address and returns it as a new `wptr<>`.
+
+| Member | Description |
+|--------|-------------|
+| `walk(offset)` | Dereference at `address + offset` as `uptr`, return `wptr<>` |
+| `operator[](offset)` | Alias for `walk()` — supports chain syntax |
+
+```cpp
+stx::wptr<> base{0x140000000};
+
+// chain: read pointer at base+0x100, then at that address + 0x20
+stx::wptr<> target = base[0x100][0x20];
+```
+
+### Rebind
+
+| Member | Description |
+|--------|-------------|
+| `as<U>()` | Rebind to `ptr<U>` |
+| `as_w<U>()` | Rebind to `wptr<U>` |
+
+### Direct Read
+
+| Member | Requirements | Description |
+|--------|-------------|-------------|
+| `read<U>()` | `binary_readable<U>`, `U` non-void | Copy-based typed read from address |
+| `call<Sig>()` | — | Invoke address as function with signature `Sig` |
+
+### Example
+
+```cpp
+stx::wptr<void> base{0x140000000};
+
+// Offset
+auto next = base + stx::off_s{0x100};
+
+// Pointer chasing
+stx::wptr<> entry = base[0x10][0x20][0x08];
+
+// Typed rebind
+stx::ptr<int> p = base.as<int>();
+
+// Read value
+stx::u32 val = base.read<stx::u32>();
+
+// Call as function
+auto result = base.call<int(int, int)>(10, 20);
+```
+
+---
+
 # Safety Model
 
 This header assumes:
@@ -284,6 +433,43 @@ stx::write<stx::u32>(base, stx::off_s{0x300}, 0xDEADBEEF);
 ```cpp
 stx::off_s off{123};
 auto aligned = stx::align_up(off, 16);  // returns off_s{128}
+```
+
+---
+
+## Typed Pointer
+
+```cpp
+stx::ptr<int> p{some_address};
+
+int val = *p;         // dereference
+p.ref() = 10;         // write via reference
+auto cp = p.as<short>();  // rebind
+```
+
+---
+
+## Walk Pointer (Chaining)
+
+```cpp
+stx::wptr<void> root{0x140000000};
+
+// Pointer chase: read uptr at root+0x10,
+// then at result+0x20, then at result+0x08
+stx::wptr<> target = root[0x10][0x20][0x08];
+
+// Typed read at final address
+stx::u32 value = target.read<stx::u32>();
+```
+
+---
+
+## Call Through Pointer
+
+```cpp
+stx::ptr<void> p{function_address};
+
+int result = p.call<int(int, int)>(10, 20);
 ```
 
 ---

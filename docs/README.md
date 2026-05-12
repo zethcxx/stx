@@ -9,12 +9,11 @@
 | Module | Header | Description |
 |--------|--------|-------------|
 | Core | `core.hpp` | Fundamental types, strong types, concepts |
-| Memory | `mem.hpp` | Low-level memory access primitives |
+| Memory | `mem.hpp` | Low-level memory access, `ptr<T>`, `wptr<T>` |
 | Function | `fn.hpp` | Function pointer abstractions |
 | File | `fs.hpp` | Binary file stream utilities |
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
 | Range | `range.hpp` | Integer range iteration |
-| Dump | `dump.hpp` | Hexadecimal memory dump |
 
 ---
 
@@ -27,6 +26,13 @@
 | `off_s` | `usize` | Strong offset (replaces legacy `off_t`) |
 | `rva_s` | `u32` | Relative virtual address |
 | `va_s` | `uptr` | Absolute virtual address |
+
+### Pointer Wrappers
+
+| Type | Description |
+|------|-------------|
+| `ptr<T>` | Typed non-owning pointer with `->`, `*`, `read()`, `call()` |
+| `wptr<T>` | Walk pointer for pointer chasing / chain traversal |
 
 ### Fundamental Aliases
 
@@ -61,6 +67,10 @@ auto main() -> int
         // iteration
     }
 
+    // Typed pointer
+    ptr<void> p{nullptr};
+    if (!p) { /* null */ }
+
     return EXIT_SUCCESS;
 }
 ```
@@ -71,3 +81,8 @@ auto main() -> int
 
 - [Main README](../README.md) - Project overview and integration guides
 - [Core API](./api/core.md) - Detailed core documentation
+- [Memory API](./api/mem.md) - Memory access, ptr, wptr
+- [Function API](./api/fn.md) - Function pointer invocations
+- [File API](./api/fs.md) - Binary file stream utilities
+- [Time API](./api/time.md) - UNIX time and stopwatch
+- [Range API](./api/range.md) - Integer range iteration

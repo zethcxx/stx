@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project( stx
-    VERSION 2.1.0
+    VERSION 2.2.0
     LANGUAGES CXX
     DESCRIPTION "Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research."
 )
@@ -24,7 +24,6 @@ if ( LBYTE_STX_USE_MODULES )
             modules/stx/fn.cppm
             modules/stx/range.cppm
             modules/stx/fs.cppm
-            modules/stx/dump.cppm
             modules/stx/stx.cppm
     )
 else()

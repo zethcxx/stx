@@ -19,6 +19,9 @@ export namespace lbyte::stx
     using ::lbyte::stx::write;
     using ::lbyte::stx::write_raw;
 
+    using ::lbyte::stx::ptr;
+    using ::lbyte::stx::wptr;
+
     using ::lbyte::stx::align_up;
     using ::lbyte::stx::align_down;
 }
