@@ -47,7 +47,7 @@ Provides safe, low-level memory access, alignment primitives, and typed pointer 
 | `read_raw<Type>(addr, offset)` | Direct dereference; requires alignment |
 | `write<Type>(addr, offset, value)` | Copy-based write |
 | `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
-| `ptr<T>` | Typed non-owning pointer with `->`, `*`, `read()`, `call()` |
+| `ptr<T>` | Typed non-owning pointer with `->`, `read<T>()`, `write<T>()`, `call<Sig>()` |
 | `wptr<T>` | Walk pointer for pointer chasing / chain traversal |
 | `align_up` / `align_down` | Aligns integral or strong types to power-of-two boundaries |
 
@@ -254,7 +254,7 @@ package("zethcxx.stx")
     on_load(function (package)
         package:add("includedirs", "include")
         if package:config("use_modules") then
-            package:add("moduledirs", os.path.join(package:installdir("lib"), "stx", "modules"))
+            package:add("cxxmodules", "modules/stx/*.cppm")
         end
     end)
 
