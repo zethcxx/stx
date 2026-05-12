@@ -285,12 +285,12 @@ auto ip = vp.as<int>();  // ptr<int>
 
 ---
 
-## `wptr<T>`
+## `wptr<T, Stride>`
 
 Walk pointer — non-owning pointer with offset arithmetic and pointer-chasing (walk/chain) operations.
 
 ```cpp
-template<typename T = void>
+template<typename T = uptr, uptr Stride = 1>
 class wptr
 {
     uptr address = 0;
@@ -302,16 +302,24 @@ public:
 };
 ```
 
+`Stride` es un parámetro de plantilla (compile-time, sin runtime overhead).  
+`wptr<T>::operator[](off)` ≡ `read<uptr>(address + off * Stride)`.
+
 ### Base Operations
 
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `raw()` | `T*` | Typed pointer to the object |
 | `uptr()` | `uptr` | Address as unsigned integer |
+| `ref()` | `uptr&` | Mutable reference to address (para inline asm) |
 | `operator bool` | `bool` | Non-null check |
 | `operator uptr` | `uptr` | Implicit conversion to `uptr` |
 
-> **Note:** `wptr` does not provide `operator->`. Use `as<U>()` to obtain a `ptr<U>` for member access.
+### Arrow Access
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `operator->()` | `T*` | Typed member access |
 
 ### Offset Arithmetic
 
@@ -322,18 +330,38 @@ public:
 
 ### Walk / Chain (Pointer Chasing)
 
-Reads a `uptr` from the target address and returns it as a new `wptr<>`.
+Lee un `uptr` desde `address + offset * Stride` vía `std::memcpy` y lo retorna como `wptr<T, Stride>`.
 
 | Member | Description |
 |--------|-------------|
-| `walk(offset)` | Dereference at `address + offset` as `uptr`, return `wptr<>` |
-| `operator[](offset)` | Alias for `walk()` — supports chain syntax |
+| `walk(offset)` | `read<uptr>(address + offset * Stride)`, return `wptr<T, Stride>` |
+| `operator[](offset)` | Ídem — sintaxis chain: `base[off][off]` |
+
+### Rebind
+
+| Member | Description |
+|--------|-------------|
+| `as<U>()` | Rebind to `ptr<U>` |
+| `as_w<U>()` | Rebind to `wptr<U, Stride>` (preserva stride) |
+| `at<N>()` | Rebind to `wptr<T, N>` (stride = N) |
+| `at<U>()` | Rebind to `wptr<T, sizeof(U)>` (stride = sizeof(U)) |
 
 ```cpp
-stx::wptr<> base{0x140000000};
+stx::wptr<uptr> base{0x140000000};
 
-// chain: read pointer at base+0x100, then at that address + 0x20
-stx::wptr<> target = base[0x100][0x20];
+// stride=1 (default): cada [] es read<uptr>(base + offset)
+stx::uptr target = base[0x100][0x20][0x00][0x00].uptr();
+
+// stride=4: at<4>() cambia la plantilla
+stx::uptr v2 = base.at<4>()[3][5].uptr();
+// arr[3] → read(addr+3*4)  → wptr<uptr,4>
+//     [5] → read(addr'+5*4) → wptr<uptr,4>.uptr()
+
+// stride por tipo: at<u64>() ≡ at<8>()
+stx::uptr v3 = base.at<u64>()[3].uptr();  // buf + 3*8
+
+// raw() devuelve T*, as<U>() rebind
+stx::u8* ptr = base[0x18].as<u8>().raw();
 ```
 
 ### Rebind
@@ -343,11 +371,13 @@ stx::wptr<> target = base[0x100][0x20];
 | `as<U>()` | Rebind to `ptr<U>` |
 | `as_w<U>()` | Rebind to `wptr<U>` |
 
-### Direct Read
+### Binary Read / Write
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read<U>()` | `binary_readable<U>`, `U` non-void | Copy-based typed read from address |
+| `read<U>(off)` | `binary_readable<U>`, `U` non-void | Copy-based typed read with optional byte offset |
+| `write(off, val)` | `binary_readable<U>`, `U` non-void | Copy-based typed write with byte offset |
+| `write(val)` | `binary_readable<U>`, `U` non-void | Copy-based typed write at address |
 | `call<Sig>()` | — | Invoke address as function with signature `Sig` |
 
 ### Example
@@ -363,13 +393,22 @@ auto ptr  = base.raw();                   // void*
 auto next = base + stx::off_s{0x100};
 
 // Pointer chasing
-stx::wptr<> entry = base[0x10][0x20][0x08];
+stx::wptr<uptr> entry = base[0x10][0x20][0x08];  // preserva uptr
 
-// Typed rebind for member access
-stx::ptr<int> p = base.as<int>();
+// raw() devuelve T*: wptr<uptr>::raw() → uptr*
+stx::uptr* p = entry.raw();
 
-// Read value
+// read<u32>() para leer valor en la direccion final
+stx::u32 val = entry.read<stx::u32>();
+
+// Typed member access (operator->)
+struct S { int x; };
+wptr<S> p = base.as_w<S>();
+int mx = p->x;
+
+// Read / Write
 stx::u32 val = base.read<stx::u32>();
+base.write(off_s{8}, stx::u16{0x1234});
 
 // Call as function
 auto result = base.call<int(int, int)>(10, 20);
@@ -472,14 +511,15 @@ auto cp = p.as<short>();          // type rebind
 ## Walk Pointer (Chaining)
 
 ```cpp
-stx::wptr<void> root{0x140000000};
+stx::wptr<uptr> root{0x140000000};
 
-// Pointer chase: read uptr at root+0x10,
-// then at result+0x20, then at result+0x08
-stx::wptr<> target = root[0x10][0x20][0x08];
+// cada [] ≡ read<uptr>(base + offset), preserva wptr<uptr,1>
+stx::uptr target = root[0x10][0x20][0x08].uptr();
 
-// Typed read at final address
-stx::u32 value = target.read<stx::u32>();
+// stride compile-time via template
+stx::uptr v2 = root.at<4>()[3][5].uptr();
+// [3] → read(addr+3*4)
+// [5] → read(addr'+5*4)
 ```
 
 ---
