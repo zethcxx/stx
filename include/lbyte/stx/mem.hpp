@@ -240,7 +240,7 @@ namespace lbyte::stx
 
         // ---- WALK (deref as uptr*) -------------------------------
 
-        template<std::unsigned_integral U>
+        template<std::integral U>
         [[nodiscard]] STX_FORCE_INLINE
         wptr<> walk( U offset ) const noexcept {
             uptr target = address + static_cast<uptr>(offset);
@@ -254,7 +254,7 @@ namespace lbyte::stx
         }
 
         // sintaxis chain: base[off][off]
-        template<std::unsigned_integral U>
+        template<std::integral U>
         [[nodiscard]] STX_FORCE_INLINE
         wptr<> operator[](U offset) const noexcept {
             return walk(offset);
