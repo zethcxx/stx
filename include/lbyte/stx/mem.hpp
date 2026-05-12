@@ -99,6 +99,8 @@ namespace lbyte::stx
 
     // -- UNSAFE ---------------------------------------------------
 
+    template<typename T = void> class wptr;
+
     template<typename T = void>
     class ptr
     {
