@@ -21,11 +21,11 @@ The design emphasizes type safety, ABI clarity, and compile-time validation usin
 | Symbol        | Type          | Description                          |
 |--------------|--------------|--------------------------------------|
 | `version_info` | struct        | Semantic version container           |
-| `version`      | `constexpr`   | Current library version (`2.0.0`)    |
+| `version`      | `constexpr`   | Current library version (`2.2.0`)    |
 
 ```cpp
 struct version_info { int major, minor, patch; };
-inline constexpr version_info version { 2, 0, 0 };
+inline constexpr version_info version { 2, 2, 0 };
 ```
 
 ---
@@ -379,7 +379,7 @@ The header provides a minimal, strongly-typed foundation for higher-level binary
 
 ```cpp
 static_assert(stx::version.major == 2);
-static_assert(stx::version.minor == 0);
+static_assert(stx::version.minor == 2);
 static_assert(stx::version.patch == 0);
 ```
 

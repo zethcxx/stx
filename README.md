@@ -1,7 +1,7 @@
 # STX - Systems Toolbelt for C++23
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 2.1.0
+**Version:** 2.2.0
 
 STX is a header-only C++23 library providing a rich set of low-level abstractions and utilities for systems programming, binary analysis, runtime instrumentation, and scripting at the OS/hardware interface. It emphasizes type safety, zero-overhead abstractions, and modern C++ idioms to enhance productivity in reverse engineering, red teaming, and tooling for binary formats.
 
@@ -39,7 +39,7 @@ Foundation for the entire library.
 
 ### 2. Memory Utilities (`mem.hpp`)
 
-Provides safe, low-level memory access and alignment primitives.
+Provides safe, low-level memory access, alignment primitives, and typed pointer wrappers.
 
 | Component | Description |
 |-----------|-------------|
@@ -47,9 +47,9 @@ Provides safe, low-level memory access and alignment primitives.
 | `read_raw<Type>(addr, offset)` | Direct dereference; requires alignment |
 | `write<Type>(addr, offset, value)` | Copy-based write |
 | `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
+| `ptr<T>` | Typed non-owning pointer with `->`, `*`, `read()`, `call()` |
+| `wptr<T>` | Walk pointer for pointer chasing / chain traversal |
 | `align_up` / `align_down` | Aligns integral or strong types to power-of-two boundaries |
-
-> **Note:** The hex dump utility (`dump`) is provided in a separate header (`dump.hpp`) to avoid pulling in `std::println` when not needed.
 
 Intended use:
 
@@ -130,26 +130,6 @@ Provides domain-safe, constexpr-friendly integer and strong-type ranges for iter
 
 ---
 
-### 7. Hex Dump (`dump.hpp`)
-
-> [!NOTE]
-> This module is optional and must be included separately.
-
-Provides a colored hexadecimal memory dump for inspection.
-
-| Component | Description |
-|-----------|-------------|
-| `dump(addr, size)` | Produces ANSI-colored memory hex dump for inspection |
-
-Usage:
-
-```cpp
-#include <lbyte/stx/dump.hpp>
-
-dump(base, 128);
-```
-
----
 
 ## Example Usage: Binary Section Reader
 
@@ -228,7 +208,7 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v2.1.0
+    GIT_TAG        v2.2.0
 )
 
 # To use modules with FetchContent:
@@ -251,6 +231,7 @@ package("zethcxx.stx")
     add_versions( "v1.0.0", "v1.0.0" ) -- Or hash
     add_versions( "v2.0.0", "v2.0.0" )
     add_versions( "v2.1.0", "v2.1.0" )
+    add_versions( "v2.2.0", "v2.2.0" )
 
     add_configs( "use_modules", {
         builtin = false,
@@ -272,6 +253,9 @@ package("zethcxx.stx")
 
     on_load(function (package)
         package:add("includedirs", "include")
+        if package:config("use_modules") then
+            package:add("moduledirs", os.path.join(package:installdir("lib"), "stx", "modules"))
+        end
     end)
 
     on_test( function (package)
@@ -279,7 +263,7 @@ package("zethcxx.stx")
     end)
 package_end()
 
-add_requires( "zethcxx.stx v2.1.0" -- or other version
+add_requires( "zethcxx.stx v2.2.0" -- or other version
     -- , { configs = { use_modules = true }} -- if modules is required
 )
 
