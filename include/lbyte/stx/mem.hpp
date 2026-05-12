@@ -125,7 +125,17 @@ namespace lbyte::stx
         // ---- BASE ------------------------------------------------
 
         [[nodiscard]]
-        constexpr uptr raw() const noexcept {
+        constexpr auto raw() noexcept -> T* {
+            return reinterpret_cast<T*>(address);
+        }
+
+        [[nodiscard]]
+        constexpr auto raw() const noexcept -> const T* {
+            return reinterpret_cast<const T*>(address);
+        }
+
+        [[nodiscard]]
+        constexpr uptr uptr() const noexcept {
             return address;
         }
 
@@ -135,18 +145,20 @@ namespace lbyte::stx
         }
 
         [[nodiscard]]
-        constexpr operator uptr() const noexcept {
+        constexpr operator ::lbyte::stx::uptr() const noexcept {
             return address;
         }
 
         // ---- ACCESS ----------------------------------------------
 
-        template<typename U = T>
-        [[nodiscard]] STX_FORCE_INLINE
-        U* operator->() const noexcept
-            requires ( not std::is_void_v<U> )
-        {
-            return reinterpret_cast<U*>(address);
+        [[nodiscard]]
+        constexpr auto operator->() noexcept -> T* {
+            return reinterpret_cast<T*>(address);
+        }
+
+        [[nodiscard]]
+        constexpr auto operator->() const noexcept -> const T* {
+            return reinterpret_cast<const T*>(address);
         }
 
         // ---- BINARY READ / WRITE ---------------------------------
@@ -212,7 +224,17 @@ namespace lbyte::stx
         // ---- BASE ------------------------------------------------
 
         [[nodiscard]]
-        constexpr uptr raw() const noexcept {
+        constexpr auto raw() noexcept -> T* {
+            return reinterpret_cast<T*>(address);
+        }
+
+        [[nodiscard]]
+        constexpr auto raw() const noexcept -> const T* {
+            return reinterpret_cast<const T*>(address);
+        }
+
+        [[nodiscard]]
+        constexpr uptr uptr() const noexcept {
             return address;
         }
 
@@ -222,7 +244,7 @@ namespace lbyte::stx
         }
 
         [[nodiscard]]
-        constexpr operator uptr() const noexcept {
+        constexpr operator ::lbyte::stx::uptr() const noexcept {
             return address;
         }
 
