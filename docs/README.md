@@ -31,8 +31,8 @@
 
 | Type | Description |
 |------|-------------|
-| `ptr<T>` | Typed non-owning pointer with `->`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `wptr<T>` | Walk pointer for pointer chasing / chain traversal |
+| `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `uptr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
+| `wptr<T>` | Walk pointer for pointer chasing / chain traversal: `[](off)`, `walk()`, `uptr()`, `raw()`, `read<T>()` |
 
 ### Fundamental Aliases
 

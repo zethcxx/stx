@@ -231,11 +231,12 @@ public:
 
 ### Base Operations
 
-| Member | Description |
-|--------|-------------|
-| `raw()` | Returns underlying `uptr` |
-| `operator bool` | Non-null check |
-| `operator uptr` | Implicit conversion to `uptr` |
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `raw()` | `T*` | Typed pointer to the object |
+| `uptr()` | `uptr` | Address as unsigned integer |
+| `operator bool` | `bool` | Non-null check |
+| `operator uptr` | `uptr` | Implicit conversion to `uptr` |
 
 ### Address Rebind
 
@@ -247,9 +248,9 @@ public:
 
 ### Typed Access
 
-| Member | Requirements | Description |
-|--------|-------------|-------------|
-| `operator->()` | `!std::is_void_v<T>` | Pointer-style member access |
+| Member | Description |
+|--------|-------------|
+| `operator->()` | Pointer-style member access |
 
 ### Binary Read / Write
 
@@ -270,13 +271,14 @@ public:
 ```cpp
 stx::ptr<IMAGE_DOS_HEADER> dos{some_addr};
 
-auto magic = dos->e_magic;               // member access
-dos = another_addr;                       // rebind
-auto val = dos.read<stx::u32>(off_s{8});  // read with offset
-dos.write<stx::u32>(off_s{12}, 0xDEAD);   // write with offset
-dos.write<stx::u32>(0xBEEF);              // write at address
+auto magic = dos->e_magic;                 // member access
+auto ptr  = dos.raw();                     // IMAGE_DOS_HEADER*
+auto addr = dos.uptr();                    // uptr
+dos = another_addr;                         // rebind
+auto val = dos.read<stx::u32>(off_s{8});    // read with offset
+dos.write<stx::u32>(off_s{12}, 0xDEAD);     // write with offset
+dos.write<stx::u32>(0xBEEF);                // write at address
 
-// Void pointer, typed rebind
 stx::ptr<void> vp{some_addr};
 auto ip = vp.as<int>();  // ptr<int>
 ```
@@ -302,11 +304,14 @@ public:
 
 ### Base Operations
 
-| Member | Description |
-|--------|-------------|
-| `raw()` | Returns underlying `uptr` |
-| `operator bool` | Non-null check |
-| `operator uptr` | Implicit conversion to `uptr` |
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `raw()` | `T*` | Typed pointer to the object |
+| `uptr()` | `uptr` | Address as unsigned integer |
+| `operator bool` | `bool` | Non-null check |
+| `operator uptr` | `uptr` | Implicit conversion to `uptr` |
+
+> **Note:** `wptr` does not provide `operator->`. Use `as<U>()` to obtain a `ptr<U>` for member access.
 
 ### Offset Arithmetic
 
@@ -350,13 +355,17 @@ stx::wptr<> target = base[0x100][0x20];
 ```cpp
 stx::wptr<void> base{0x140000000};
 
+// Address
+auto addr = base.uptr();                  // uptr
+auto ptr  = base.raw();                   // void*
+
 // Offset
 auto next = base + stx::off_s{0x100};
 
 // Pointer chasing
 stx::wptr<> entry = base[0x10][0x20][0x08];
 
-// Typed rebind
+// Typed rebind for member access
 stx::ptr<int> p = base.as<int>();
 
 // Read value
@@ -449,11 +458,13 @@ auto aligned = stx::align_up(off, 16);  // returns off_s{128}
 ```cpp
 stx::ptr<int> p{some_address};
 
-p->x = 10;            // member access
-p = another_addr;     // rebind
-auto val = p.read<stx::u32>();  // binary read
-p.write(42);          // write value
-auto cp = p.as<short>();  // type rebind
+auto raw_ptr = p.raw();           // int*
+auto addr    = p.uptr();          // uptr
+p->x = 10;                        // member access
+p = another_addr;                 // rebind
+auto val = p.read<stx::u32>();    // binary read
+p.write(42);                      // write value
+auto cp = p.as<short>();          // type rebind
 ```
 
 ---
