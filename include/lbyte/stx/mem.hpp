@@ -2,6 +2,7 @@
 #include "core.hpp"
 #include "fn.hpp"
 #include <bit>
+#include <compare>
 #include <cstring>
 #include <functional>
 
@@ -539,6 +540,7 @@ namespace lbyte::stx
     };
 }
 
+#ifndef LBYTE_STX_MODULE
 template<typename T>
 struct std::hash<lbyte::stx::ptr<T>>
 {
@@ -546,5 +548,6 @@ struct std::hash<lbyte::stx::ptr<T>>
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
+#endif
 
 #undef STX_FORCE_INLINE

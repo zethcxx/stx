@@ -1,5 +1,6 @@
 module;
 
+#define LBYTE_STX_MODULE
 #include "lbyte/stx/mem.hpp"
 
 export module lbyte.stx.mem;
@@ -30,3 +31,11 @@ export namespace lbyte::stx
     using ::lbyte::stx::align_up;
     using ::lbyte::stx::align_down;
 }
+
+export template<typename T>
+struct std::hash<lbyte::stx::ptr<T>>
+{
+    auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
+        return std::hash<lbyte::stx::uptr>{}( p.addr() );
+    }
+};
