@@ -184,6 +184,9 @@ namespace lbyte::stx
             return address;
         }
 
+        [[nodiscard]]
+        constexpr auto operator<=>( const ptr& ) const noexcept = default;
+
         // ---- ARROW ACCESS ----------------------------------------
 
         [[nodiscard]]
