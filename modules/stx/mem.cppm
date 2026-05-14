@@ -39,3 +39,11 @@ struct std::hash<lbyte::stx::ptr<T>>
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
+
+export template<typename T, lbyte::stx::uptr Stride>
+struct std::hash<lbyte::stx::wptr<T, Stride>>
+{
+    auto operator()( const lbyte::stx::wptr<T, Stride>& p ) const noexcept {
+        return std::hash<lbyte::stx::uptr>{}( p.addr() );
+    }
+};

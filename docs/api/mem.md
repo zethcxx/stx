@@ -279,8 +279,10 @@ public:
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `add(off_s)` | `ptr` | Advance address by signed offset |
+| `add(rva_s)` | `ptr` | Advance address by RVA |
 | `sub(off_s)` | `ptr` | Rewind address by signed offset |
 | `operator+(off_s)` | `ptr` | Advance address by signed offset |
+| `operator+(rva_s)` | `ptr` | Advance address by RVA |
 | `operator-(off_s)` | `ptr` | Rewind address by signed offset |
 | `operator+=(off_s)` | `ptr&` | Advance in-place |
 | `operator-=(off_s)` | `ptr&` | Rewind in-place |

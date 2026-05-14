@@ -364,7 +364,15 @@ namespace lbyte::stx
             return ptr( address - static_cast<uptr>( offset.get() ));
         }
 
+        [[nodiscard]] constexpr ptr add( rva_s offset ) const noexcept {
+            return ptr( address + static_cast<uptr>( offset.get() ));
+        }
+
         [[nodiscard]] constexpr ptr operator+( off_s offset ) const noexcept {
+            return ptr( address + static_cast<uptr>( offset.get() ));
+        }
+
+        [[nodiscard]] constexpr ptr operator+( rva_s offset ) const noexcept {
             return ptr( address + static_cast<uptr>( offset.get() ));
         }
 
@@ -448,6 +456,11 @@ namespace lbyte::stx
         }
 
         [[nodiscard]]
+        constexpr wptr add( rva_s offset ) const noexcept {
+            return wptr( this->addr() + static_cast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
+        [[nodiscard]]
         constexpr wptr sub( off_s offset ) const noexcept {
             return wptr( this->addr() - scast<::lbyte::stx::uptr>( offset.get() ));
         }
@@ -455,6 +468,11 @@ namespace lbyte::stx
         [[nodiscard]]
         constexpr wptr operator+( off_s offset ) const noexcept {
             return wptr( this->addr() + scast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
+        [[nodiscard]]
+        constexpr wptr operator+( rva_s offset ) const noexcept {
+            return wptr( this->addr() + static_cast<::lbyte::stx::uptr>( offset.get() ));
         }
 
         [[nodiscard]]
@@ -545,6 +563,14 @@ template<typename T>
 struct std::hash<lbyte::stx::ptr<T>>
 {
     [[nodiscard]] auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
+        return std::hash<lbyte::stx::uptr>{}( p.addr() );
+    }
+};
+
+template<typename T, lbyte::stx::uptr Stride>
+struct std::hash<lbyte::stx::wptr<T, Stride>>
+{
+    [[nodiscard]] auto operator()( const lbyte::stx::wptr<T, Stride>& p ) const noexcept {
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
