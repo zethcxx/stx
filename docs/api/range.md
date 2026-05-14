@@ -220,18 +220,17 @@ struct range_view
 
 ## `range_iter`
 
-Iterator implementation.
+Iterator implementation using a count-based approach (avoids underflow with unsigned types).
 
 ```cpp
 template<rangeable Type>
 struct range_iter
 {
     ValueT cur;
-    ValueT end;
     ValueT step;
+    usize  remaining;
 
-    range_dir  dir;
-    range_mode mode;
+    range_dir dir;
 
     constexpr Type operator*() const noexcept;
     constexpr range_iter& operator++() noexcept;
@@ -241,33 +240,21 @@ struct range_iter
 
 ### Behavior
 
-| Direction | Step Operation |
-|-----------|---------------|
-| Forward   | `cur += step` |
-| Backward  | `cur -= step` |
+| Direction | Step Operation | Termination |
+|-----------|---------------|-------------|
+| Forward   | `cur += step` | `remaining == 0` |
+| Backward  | `cur -= step` | `remaining == 0` |
 
-Termination depends on:
+`remaining` is computed at `begin()` based on direction and mode:
 
-- Direction
-- Inclusive / Exclusive mode
+| Direction | Mode       | Remaining Count |
+|-----------|------------|-----------------|
+| Forward   | Exclusive  | `(to - from) / step` |
+| Forward   | Inclusive  | `(to - from) / step + 1` (if divisible) |
+| Backward  | Exclusive  | `(from - to) / step` — visits `(from, to]` |
+| Backward  | Inclusive  | `(from - to) / step + 1` — visits `[from, to]` |
 
----
-
-# Termination Logic
-
-## Forward
-
-| Mode       | Stop Condition |
-|------------|----------------|
-| Exclusive  | `cur >= end`   |
-| Inclusive  | `cur > end`    |
-
-## Backward
-
-| Mode       | Stop Condition |
-|------------|----------------|
-| Exclusive  | `cur <= end`   |
-| Inclusive  | `cur < end`    |
+Start offset for Backward Exclusive: `from - step` (excludes `from`).
 
 ---
 

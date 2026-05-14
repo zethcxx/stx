@@ -45,4 +45,6 @@ export namespace lbyte::stx
 
     using ::lbyte::stx::gap_v;
     using ::lbyte::stx::gap_align_v;
+
+    using ::lbyte::stx::defer;
 }

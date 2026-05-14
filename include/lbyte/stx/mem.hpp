@@ -44,12 +44,10 @@ namespace lbyte::stx
     }
 
     // SAFE MEMORY ACCESS (memcpy, well-defined, unaligned-safe) -----------------
-    template<class Type, address_like Addr>
+    template<binary_readable Type, address_like Addr>
     [[nodiscard]] STX_FORCE_INLINE
     Type read( Addr base, off_s off = off_s{0} ) noexcept
     {
-        static_assert(std::is_trivially_copyable_v<Type>);
-
         Type value;
 
         std::memcpy(
@@ -61,12 +59,28 @@ namespace lbyte::stx
         return value;
     }
 
-    template< class Type, address_like Addr >
+    // ENDIAN-AWARE READ -----------------------------------------------------
+    template<std::integral Type, address_like Addr>
+    [[nodiscard]] STX_FORCE_INLINE
+    Type read_le( Addr base, off_s off = off_s{0} ) noexcept
+    {
+        return read<Type>( base, off );
+    }
+
+    template<std::integral Type, address_like Addr>
+    [[nodiscard]] STX_FORCE_INLINE
+    Type read_be( Addr base, off_s off = off_s{0} ) noexcept
+    {
+        if constexpr ( std::endian::native == std::endian::little )
+            return std::byteswap( read<Type>( base, off ) );
+        else
+            return read<Type>( base, off );
+    }
+
+    template< binary_readable Type, address_like Addr >
     STX_FORCE_INLINE
     void write( Addr base, off_s off, Type value ) noexcept
     {
-        static_assert(std::is_trivially_copyable_v<Type>);
-
         std::memcpy(
             rcast<std::byte*>(normalize_addr(base)) + off.get(),
             &value,
@@ -74,24 +88,38 @@ namespace lbyte::stx
         );
     }
 
+    // ENDIAN-AWARE WRITE ----------------------------------------------------
+    template<std::integral Type, address_like Addr>
+    STX_FORCE_INLINE
+    void write_le( Addr base, off_s off, Type value ) noexcept
+    {
+        write( base, off, value );
+    }
+
+    template<std::integral Type, address_like Addr>
+    STX_FORCE_INLINE
+    void write_be( Addr base, off_s off, Type value ) noexcept
+    {
+        if constexpr ( std::endian::native == std::endian::little )
+            write( base, off, std::byteswap( value ) );
+        else
+            write( base, off, value );
+    }
+
     // UNSAFE MEMORY ACCESS (direct deref, requires alignment, strict-aliasing) --
-    template<class Type>
+    template<binary_readable Type>
     [[nodiscard]] STX_FORCE_INLINE
     Type read_raw( address_like auto base, off_s off = off_s{0} ) noexcept
     {
-        static_assert(std::is_trivially_copyable_v<Type>);
-
         return *rcast<Type*>(
             rcast<std::byte*>(normalize_addr(base)) + off.get()
         );
     }
 
-    template<class Type>
+    template<binary_readable Type>
     STX_FORCE_INLINE
     void write_raw( address_like auto base, off_s off, Type value ) noexcept
     {
-        static_assert(std::is_trivially_copyable_v<Type>);
-
         *rcast<Type*>(
             rcast<std::byte*>(normalize_addr(base)) + off.get()
         ) = value;
@@ -184,6 +212,22 @@ namespace lbyte::stx
             return value;
         }
 
+        template<std::integral U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_le( off_s off = off_s{} ) const noexcept -> U
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            return ::lbyte::stx::read_le<U>( address, off );
+        }
+
+        template<std::integral U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_be( off_s off = off_s{} ) const noexcept -> U
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            return ::lbyte::stx::read_be<U>( address, off );
+        }
+
         template<typename U = T>
         STX_FORCE_INLINE
         void write( off_s off, U value ) const noexcept
@@ -206,6 +250,22 @@ namespace lbyte::stx
                 &value,
                 sizeof(U)
             );
+        }
+
+        template<std::integral U = T>
+        STX_FORCE_INLINE
+        void write_le( off_s off, U value ) const noexcept
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            ::lbyte::stx::write_le<U>( address, off, value );
+        }
+
+        template<std::integral U = T>
+        STX_FORCE_INLINE
+        void write_be( off_s off, U value ) const noexcept
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            ::lbyte::stx::write_be<U>( address, off, value );
         }
 
         // ---- UNSAFE (direct deref) --------------------------------
@@ -237,13 +297,94 @@ namespace lbyte::stx
         // ---- TYPE REBIND -----------------------------------------
 
         template<typename U>
-        [[nodiscard]] constexpr ptr<U> as() const noexcept {
+        [[nodiscard]] constexpr ptr<U> as_p() const noexcept {
             return ptr<U>(address);
         }
 
         template<typename U>
         [[nodiscard]] constexpr wptr<U> as_w() const noexcept {
             return wptr<U>(address);
+        }
+
+        template<typename U>
+        [[nodiscard]] constexpr auto as() const noexcept -> U {
+            return scast<U>(address);
+        }
+
+        // ---- ALIGNMENT -------------------------------------------
+
+        template<std::unsigned_integral U = usize>
+        [[nodiscard]] constexpr ptr align_up( U alignment ) const noexcept {
+            return ptr( ::lbyte::stx::align_up( address, static_cast<usize>(alignment) ));
+        }
+
+        template<std::unsigned_integral U = usize>
+        [[nodiscard]] constexpr ptr align_down( U alignment ) const noexcept {
+            return ptr( ::lbyte::stx::align_down( address, static_cast<usize>(alignment) ));
+        }
+
+        // ---- STRONG TYPE CONVERSIONS -----------------------------
+
+        [[nodiscard]] constexpr off_s off() const noexcept {
+            return off_s{ scast<off_s::value_type>( address ) };
+        }
+
+        [[nodiscard]] constexpr rva_s rva() const noexcept {
+            return rva_s{ static_cast<rva_s::value_type>( address ) };
+        }
+
+        [[nodiscard]] constexpr va_s va() const noexcept {
+            return va_s{ address };
+        }
+
+        // ---- ARITHMETIC -------------------------------------------
+
+        [[nodiscard]] constexpr ptr add( off_s offset ) const noexcept {
+            return ptr( address + static_cast<uptr>( offset.get() ));
+        }
+
+        [[nodiscard]] constexpr ptr sub( off_s offset ) const noexcept {
+            return ptr( address - static_cast<uptr>( offset.get() ));
+        }
+
+        [[nodiscard]] constexpr ptr operator+( off_s offset ) const noexcept {
+            return ptr( address + static_cast<uptr>( offset.get() ));
+        }
+
+        [[nodiscard]] constexpr ptr operator-( off_s offset ) const noexcept {
+            return ptr( address - static_cast<uptr>( offset.get() ));
+        }
+
+        [[nodiscard]] off_s operator-( ptr other ) const noexcept {
+            return off_s{ scast<off_s::value_type>( address - other.address ) };
+        }
+
+        constexpr ptr& operator+=( off_s offset ) noexcept {
+            address += static_cast<uptr>( offset.get() );
+            return *this;
+        }
+
+        constexpr ptr& operator-=( off_s offset ) noexcept {
+            address -= static_cast<uptr>( offset.get() );
+            return *this;
+        }
+
+        // ---- DISTANCE --------------------------------------------
+
+        [[nodiscard]] off_s diff( ptr other ) const noexcept {
+            return off_s{ scast<off_s::value_type>( address - other.address ) };
+        }
+
+        // ---- ALIGNMENT CHECK -------------------------------------
+
+        template<typename U>
+        [[nodiscard]] constexpr bool is_aligned() const noexcept {
+            return ( address & ( static_cast<uptr>( alignof(U) ) - 1 )) == 0;
+        }
+
+        template<usize Alignment>
+        [[nodiscard]] constexpr bool is_aligned() const noexcept {
+            return ( address & ( Alignment - 1 )) == 0;
         }
 
         // ---- CALL ------------------------------------------------
@@ -270,16 +411,36 @@ namespace lbyte::stx
             : base( addr )
         {}
 
-        // ---- OFFSET ARITHMETIC -----------------------------------
+        // ---- ARITHMETIC -------------------------------------------
 
         [[nodiscard]]
-        constexpr wptr operator+( usize offset ) const noexcept {
-            return wptr( this->addr() + offset );
+        constexpr wptr add( off_s offset ) const noexcept {
+            return wptr( this->addr() + scast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
+        [[nodiscard]]
+        constexpr wptr sub( off_s offset ) const noexcept {
+            return wptr( this->addr() - scast<::lbyte::stx::uptr>( offset.get() ));
         }
 
         [[nodiscard]]
         constexpr wptr operator+( off_s offset ) const noexcept {
             return wptr( this->addr() + scast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
+        [[nodiscard]]
+        constexpr wptr operator-( off_s offset ) const noexcept {
+            return wptr( this->addr() - scast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
+        constexpr wptr& operator+=( off_s offset ) noexcept {
+            this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
+            return *this;
+        }
+
+        constexpr wptr& operator-=( off_s offset ) noexcept {
+            this->ref() -= static_cast<::lbyte::stx::uptr>( offset.get() );
+            return *this;
         }
 
         // ---- WALK (memcpy-safe pointer chasing) ------------------
@@ -319,6 +480,23 @@ namespace lbyte::stx
         template<typename U>
         [[nodiscard]] constexpr wptr<U, Stride> as_w() const noexcept {
             return wptr<U, Stride>( this->addr() );
+        }
+
+        template<typename U>
+        [[nodiscard]] constexpr auto as() const noexcept -> U {
+            return scast<U>( this->addr() );
+        }
+
+        // ---- ALIGNMENT -------------------------------------------
+
+        template<std::unsigned_integral U = usize>
+        [[nodiscard]] constexpr wptr align_up( U alignment ) const noexcept {
+            return wptr( ::lbyte::stx::align_up( this->addr(), static_cast<usize>(alignment) ));
+        }
+
+        template<std::unsigned_integral U = usize>
+        [[nodiscard]] constexpr wptr align_down( U alignment ) const noexcept {
+            return wptr( ::lbyte::stx::align_down( this->addr(), static_cast<usize>(alignment) ));
         }
 
         template<::lbyte::stx::uptr NewStride>

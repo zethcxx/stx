@@ -36,7 +36,7 @@ namespace lbyte::stx
             if constexpr ( std::integral<T> )
                 return static_cast<base_type_t<T>>( value );
             else
-        return value.get();
+                return value.get();
         }
     }
 
@@ -79,7 +79,7 @@ namespace lbyte::stx
             return details::range_view<Type> {
                 to,
                 ValueT{ 0 },
-                details::base_type_t<Type>{ 1 },
+                ValueT{ 1 },
                 dir,
                 flag
             };
@@ -88,7 +88,7 @@ namespace lbyte::stx
         return details::range_view<Type> {
             ValueT{ 0 },
             to         ,
-            details::base_type_t<Type>{ 1 },
+            ValueT{ 1 },
             dir,
             flag
         };
@@ -152,11 +152,11 @@ struct lbyte::stx::details::range_iter
     using ValueT = base_type_t<Type>;
 
     ValueT cur ;
-    ValueT end ;
     ValueT step;
 
-    range_dir  dir ;
-    range_mode mode;
+    ::lbyte::stx::usize remaining;
+
+    range_dir dir ;
 
     constexpr Type operator*() const noexcept
     {
@@ -168,30 +168,22 @@ struct lbyte::stx::details::range_iter
 
     constexpr range_iter& operator++() noexcept
     {
-        if ( dir == range_dir::Forward )
-            cur += step;
-        else
-            cur -= step;
+        if ( remaining > 0 )
+        {
+            if ( dir == range_dir::Forward )
+                cur += step;
+            else
+                cur -= step;
+
+            --remaining;
+        }
 
         return *this;
     }
 
     constexpr bool operator==( range_sentinel ) const noexcept
     {
-        if ( dir == range_dir::Forward )
-        {
-            if ( mode == range_mode::Inclusive )
-                return cur > end;
-            else
-                return cur >= end;
-        }
-        else // Backward
-        {
-            if ( mode == range_mode::Inclusive )
-                return cur < end;
-            else
-                return cur < end;
-        }
+        return remaining == 0;
     }
 };
 
@@ -211,11 +203,48 @@ struct lbyte::stx::details::range_view
 
     constexpr auto begin() const noexcept
     {
-        using V = ValueT;
-        V start = from;
-        if (dir == range_dir::Backward && mode == range_mode::Exclusive)
+        ::lbyte::stx::usize remaining = 0;
+
+        if ( dir == range_dir::Forward )
+        {
+            if ( from <= to )
+            {
+                auto dist = static_cast<::lbyte::stx::usize>( to - from );
+                auto step_u = static_cast<::lbyte::stx::usize>( step );
+                remaining = dist / step_u;
+
+                if ( mode == range_mode::Inclusive && ( dist % step_u == 0 ) )
+                    remaining += 1;
+            }
+        }
+        else // Backward
+        {
+            if ( from >= to )
+            {
+                auto dist = static_cast<::lbyte::stx::usize>( from - to );
+                auto step_u = static_cast<::lbyte::stx::usize>( step );
+                remaining = dist / step_u;
+
+                if ( mode == range_mode::Exclusive )
+                {
+                    // Backward Exclusive: visit (from, to] — exclude `from`, include `to`
+                    // remaining stays as dist / step
+                    // If dist % step != 0: last value reaches past `to`
+                    // The start adjustment below handles excluding `from`
+                }
+                else // Inclusive
+                {
+                    remaining += 1;
+                    // Backward Inclusive: visit [from, to] — include both
+                }
+            }
+        }
+
+        ValueT start = from;
+        if ( dir == range_dir::Backward && mode == range_mode::Exclusive )
             start = from - step;
-        return iter_t { start, to, step, dir, mode };
+
+        return iter_t { start, step, remaining, dir };
     }
 
     constexpr auto end() const noexcept {

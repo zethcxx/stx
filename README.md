@@ -1,7 +1,7 @@
 # STX - Systems Toolbelt for C++23
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 2.2.0
+**Version:** 2.3.0
 
 STX is a header-only C++23 library providing a rich set of low-level abstractions and utilities for systems programming, binary analysis, runtime instrumentation, and scripting at the OS/hardware interface. It emphasizes type safety, zero-overhead abstractions, and modern C++ idioms to enhance productivity in reverse engineering, red teaming, and tooling for binary formats.
 
@@ -131,55 +131,72 @@ Provides domain-safe, constexpr-friendly integer and strong-type ranges for iter
 ---
 
 
-## Example Usage: Binary Section Reader
+## Example: Hex Dump Utility
 
-This demonstration shows STX utilities for parsing a PE file section table.
+A general-purpose hex viewer showcasing offset types, file I/O, ranges, and timing.
 
 ```cpp
-// also <lbyte/stx/core.hpp>
-#include <lbyte/stx.hpp> // or import lbyte.stx if using modules
+#include <lbyte/stx.hpp>
 #include <fstream>
+#include <cstdio>
 
 using namespace lbyte::stx;
 
-auto main() -> int
+auto hex_dump(std::span<const u8> bytes, off_s base = {}) -> void
 {
-    std::ifstream file { "target.dll", std::ios::binary };
-    if ( not file.is_open() ) return EXIT_FAILURE;
+    for (auto row : range(base.get(), scast<isize>(bytes.size()), isize{16}, range_dir::Forward)) {
+        std::printf("%08zx  ", row);
 
-    // Read DOS and NT headers
-    auto dos  = readfs<IMAGE_DOS_HEADER  >(file);
-    auto nt   = readfs<IMAGE_NT_HEADERS64>(file, off_s{dos.e_lfanew});
+        auto end = std::min<usize>(16, bytes.size() - (row - base.get()));
+        auto line = bytes.subspan(row - base.get(), end);
+        for (auto i : range(line.size())) {
+            if (i == 8) std::printf(" ");
+            std::printf("%02x ", line[i]);
+        }
 
-    // Calculate Section Table offset
-    auto sections_offset = off_s{
-        dos.e_lfanew
-        + sizeof(u32)
-        + sizeof(IMAGE_FILE_HEADER)
-        + nt.FileHeader.SizeOfOptionalHeader
-    };
+        auto pad = 16 - line.size();
+        for (usize i{}; i < pad; ++i) std::printf("   ");
+        if (pad >= 8) std::printf(" ");
+        if (pad) std::printf(" ");
 
-    // Bulk read sections into optimized buffer
-    auto sections = readfs<IMAGE_SECTION_HEADER>(
-        file,
-        sections_offset,
-        nt.FileHeader.NumberOfSections
-    );
-
-    for (const auto& sec : sections) {
-        println("Section: {}", sec.get_name());
+        for (auto b : line)
+            std::printf("%c", b >= 32 && b < 127 ? b : '.');
+        std::printf("\n");
     }
+}
 
-    return EXIT_SUCCESS;
+auto main(int argc, char** argv) -> int
+{
+    if (argc < 2) { std::fprintf(stderr, "usage: hd <file>\n"); return 1; }
+
+    std::ifstream file{argv[1], std::ios::binary | std::ios::ate};
+    if (!file) { std::perror("open"); return 1; }
+
+    auto size = scast<usize>(file.tellg());
+    file.seekg(0);
+
+    defer cleanup{ [&] { std::printf("--- EOF ---\n"); } };
+
+    auto stop = stop_watch{};
+
+    auto buf = readfs<u8>(file, off_s{0}, size);
+    if (!buf) { std::fprintf(stderr, "read error\n"); return 1; }
+    hex_dump(*buf, off_s{0});
+
+    std::printf("\n%zu bytes in %lld us\n",
+        size, stop.elapsed<std::chrono::microseconds>());
 }
 ```
 
 Demonstrates:
 
-- Type-safe file reading
-- `dirty_vector` bulk allocation
-- Offset arithmetic with `off_s`
-- Strong-type safe iteration
+- `off_s` for typed offset arithmetic
+- `readfs` + `dirty_vector` for bulk file reads
+- `range()` for safe, constexpr-friendly iteration
+- `stop_watch` for lightweight profiling
+- `defer` for scoped cleanup (LIFO, cancelable)
+- `scast`/`rcast` for explicit casts
+- `_uz` literal for `usize`
 
 ---
 
@@ -208,7 +225,7 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v2.2.0
+    GIT_TAG        v2.3.0
 )
 
 # To use modules with FetchContent:
@@ -232,7 +249,8 @@ package("zethcxx.stx")
     add_versions( "v2.0.0", "v2.0.0" )
     add_versions( "v2.1.0", "v2.1.0" )
     add_versions( "v2.2.0", "v2.2.0" )
-
+    add_versions( "v2.3.0", "v2.3.0" )
+ 
     add_configs( "use_modules", {
         builtin = false,
         default = false,
@@ -263,7 +281,7 @@ package("zethcxx.stx")
     end)
 package_end()
 
-add_requires( "zethcxx.stx v2.2.0" -- or other version
+add_requires( "zethcxx.stx v2.3.0" -- or other version
     -- , { configs = { use_modules = true }} -- if modules is required
 )
 

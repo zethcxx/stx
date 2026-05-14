@@ -33,6 +33,19 @@ namespace lbyte::stx::literals
         return va_s{ static_cast<va_s::value_type>(v) };
     }
 
+    // --- SIZE LITERALS (powers of 1024) ------------------------------------
+    constexpr usize operator""_kb( unsigned long long v ) noexcept {
+        return static_cast<usize>( v ) * 1024;
+    }
+
+    constexpr usize operator""_mb( unsigned long long v ) noexcept {
+        return static_cast<usize>( v ) * 1024 * 1024;
+    }
+
+    constexpr usize operator""_gb( unsigned long long v ) noexcept {
+        return static_cast<usize>( v ) * 1024 * 1024 * 1024;
+    }
+
     // --- POINTERS (default to std::byte) ------------------------------------
     constexpr ptr<std::byte> operator""_ptr( unsigned long long v ) noexcept {
         return ptr<std::byte>{ static_cast<uptr>(v) };

@@ -16,4 +16,10 @@ export namespace lbyte::stx
     using ::lbyte::stx::skipfs;
     using ::lbyte::stx::last_read_ok;
 
+    using ::lbyte::stx::setposos;
+    using ::lbyte::stx::writefs;
+    using ::lbyte::stx::skipos;
+
+    using ::lbyte::stx::map_flag;
+    using ::lbyte::stx::map_file;
 }

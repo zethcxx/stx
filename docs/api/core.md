@@ -25,7 +25,7 @@ The design emphasizes type safety, ABI clarity, and compile-time validation usin
 
 ```cpp
 struct version_info { int major, minor, patch; };
-inline constexpr version_info version { 2, 2, 0 };
+inline constexpr version_info version { 2, 3, 0 };
 ```
 
 ---
@@ -383,6 +383,9 @@ using lbyte::stx::literals::operator""_off_s;
 | `_va_s`     | `va_s`    | `0xDEAD_BEEF_va_s`       |
 | `_ptr`      | `ptr<std::byte>` | `nullptr`-based `ptr`; pass address to non-null |
 | `_wptr`     | `wptr<std::byte, 1>` | `nullptr`-based `wptr`; pass address to non-null |
+| `_kb`       | `usize`   | `4_kb` = 4096 |
+| `_mb`       | `usize`   | `2_mb` = 2097152 |
+| `_gb`       | `usize`   | `1_gb` = 1073741824 |
 
 ### Usage Notes
 
@@ -432,7 +435,7 @@ The header provides a minimal, strongly-typed foundation for higher-level binary
 
 ```cpp
 static_assert(stx::version.major == 2);
-static_assert(stx::version.minor == 2);
+static_assert(stx::version.minor == 3);
 static_assert(stx::version.patch == 0);
 ```
 

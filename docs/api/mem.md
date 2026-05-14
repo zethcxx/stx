@@ -243,7 +243,7 @@ public:
 | Member | Description |
 |--------|-------------|
 | `operator=(address_like)` | Change pointed address |
-| `as<U>()` | Rebind to `ptr<U>` |
+| `as_p<U>()` | Rebind to `ptr<U>` |
 | `as_w<U>()` | Rebind to `wptr<U>` |
 
 ### Typed Access
@@ -259,6 +259,46 @@ public:
 | `read<T>(off)` | `binary_readable<T>` | Copy-based read with optional offset |
 | `write<T>(off, val)` | `binary_readable<T>` | Copy-based write with offset |
 | `write<T>(val)` | `binary_readable<T>` | Copy-based write at address |
+
+### Alignment
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `align_up(alignment)` | `ptr` | Round address up to alignment boundary |
+| `align_down(alignment)` | `ptr` | Round address down to alignment boundary |
+
+### Alignment Check
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `is_aligned<T>()` | `bool` | Address aligned to `alignof(T)` |
+| `is_aligned<N>()` | `bool` | Address aligned to `N` bytes |
+
+### Arithmetic
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `add(off_s)` | `ptr` | Advance address by signed offset |
+| `sub(off_s)` | `ptr` | Rewind address by signed offset |
+| `operator+(off_s)` | `ptr` | Advance address by signed offset |
+| `operator-(off_s)` | `ptr` | Rewind address by signed offset |
+| `operator+=(off_s)` | `ptr&` | Advance in-place |
+| `operator-=(off_s)` | `ptr&` | Rewind in-place |
+
+### Distance
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `diff(ptr)` | `off_s` | Signed distance between two pointers |
+| `operator-(ptr)` | `off_s` | Signed distance (alias) |
+
+### Strong Type Conversions
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `off()` | `off_s` | Address as signed offset |
+| `rva()` | `rva_s` | Address as 32-bit RVA |
+| `va()` | `va_s` | Address as strong virtual address |
 
 ### Call
 
@@ -280,7 +320,7 @@ dos.write<stx::u32>(off_s{12}, 0xDEAD);     // write with offset
 dos.write<stx::u32>(0xBEEF);                // write at address
 
 stx::ptr<void> vp{some_addr};
-auto ip = vp.as<int>();  // ptr<int>
+auto ip = vp.as_p<int>();  // ptr<int>
 ```
 
 ---
@@ -321,12 +361,16 @@ public:
 |--------|---------|-------------|
 | `operator->()` | `T*` | Typed member access |
 
-### Offset Arithmetic
+### Arithmetic
 
-| Member | Description |
-|--------|-------------|
-| `operator+(usize)` | Returns new `wptr` advanced by offset |
-| `operator+(off_s)` | Returns new `wptr` advanced by strong offset |
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `add(off_s)` | `wptr` | Advance address by signed offset |
+| `sub(off_s)` | `wptr` | Rewind address by signed offset |
+| `operator+(off_s)` | `wptr` | Advance address by signed offset |
+| `operator-(off_s)` | `wptr` | Rewind address by signed offset |
+| `operator+=(off_s)` | `wptr&` | Advance in-place |
+| `operator-=(off_s)` | `wptr&` | Rewind in-place |
 
 ### Walk / Chain (Pointer Chasing)
 
@@ -341,10 +385,23 @@ Lee un `uptr` desde `address + offset * Stride` vía `std::memcpy` y lo retorna 
 
 | Member | Description |
 |--------|-------------|
-| `as<U>()` | Rebind to `ptr<U>` |
+| `as_p<U>()` | Rebind to `ptr<U>` |
 | `as_w<U>()` | Rebind to `wptr<U, Stride>` (preserva stride) |
 | `at<N>()` | Rebind to `wptr<T, N>` (stride = N) |
 | `at<U>()` | Rebind to `wptr<T, sizeof(U)>` (stride = sizeof(U)) |
+
+### Alignment
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `align_up(alignment)` | `wptr` | Round address up to alignment boundary |
+| `align_down(alignment)` | `wptr` | Round address down to alignment boundary |
+
+### Conversion (inherited)
+
+`wptr` inherits `off()`, `rva()`, `va()` from `ptr<T>`.
+
+### Example
 
 ```cpp
 stx::wptr<uptr> base{0x140000000};
@@ -360,16 +417,18 @@ stx::uptr v2 = base.at<4>()[3][5].addr();
 // stride por tipo: at<u64>() ≡ at<8>()
 stx::uptr v3 = base.at<u64>()[3].addr();  // buf + 3*8
 
-// raw() devuelve T*, as<U>() rebind
-stx::u8* ptr = base[0x18].as<u8>().raw();
+// raw() devuelve T*, as_p<U>() rebind
+stx::u8* ptr = base[0x18].as_p<u8>().raw();
+
+// add/sub solo con off_s (no usize)
+auto next = base.add(stx::off_s{0x100});
+auto prev = base.sub(stx::off_s{0x10});
+auto also = base + stx::off_s{0x100};
+auto back = base - stx::off_s{0x10};
+
+base += stx::off_s{0x100};        // in-place add
+base -= stx::off_s{0x10};         // in-place sub
 ```
-
-### Rebind
-
-| Member | Description |
-|--------|-------------|
-| `as<U>()` | Rebind to `ptr<U>` |
-| `as_w<U>()` | Rebind to `wptr<U>` |
 
 ### Binary Read / Write
 
@@ -503,7 +562,25 @@ p->x = 10;                        // member access
 p = another_addr;                 // rebind
 auto val = p.read<stx::u32>();    // binary read
 p.write(42);                      // write value
-auto cp = p.as<short>();          // type rebind
+auto cp = p.as_p<short>();        // type rebind
+
+auto aligned = p.align_up(16);    // align up to 16-byte boundary
+auto off     = p.off();           // address as signed offset
+auto rva     = p.rva();           // address as 32-bit RVA
+
+auto next = p.add(stx::off_s{8}); // advance by 8 bytes
+auto prev = p.sub(stx::off_s{4}); // rewind by 4 bytes
+auto same = p + stx::off_s{8};    // operator+ overload
+auto dist = next.diff(p);         // signed distance: off_s{8}
+
+p += stx::off_s{16};              // advance in-place (ptr&)
+p -= stx::off_s{4};               // rewind in-place
+
+auto back = q - stx::off_s{32};   // operator- returns ptr
+auto diff = q - p;                // ptr - ptr = off_s
+
+if (p.is_aligned<int>())    { }   // aligned to alignof(int)
+if (p.is_aligned<16>())     { }   // aligned to 16 bytes
 ```
 
 ---

@@ -118,16 +118,6 @@ namespace lbyte::stx
                 friend constexpr auto
                 operator<=>(const strong_type&, const strong_type&) = default;
 
-                template<typename T>
-                struct effective_size {
-                    static constexpr usize value = sizeof(T);
-                };
-
-                template<typename T, typename TTag>
-                struct effective_size<strong_type<T, TTag>> {
-                    static constexpr usize value = sizeof(T);
-                };
-
             private:
                 Type value{};
         };
@@ -212,6 +202,20 @@ namespace lbyte::stx
         else
             return static_cast<uptr>( base );
     }
+
+    template<std::invocable<> F>
+    struct defer {
+        F fn_;
+        bool armed_ = true;
+        defer(F f) : fn_(static_cast<F&&>(f)) {}
+        defer(defer&&) = delete;
+        defer(const defer&) = delete;
+        defer& operator=(defer&&) = delete;
+        defer& operator=(const defer&) = delete;
+        ~defer() { if (armed_) fn_(); }
+        void cancel() noexcept { armed_ = false; }
+    };
+    template<std::invocable<> F> defer(F) -> defer<F>;
 }
 
 #undef STX_FORCE_INLINE
