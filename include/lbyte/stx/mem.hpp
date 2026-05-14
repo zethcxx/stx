@@ -201,6 +201,20 @@ namespace lbyte::stx
             return *rcast<const T*>(address);
         }
 
+        template<typename U = T>
+        [[nodiscard]] auto operator[]( off_s off ) noexcept -> U&
+            requires ( not std::is_void_v<U> )
+        {
+            return *rcast<U*>( address + off.get() );
+        }
+
+        template<typename U = T>
+        [[nodiscard]] auto operator[]( off_s off ) const noexcept -> const U&
+            requires ( not std::is_void_v<U> )
+        {
+            return *rcast<const U*>( address + off.get() );
+        }
+
         // ---- ARROW ACCESS ----------------------------------------
 
         [[nodiscard]]

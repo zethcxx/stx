@@ -375,6 +375,7 @@ public:
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `operator*()` | `T&` / `const T&` | Direct dereference |
+| `operator[](off_s)` | `T&` / `const T&` | Raw dereference at byte offset |
 | `operator->()` | `T*` | Typed member access |
 
 ### Binary Read / Write
