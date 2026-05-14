@@ -300,6 +300,19 @@ public:
 | `rva()` | `rva_s` | Address as 32-bit RVA |
 | `va()` | `va_s` | Address as strong virtual address |
 
+### Swap
+
+| Member | Description |
+|--------|-------------|
+| `swap(ptr&)` | Exchange addresses (member) |
+| `swap(a, b)` | Exchange (ADL friend) |
+
+### Hash (std)
+
+```cpp
+std::unordered_set<ptr<T>> set;  // enabled via std::hash<ptr<T>>
+```
+
 ### Call
 
 | Member | Description |
@@ -355,80 +368,12 @@ public:
 | `operator bool` | `bool` | Non-null check |
 | `operator uptr` | `uptr` | Implicit conversion to `uptr` |
 
-### Arrow Access
+### Dereference & Arrow Access
 
 | Member | Returns | Description |
 |--------|---------|-------------|
+| `operator*()` | `T&` / `const T&` | Direct dereference |
 | `operator->()` | `T*` | Typed member access |
-
-### Arithmetic
-
-| Member | Returns | Description |
-|--------|---------|-------------|
-| `add(off_s)` | `wptr` | Advance address by signed offset |
-| `sub(off_s)` | `wptr` | Rewind address by signed offset |
-| `operator+(off_s)` | `wptr` | Advance address by signed offset |
-| `operator-(off_s)` | `wptr` | Rewind address by signed offset |
-| `operator+=(off_s)` | `wptr&` | Advance in-place |
-| `operator-=(off_s)` | `wptr&` | Rewind in-place |
-
-### Walk / Chain (Pointer Chasing)
-
-Lee un `uptr` desde `address + offset * Stride` vía `std::memcpy` y lo retorna como `wptr<T, Stride>`.
-
-| Member | Description |
-|--------|-------------|
-| `walk(offset)` | `read<uptr>(address + offset * Stride)`, return `wptr<T, Stride>` |
-| `operator[](offset)` | Ídem — sintaxis chain: `base[off][off]` |
-
-### Rebind
-
-| Member | Description |
-|--------|-------------|
-| `as_p<U>()` | Rebind to `ptr<U>` |
-| `as_w<U>()` | Rebind to `wptr<U, Stride>` (preserva stride) |
-| `at<N>()` | Rebind to `wptr<T, N>` (stride = N) |
-| `at<U>()` | Rebind to `wptr<T, sizeof(U)>` (stride = sizeof(U)) |
-
-### Alignment
-
-| Member | Returns | Description |
-|--------|---------|-------------|
-| `align_up(alignment)` | `wptr` | Round address up to alignment boundary |
-| `align_down(alignment)` | `wptr` | Round address down to alignment boundary |
-
-### Conversion (inherited)
-
-`wptr` inherits `off()`, `rva()`, `va()` from `ptr<T>`.
-
-### Example
-
-```cpp
-stx::wptr<uptr> base{0x140000000};
-
-// stride=1 (default): cada [] es read<uptr>(base + offset)
-stx::uptr target = base[0x100][0x20][0x00][0x00].addr();
-
-// stride=4: at<4>() cambia la plantilla
-stx::uptr v2 = base.at<4>()[3][5].addr();
-// arr[3] → read(addr+3*4)  → wptr<uptr,4>
-//     [5] → read(addr'+5*4) → wptr<uptr,4>.addr()
-
-// stride por tipo: at<u64>() ≡ at<8>()
-stx::uptr v3 = base.at<u64>()[3].addr();  // buf + 3*8
-
-// raw() devuelve T*, as_p<U>() rebind
-stx::u8* ptr = base[0x18].as_p<u8>().raw();
-
-// add/sub solo con off_s (no usize)
-auto next = base.add(stx::off_s{0x100});
-auto prev = base.sub(stx::off_s{0x10});
-auto also = base + stx::off_s{0x100};
-auto back = base - stx::off_s{0x10};
-
-base += stx::off_s{0x100};        // in-place add
-base -= stx::off_s{0x10};         // in-place sub
-```
 
 ### Binary Read / Write
 
@@ -578,6 +523,10 @@ p -= stx::off_s{4};               // rewind in-place
 
 auto back = q - stx::off_s{32};   // operator- returns ptr
 auto diff = q - p;                // ptr - ptr = off_s
+
+auto& ref = *p;                   // dereference: T&
+std::swap(a, b);                  // swap via ADL
+auto h = std::hash<ptr<int>>{}(p); // hash for unordered containers
 
 if (p.is_aligned<int>())    { }   // aligned to alignof(int)
 if (p.is_aligned<16>())     { }   // aligned to 16 bytes

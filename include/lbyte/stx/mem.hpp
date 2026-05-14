@@ -3,6 +3,7 @@
 #include "fn.hpp"
 #include <bit>
 #include <cstring>
+#include <functional>
 
 #if defined(__GNUC__) || defined(__clang__)
     #define STX_FORCE_INLINE [[gnu::always_inline]] inline
@@ -186,6 +187,18 @@ namespace lbyte::stx
 
         [[nodiscard]]
         constexpr auto operator<=>( const ptr& ) const noexcept = default;
+
+        // ---- DEREFERENCE ------------------------------------------
+
+        [[nodiscard]]
+        auto operator*() noexcept -> T& {
+            return *rcast<T*>(address);
+        }
+
+        [[nodiscard]]
+        auto operator*() const noexcept -> const T& {
+            return *rcast<const T*>(address);
+        }
 
         // ---- ARROW ACCESS ----------------------------------------
 
@@ -396,6 +409,18 @@ namespace lbyte::stx
         [[nodiscard]] auto call() const noexcept {
             return caller<Sig>(address);
         }
+
+        // ---- SWAP ------------------------------------------------
+
+        constexpr void swap( ptr& other ) noexcept {
+            auto tmp = address;
+            address = other.address;
+            other.address = tmp;
+        }
+
+        friend constexpr void swap( ptr& a, ptr& b ) noexcept {
+            a.swap( b );
+        }
     };
 
     // --- wptr<T, Stride> -------------------------------------------------------
@@ -513,5 +538,13 @@ namespace lbyte::stx
         }
     };
 }
+
+template<typename T>
+struct std::hash<lbyte::stx::ptr<T>>
+{
+    [[nodiscard]] auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
+        return std::hash<lbyte::stx::uptr>{}( p.addr() );
+    }
+};
 
 #undef STX_FORCE_INLINE
