@@ -33,7 +33,7 @@ namespace lbyte::stx
 
     template<class Type>
     STX_FORCE_INLINE
-    constexpr Type ccast( auto value ) noexcept {
+    Type ccast( auto value ) noexcept {
         return const_cast<Type>( value );
     }
 
@@ -43,7 +43,7 @@ namespace lbyte::stx
         return dynamic_cast<Type>( value );
     }
 
-    // MEMORY ACCESS -------------------------------------------------------------
+    // SAFE MEMORY ACCESS (memcpy, well-defined, unaligned-safe) -----------------
     template<class Type, address_like Addr>
     [[nodiscard]] STX_FORCE_INLINE
     Type read( Addr base, off_s off = off_s{0} ) noexcept
@@ -61,17 +61,6 @@ namespace lbyte::stx
         return value;
     }
 
-    template<class Type>
-    [[nodiscard]] STX_FORCE_INLINE
-    Type read_raw( address_like auto base, off_s off = off_s{0} ) noexcept
-    {
-        static_assert(std::is_trivially_copyable_v<Type>);
-
-        return *rcast<Type*>(
-            rcast<std::byte*>(normalize_addr(base)) + off.get()
-        );
-    }
-
     template< class Type, address_like Addr >
     STX_FORCE_INLINE
     void write( Addr base, off_s off, Type value ) noexcept
@@ -82,6 +71,18 @@ namespace lbyte::stx
             rcast<std::byte*>(normalize_addr(base)) + off.get(),
             &value,
             sizeof(Type)
+        );
+    }
+
+    // UNSAFE MEMORY ACCESS (direct deref, requires alignment, strict-aliasing) --
+    template<class Type>
+    [[nodiscard]] STX_FORCE_INLINE
+    Type read_raw( address_like auto base, off_s off = off_s{0} ) noexcept
+    {
+        static_assert(std::is_trivially_copyable_v<Type>);
+
+        return *rcast<Type*>(
+            rcast<std::byte*>(normalize_addr(base)) + off.get()
         );
     }
 
@@ -96,15 +97,16 @@ namespace lbyte::stx
         ) = value;
     }
 
-
-    // -- UNSAFE ---------------------------------------------------
+    // --- FORWARD DECLARATIONS --------------------------------------------------
 
     template<typename T = uptr, uptr Stride = 1> class wptr;
+
+    // --- ptr<T> ----------------------------------------------------------------
 
     template<typename T>
     class ptr
     {
-        uptr address = 0;
+        ::lbyte::stx::uptr address = 0;
 
     public:
         using value_type = T;
@@ -125,17 +127,17 @@ namespace lbyte::stx
         // ---- BASE ------------------------------------------------
 
         [[nodiscard]]
-        constexpr auto raw() noexcept -> T* {
+        auto raw() noexcept -> T* {
             return rcast<T*>(address);
         }
 
         [[nodiscard]]
-        constexpr auto raw() const noexcept -> const T* {
+        auto raw() const noexcept -> const T* {
             return rcast<const T*>(address);
         }
 
         [[nodiscard]]
-        constexpr ::lbyte::stx::uptr uptr() const noexcept {
+        constexpr ::lbyte::stx::uptr addr() const noexcept {
             return address;
         }
 
@@ -154,30 +156,32 @@ namespace lbyte::stx
             return address;
         }
 
-        // ---- ACCESS ----------------------------------------------
+        // ---- ARROW ACCESS ----------------------------------------
 
         [[nodiscard]]
-        constexpr auto operator->() noexcept -> T* {
+        auto operator->() noexcept -> T* {
             return rcast<T*>(address);
         }
 
         [[nodiscard]]
-        constexpr auto operator->() const noexcept -> const T* {
+        auto operator->() const noexcept -> const T* {
             return rcast<const T*>(address);
         }
 
-        // ---- BINARY READ / WRITE ---------------------------------
+        // ---- SAFE (memcpy) ---------------------------------------
 
         template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read( off_s off = off_s{} ) const noexcept
+        auto read( off_s off = off_s{} ) const noexcept -> U
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
-            if constexpr (std::is_same_v<U, T>) {
-                return ptr<T>(scast<::lbyte::stx::uptr>(*rcast<U*>(address + off.get())));
-            } else {
-                return *rcast<U*>(address + off.get());
-            }
+            U value;
+            std::memcpy(
+                &value,
+                rcast<const std::byte*>(address) + off.get(),
+                sizeof(U)
+            );
+            return value;
         }
 
         template<typename U = T>
@@ -185,12 +189,46 @@ namespace lbyte::stx
         void write( off_s off, U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
-            *rcast<U*>( address + off.get() ) = value;
+            std::memcpy(
+                rcast<std::byte*>(address) + off.get(),
+                &value,
+                sizeof(U)
+            );
         }
 
         template<typename U = T>
         STX_FORCE_INLINE
         void write( U value ) const noexcept
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            std::memcpy(
+                rcast<std::byte*>(address),
+                &value,
+                sizeof(U)
+            );
+        }
+
+        // ---- UNSAFE (direct deref) --------------------------------
+
+        template<typename U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_raw( off_s off = off_s{} ) const noexcept -> U
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            return *rcast<U*>( address + off.get() );
+        }
+
+        template<typename U = T>
+        STX_FORCE_INLINE
+        void write_raw( off_s off, U value ) const noexcept
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            *rcast<U*>( address + off.get() ) = value;
+        }
+
+        template<typename U = T>
+        STX_FORCE_INLINE
+        void write_raw( U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             *rcast<U*>( address ) = value;
@@ -211,15 +249,17 @@ namespace lbyte::stx
         // ---- CALL ------------------------------------------------
 
         template<class Sig>
-        [[nodiscard]] constexpr auto call() const noexcept {
+        [[nodiscard]] auto call() const noexcept {
             return caller<Sig>(address);
         }
     };
 
+    // --- wptr<T, Stride> -------------------------------------------------------
+
     template<typename T, uptr Stride>
-    class wptr
+    class wptr : public ptr<T>
     {
-        uptr address = 0;
+        using base = ptr<T>;
 
     public:
         using value_type = T;
@@ -227,159 +267,68 @@ namespace lbyte::stx
         constexpr wptr() noexcept = default;
 
         constexpr explicit wptr(address_like auto addr) noexcept
-          : address { normalize_addr( addr ) }
+            : base( addr )
         {}
 
-        // ---- BASE ------------------------------------------------
+        // ---- OFFSET ARITHMETIC -----------------------------------
 
         [[nodiscard]]
-        constexpr auto raw() noexcept -> T* {
-            return reinterpret_cast<T*>(address);
+        constexpr wptr operator+( usize offset ) const noexcept {
+            return wptr( this->addr() + offset );
         }
 
         [[nodiscard]]
-        constexpr auto raw() const noexcept -> const T* {
-            return reinterpret_cast<const T*>(address);
+        constexpr wptr operator+( off_s offset ) const noexcept {
+            return wptr( this->addr() + scast<::lbyte::stx::uptr>( offset.get() ));
         }
 
-        [[nodiscard]]
-        constexpr ::lbyte::stx::uptr uptr() const noexcept {
-            return address;
-        }
-
-        [[nodiscard]]
-        constexpr ::lbyte::stx::uptr& ref() noexcept {
-            return address;
-        }
-
-        [[nodiscard]]
-        constexpr explicit operator bool() const noexcept {
-            return address != 0;
-        }
-
-        [[nodiscard]]
-        constexpr operator ::lbyte::stx::uptr() const noexcept {
-            return address;
-        }
-
-        // ---- ARROW ACCESS -----------------------------------------
-
-        [[nodiscard]]
-        constexpr auto operator->() noexcept -> T* {
-            return reinterpret_cast<T*>(address);
-        }
-
-        [[nodiscard]]
-        constexpr auto operator->() const noexcept -> const T* {
-            return reinterpret_cast<const T*>(address);
-        }
-
-        // ---- OFFSET ----------------------------------------------
-
-        [[nodiscard]]
-        constexpr wptr operator+(usize offset) const noexcept {
-            return wptr(address + offset);
-        }
-
-        [[nodiscard]]
-        constexpr wptr operator+(off_s offset) const noexcept {
-            return wptr(address + scast<::lbyte::stx::uptr>(offset.get()));
-        }
-
-        // ---- WALK (memcpy-safe deref, byte offset) ---------------
+        // ---- WALK (memcpy-safe pointer chasing) ------------------
 
         template<std::integral U>
         [[nodiscard]] STX_FORCE_INLINE
         wptr walk( U offset ) const noexcept {
-            ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>(offset);
+            ::lbyte::stx::uptr target = this->addr() + static_cast<::lbyte::stx::uptr>( offset );
             ::lbyte::stx::uptr value;
-            std::memcpy(&value, reinterpret_cast<const std::byte*>(target), sizeof(value));
-            return wptr(value);
+            std::memcpy( &value, reinterpret_cast<const std::byte*>( target ), sizeof( value ));
+            return wptr( value );
         }
 
         [[nodiscard]] STX_FORCE_INLINE
         wptr walk( off_s offset ) const noexcept {
-            ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>(offset.get());
-            ::lbyte::stx::uptr value;
-            std::memcpy(&value, reinterpret_cast<const std::byte*>(target), sizeof(value));
-            return wptr(value);
+            return walk( offset.get() );
         }
 
-        // sintaxis chain: base[off][off]
+        // ---- CHAIN SYNTAX: base[off][off] ------------------------
+
         template<std::integral U>
         [[nodiscard]] STX_FORCE_INLINE
-        wptr operator[](U offset) const noexcept {
-            ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>(offset) * Stride;
+        wptr operator[]( U offset ) const noexcept {
+            ::lbyte::stx::uptr target = this->addr() + static_cast<::lbyte::stx::uptr>( offset ) * Stride;
             ::lbyte::stx::uptr value;
-            std::memcpy(&value, reinterpret_cast<const std::byte*>(target), sizeof(value));
-            return wptr(value);
+            std::memcpy( &value, reinterpret_cast<const std::byte*>( target ), sizeof( value ));
+            return wptr( value );
         }
 
         [[nodiscard]] STX_FORCE_INLINE
-        wptr operator[](off_s offset) const noexcept {
-            ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>(offset.get()) * Stride;
-            ::lbyte::stx::uptr value;
-            std::memcpy(&value, reinterpret_cast<const std::byte*>(target), sizeof(value));
-            return wptr(value);
+        wptr operator[]( off_s offset ) const noexcept {
+            return (*this)[ offset.get() ];
         }
 
         // ---- REBIND ----------------------------------------------
 
         template<typename U>
-        [[nodiscard]] constexpr ptr<U> as() const noexcept {
-            return ptr<U>(address);
-        }
-
-        template<typename U>
         [[nodiscard]] constexpr wptr<U, Stride> as_w() const noexcept {
-            return wptr<U, Stride>(address);
+            return wptr<U, Stride>( this->addr() );
         }
 
         template<::lbyte::stx::uptr NewStride>
         [[nodiscard]] constexpr wptr<T, NewStride> at() const noexcept {
-            return wptr<T, NewStride>(address);
+            return wptr<T, NewStride>( this->addr() );
         }
 
         template<typename U>
         [[nodiscard]] constexpr wptr<T, sizeof(U)> at() const noexcept {
-            return wptr<T, sizeof(U)>(address);
-        }
-
-        // ---- BINARY READ / WRITE ---------------------------------
-
-        template<typename U = T>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read( off_s off = off_s{} ) const noexcept
-            requires ( not std::is_void_v<U> && binary_readable<U> )
-        {
-            if constexpr (std::is_same_v<U, T>) {
-                return ptr<T>(scast<::lbyte::stx::uptr>(*rcast<U*>(address + off.get())));
-            } else {
-                return *rcast<U*>(address + off.get());
-            }
-        }
-
-        template<typename U = T>
-        STX_FORCE_INLINE
-        void write( off_s off, U value ) const noexcept
-            requires ( not std::is_void_v<U> && binary_readable<U> )
-        {
-            *rcast<U*>( address + off.get() ) = value;
-        }
-
-        template<typename U = T>
-        STX_FORCE_INLINE
-        void write( U value ) const noexcept
-            requires ( not std::is_void_v<U> && binary_readable<U> )
-        {
-            *rcast<U*>( address ) = value;
-        }
-
-        // ---- CALL ------------------------------------------------
-
-        template<class Sig>
-        [[nodiscard]] constexpr auto call() const noexcept {
-            return caller<Sig>(address);
+            return wptr<T, sizeof(U)>( this->addr() );
         }
     };
 }

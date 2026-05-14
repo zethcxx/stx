@@ -21,7 +21,7 @@ The design emphasizes type safety, ABI clarity, and compile-time validation usin
 | Symbol        | Type          | Description                          |
 |--------------|--------------|--------------------------------------|
 | `version_info` | struct        | Semantic version container           |
-| `version`      | `constexpr`   | Current library version (`2.2.0`)    |
+| `version`      | `constexpr`   | Current library version (`2.3.0`)    |
 
 ```cpp
 struct version_info { int major, minor, patch; };
@@ -86,7 +86,7 @@ struct va_tag     {};
 
 | Alias      | Underlying Type | Semantic Meaning                |
 |----------- |-----------------|---------------------------------|
-| `off_s`    | `usize`         | offset                         |
+| `off_s`    | `ptrdiff_t`     | offset (signed displacement)   |
 | `rva_s`    | `u32`           | Relative virtual address       |
 | `va_s`     | `uptr`          | Absolute virtual address       |
 
@@ -351,6 +351,59 @@ friend constexpr auto operator<=>(const strong_type&, const strong_type&) = defa
 
 ---
 
+## Literal Suffixes
+
+Defined in the separate `literals.hpp` header to avoid namespace pollution.
+Suffixes are activated by importing the literals namespace:
+
+```cpp
+using namespace lbyte::stx::literals;
+
+// or more selectively:
+using lbyte::stx::literals::operator""_off_s;
+```
+
+### Suffix Table
+
+| Suffix      | Type      | Example                  |
+|-------------|-----------|--------------------------|
+| `_u8`       | `u8`      | `12_u8`                  |
+| `_u16`      | `u16`     | `5000_u16`               |
+| `_u32`      | `u32`     | `100000_u32`             |
+| `_u64`      | `u64`     | `1'000'000_u64`          |
+| `_i8`       | `i8`      | `-12_i8`                 |
+| `_i16`      | `i16`     | `-5000_i16`              |
+| `_i32`      | `i32`     | `-100000_i32`            |
+| `_i64`      | `i64`     | `-1'000'000_i64`         |
+| `_f32`      | `f32`     | `3.14_f32`               |
+| `_f64`      | `f64`     | `2.718_f64`              |
+| `_uz`       | `usize`   | `42_uz`                  |
+| `_off_s`    | `off_s`   | `128_off_s` / `-128_off_s` |
+| `_rva_s`    | `rva_s`   | `0x1000_rva_s`           |
+| `_va_s`     | `va_s`    | `0xDEAD_BEEF_va_s`       |
+| `_ptr`      | `ptr<std::byte>` | `nullptr`-based `ptr`; pass address to non-null |
+| `_wptr`     | `wptr<std::byte, 1>` | `nullptr`-based `wptr`; pass address to non-null |
+
+### Usage Notes
+
+Because of pp-number greediness in the preprocessor, a literal followed by a
+dot access requires parentheses:
+
+```cpp
+auto x = (128_off_s).get();  // OK
+// auto x = 128_off_s.get(); // ill-formed
+```
+
+### Unary `operator-`
+
+`strong_type` supports unary `operator-` (negation), essential for `off_s` and `va_s`:
+
+```cpp
+off_s neg = -128_off_s;
+```
+
+---
+
 ## Design Characteristics
 
 - C++23 explicit object parameter for symmetric value access.
@@ -407,7 +460,7 @@ Strong types prevent accidental mixing of logically distinct address domains.
 
 | Alias       | Underlying | Meaning                   |
 |------------|------------|----------------------------|
-| `off_s`    | `usize`    | offset                     |
+| `off_s`    | `ptrdiff_t`| offset (signed displacement)|
 | `rva_s`    | `u32`      | Relative virtual address   |
 | `va_s`     | `uptr`     | Absolute virtual address   |
 

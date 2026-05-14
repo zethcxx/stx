@@ -6,3 +6,4 @@
 #include "./stx/range.hpp"  // IWYU pragma: export
 #include "./stx/time.hpp"   // IWYU pragma: export
 #include "./stx/fs.hpp"     // IWYU pragma: export
+#include "./stx/literals.hpp" // IWYU pragma: export

@@ -15,7 +15,7 @@
 namespace lbyte::stx
 {
     struct version_info { int major, minor, patch; };
-    inline constexpr version_info version { 2, 2, 0 };
+    inline constexpr version_info version { 2, 3, 0 };
 
     using u8        = std::uint8_t      ;
     using u16       = std::uint16_t     ;
@@ -111,6 +111,10 @@ namespace lbyte::stx
                     return lhs - rhs.value;
                 }
 
+                friend constexpr strong_type operator-( strong_type value ) noexcept {
+                    return strong_type{ -value.value };
+                }
+
                 friend constexpr auto
                 operator<=>(const strong_type&, const strong_type&) = default;
 
@@ -129,7 +133,7 @@ namespace lbyte::stx
         };
     }
 
-    using off_s = details::strong_type<usize, details::offset_tag>;
+    using off_s = details::strong_type<std::ptrdiff_t, details::offset_tag>;
     using rva_s = details::strong_type<u32  , details::rva_tag   >;
     using va_s  = details::strong_type<uptr , details::va_tag    >;
 
@@ -154,13 +158,19 @@ namespace lbyte::stx
     template<typename T, typename Tag, typename U>
     [[nodiscard]] STX_FORCE_INLINE
     constexpr auto align_up(details::strong_type<T, Tag> st, U alignment) noexcept {
-        return details::strong_type<T, Tag>{ align_up(st.get(), static_cast<T>(alignment)) };
+        using UT = std::make_unsigned_t<T>;
+        return details::strong_type<T, Tag>{
+            static_cast<T>(align_up(static_cast<UT>(st.get()), static_cast<UT>(alignment)))
+        };
     }
 
     template<typename T, typename Tag, typename U>
     [[nodiscard]] STX_FORCE_INLINE
     constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept {
-        return details::strong_type<T, Tag>{ align_down(st.get(), static_cast<T>(alignment)) };
+        using UT = std::make_unsigned_t<T>;
+        return details::strong_type<T, Tag>{
+            static_cast<T>(align_down(static_cast<UT>(st.get()), static_cast<UT>(alignment)))
+        };
     }
 
     template<typename... Args>

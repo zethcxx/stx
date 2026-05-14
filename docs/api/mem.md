@@ -234,7 +234,7 @@ public:
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `raw()` | `T*` | Typed pointer to the object |
-| `uptr()` | `uptr` | Address as unsigned integer |
+| `addr()` | `uptr` | Address as unsigned integer |
 | `operator bool` | `bool` | Non-null check |
 | `operator uptr` | `uptr` | Implicit conversion to `uptr` |
 
@@ -273,7 +273,7 @@ stx::ptr<IMAGE_DOS_HEADER> dos{some_addr};
 
 auto magic = dos->e_magic;                 // member access
 auto ptr  = dos.raw();                     // IMAGE_DOS_HEADER*
-auto addr = dos.uptr();                    // uptr
+auto addr = dos.addr();                    // uptr
 dos = another_addr;                         // rebind
 auto val = dos.read<stx::u32>(off_s{8});    // read with offset
 dos.write<stx::u32>(off_s{12}, 0xDEAD);     // write with offset
@@ -310,7 +310,7 @@ public:
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `raw()` | `T*` | Typed pointer to the object |
-| `uptr()` | `uptr` | Address as unsigned integer |
+| `addr()` | `uptr` | Address as unsigned integer |
 | `ref()` | `uptr&` | Mutable reference to address (para inline asm) |
 | `operator bool` | `bool` | Non-null check |
 | `operator uptr` | `uptr` | Implicit conversion to `uptr` |
@@ -350,15 +350,15 @@ Lee un `uptr` desde `address + offset * Stride` vía `std::memcpy` y lo retorna 
 stx::wptr<uptr> base{0x140000000};
 
 // stride=1 (default): cada [] es read<uptr>(base + offset)
-stx::uptr target = base[0x100][0x20][0x00][0x00].uptr();
+stx::uptr target = base[0x100][0x20][0x00][0x00].addr();
 
 // stride=4: at<4>() cambia la plantilla
-stx::uptr v2 = base.at<4>()[3][5].uptr();
+stx::uptr v2 = base.at<4>()[3][5].addr();
 // arr[3] → read(addr+3*4)  → wptr<uptr,4>
-//     [5] → read(addr'+5*4) → wptr<uptr,4>.uptr()
+//     [5] → read(addr'+5*4) → wptr<uptr,4>.addr()
 
 // stride por tipo: at<u64>() ≡ at<8>()
-stx::uptr v3 = base.at<u64>()[3].uptr();  // buf + 3*8
+stx::uptr v3 = base.at<u64>()[3].addr();  // buf + 3*8
 
 // raw() devuelve T*, as<U>() rebind
 stx::u8* ptr = base[0x18].as<u8>().raw();
@@ -386,7 +386,7 @@ stx::u8* ptr = base[0x18].as<u8>().raw();
 stx::wptr<void> base{0x140000000};
 
 // Address
-auto addr = base.uptr();                  // uptr
+auto addr = base.addr();                  // uptr
 auto ptr  = base.raw();                   // void*
 
 // Offset
@@ -498,7 +498,7 @@ auto aligned = stx::align_up(off, 16);  // returns off_s{128}
 stx::ptr<int> p{some_address};
 
 auto raw_ptr = p.raw();           // int*
-auto addr    = p.uptr();          // uptr
+auto addr    = p.addr();          // uptr
 p->x = 10;                        // member access
 p = another_addr;                 // rebind
 auto val = p.read<stx::u32>();    // binary read
@@ -514,10 +514,10 @@ auto cp = p.as<short>();          // type rebind
 stx::wptr<uptr> root{0x140000000};
 
 // cada [] ≡ read<uptr>(base + offset), preserva wptr<uptr,1>
-stx::uptr target = root[0x10][0x20][0x08].uptr();
+stx::uptr target = root[0x10][0x20][0x08].addr();
 
 // stride compile-time via template
-stx::uptr v2 = root.at<4>()[3][5].uptr();
+stx::uptr v2 = root.at<4>()[3][5].addr();
 // [3] → read(addr+3*4)
 // [5] → read(addr'+5*4)
 ```

@@ -54,6 +54,19 @@ namespace lbyte::stx
 
     // FACTORY FUNCTIONS ----------------------------------------------------------
     template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range( Type _to ) noexcept {
+        return range( _to, range_dir::Forward, range_mode::Exclusive );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range(
+        Type _from,
+        Type _to
+    ) noexcept {
+        return range( _from, _to, range_dir::Forward, range_mode::Exclusive );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
     constexpr auto range(
         Type _to,
         range_dir  dir,
@@ -61,6 +74,16 @@ namespace lbyte::stx
     ) noexcept {
         using ValueT = details::base_type_t<Type>;
         const ValueT to { details::unwrap( _to )};
+
+        if (dir == range_dir::Backward) {
+            return details::range_view<Type> {
+                to,
+                ValueT{ 0 },
+                details::base_type_t<Type>{ 1 },
+                dir,
+                flag
+            };
+        }
 
         return details::range_view<Type> {
             ValueT{ 0 },
@@ -107,6 +130,12 @@ namespace lbyte::stx
     constexpr auto irange( Type from, Type to, details::base_type_t<Type> step, range_dir dir ) noexcept
     {
         return range( from, to, step, dir, range_mode::Inclusive );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( Type to ) noexcept
+    {
+        return range( to, range_dir::Forward, range_mode::Inclusive );
     }
 
     template<details::rangeable Type> [[nodiscard]]
@@ -161,7 +190,7 @@ struct lbyte::stx::details::range_iter
             if ( mode == range_mode::Inclusive )
                 return cur < end;
             else
-                return cur <= end;
+                return cur < end;
         }
     }
 };
@@ -182,13 +211,11 @@ struct lbyte::stx::details::range_view
 
     constexpr auto begin() const noexcept
     {
-        return iter_t {
-            from,
-            to  ,
-            step,
-            dir ,
-            mode
-        };
+        using V = ValueT;
+        V start = from;
+        if (dir == range_dir::Backward && mode == range_mode::Exclusive)
+            start = from - step;
+        return iter_t { start, to, step, dir, mode };
     }
 
     constexpr auto end() const noexcept {

@@ -14,6 +14,7 @@
 | File | `fs.hpp` | Binary file stream utilities |
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
 | Range | `range.hpp` | Integer range iteration |
+| Literals | `literals.hpp` | Literal suffixes for all core types (docs in [core.md](./api/core.md)). Also available as `import lbyte.stx.literals;` |
 
 ---
 
@@ -23,7 +24,7 @@
 
 | Type | Underlying | Purpose |
 |------|------------|---------|
-| `off_s` | `usize` | Strong offset (replaces legacy `off_t`) |
+| `off_s` | `ptrdiff_t` | Strong offset (replaces legacy `off_t`) |
 | `rva_s` | `u32` | Relative virtual address |
 | `va_s` | `uptr` | Absolute virtual address |
 
@@ -31,7 +32,7 @@
 
 | Type | Description |
 |------|-------------|
-| `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `uptr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
+| `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `addr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
 | `wptr<T>` | Walk pointer for pointer chasing / chain traversal: `[](off)`, `walk()`, `uptr()`, `raw()`, `read<T>()` |
 
 ### Fundamental Aliases

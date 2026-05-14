@@ -6,5 +6,6 @@ export import lbyte.stx.fn;
 export import lbyte.stx.range;
 export import lbyte.stx.time;
 export import lbyte.stx.fs;
+export import lbyte.stx.literals;
 
 export namespace lbyte::stx {}
