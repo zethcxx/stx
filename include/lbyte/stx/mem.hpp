@@ -229,10 +229,22 @@ namespace lbyte::stx
 
         // ---- SAFE (memcpy) ---------------------------------------
 
-        template<typename U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read( off_s off = off_s{} ) const noexcept -> ptr<T>
+        {
+            uptr value;
+            std::memcpy(
+                &value,
+                rcast<const std::byte*>(address) + off.get(),
+                sizeof(uptr)
+            );
+            return ptr<T>( rcast<T*>( value ));
+        }
+
+        template<binary_readable U>
         [[nodiscard]] STX_FORCE_INLINE
         auto read( off_s off = off_s{} ) const noexcept -> U
-            requires ( not std::is_void_v<U> && binary_readable<U> )
+            requires ( not std::is_void_v<U> )
         {
             U value;
             std::memcpy(

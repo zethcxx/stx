@@ -17,6 +17,7 @@ target("stx")
     if has_config( "use_modules" ) then
         set_kind( "static" )
         set_policy( "build.c++.modules", true )
+        add_cxflags( "-U_FORTIFY_SOURCE" )
 
         add_files( "modules/stx/*.cppm", { public = true })
     else
