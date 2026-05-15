@@ -192,12 +192,14 @@ namespace lbyte::stx
         // ---- DEREFERENCE ------------------------------------------
 
         [[nodiscard]]
-        auto operator*() noexcept -> T& {
+        auto operator*() noexcept -> std::add_lvalue_reference_t<T>
+            requires ( not std::is_void_v<T> ) {
             return *rcast<T*>(address);
         }
 
         [[nodiscard]]
-        auto operator*() const noexcept -> const T& {
+        auto operator*() const noexcept -> std::add_lvalue_reference_t<const T>
+            requires ( not std::is_void_v<T> ) {
             return *rcast<const T*>(address);
         }
 
