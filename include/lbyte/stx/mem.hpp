@@ -231,22 +231,10 @@ namespace lbyte::stx
 
         // ---- SAFE (memcpy) ---------------------------------------
 
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read( off_s off = off_s{} ) const noexcept -> ptr<T>
-        {
-            uptr value;
-            std::memcpy(
-                &value,
-                rcast<const std::byte*>(address) + off.get(),
-                sizeof(uptr)
-            );
-            return ptr<T>( rcast<T*>( value ));
-        }
-
-        template<binary_readable U>
+        template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
         auto read( off_s off = off_s{} ) const noexcept -> U
-            requires ( not std::is_void_v<U> )
+            requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             U value;
             std::memcpy(
@@ -255,6 +243,34 @@ namespace lbyte::stx
                 sizeof(U)
             );
             return value;
+        }
+
+        template<typename U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_p( off_s off = off_s{} ) const noexcept -> ptr<U>
+            requires ( not std::is_void_v<U> )
+        {
+            uptr value;
+            std::memcpy(
+                &value,
+                rcast<const std::byte*>(address) + off.get(),
+                sizeof(uptr)
+            );
+            return ptr<U>( rcast<U*>( value ));
+        }
+
+        template<typename U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_w( off_s off = off_s{} ) const noexcept -> wptr<U>
+            requires ( not std::is_void_v<U> )
+        {
+            uptr value;
+            std::memcpy(
+                &value,
+                rcast<const std::byte*>(address) + off.get(),
+                sizeof(uptr)
+            );
+            return wptr<U>( rcast<U*>( value ));
         }
 
         template<std::integral U = T>

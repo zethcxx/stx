@@ -256,10 +256,11 @@ public:
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read(off)` | — | Read pointer-sized value at offset, returns `ptr<T>` |
-| `read<U>(off)` | `binary_readable<U>`, non-void | Copy-based read of type `U` with optional offset |
-| `write(off, val)` | `binary_readable<U>`, non-void | Copy-based write with offset |
-| `write(val)` | `binary_readable<U>`, non-void | Copy-based write at address |
+| `read<T>(off)` | `binary_readable<T>`, non-void | Copy-based read with optional offset |
+| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>` |
+| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>` |
+| `write<T>(off, val)` | `binary_readable<T>` | Copy-based write with offset |
+| `write<T>(val)` | `binary_readable<T>` | Copy-based write at address |
 
 ### Alignment
 
@@ -379,14 +380,15 @@ public:
 | `operator[](off_s)` | `T&` / `const T&` | Raw dereference at byte offset |
 | `operator->()` | `T*` | Typed member access |
 
-### Binary Read / Write
+### Binary Read / Write (inherited)
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read(off)` | — | Read pointer-sized value at offset, returns `ptr<T>` (inherited) |
-| `read<U>(off)` | `binary_readable<U>`, non-void | Copy-based typed read with optional byte offset |
-| `write(off, val)` | `binary_readable<U>`, non-void | Copy-based typed write with byte offset |
-| `write(val)` | `binary_readable<U>`, non-void | Copy-based typed write at address |
+| `read<T>(off)` | `binary_readable<T>`, non-void | Copy-based typed read with optional byte offset |
+| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>` |
+| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>` |
+| `write<T>(off, val)` | `binary_readable<T>` | Copy-based typed write with byte offset |
+| `write<T>(val)` | `binary_readable<T>` | Copy-based typed write at address |
 | `call<Sig>()` | — | Invoke address as function with signature `Sig` |
 
 ### Example
@@ -510,9 +512,9 @@ auto raw_ptr = p.raw();           // int*
 auto addr    = p.addr();          // uptr
 p->x = 10;                        // member access
 p = another_addr;                 // rebind
-auto val = p.read<stx::u32>();    // binary read of u32
-auto ptr = p.read(stx::off_s{8}); // read pointer at offset, returns ptr<int>
-p.write(42);                      // write value
+auto val = p.read<stx::u32>();      // binary read of u32
+auto ptr = p.read_p<int>(stx::off_s{8}); // read pointer at offset, returns ptr<int>
+p.write(42);                          // write value
 auto cp = p.as_p<short>();        // type rebind
 
 auto aligned = p.align_up(16);    // align up to 16-byte boundary
