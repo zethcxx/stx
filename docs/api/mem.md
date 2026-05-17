@@ -256,10 +256,8 @@ public:
 
 | Member | Advance by | Description |
 |--------|-----------|-------------|
-| `++p` / `p++` | `sizeof(T)` | Advance to next `T` |
-| `--p` / `p--` | `sizeof(T)` | Rewind to previous `T` |
-
-Disabled for `ptr<void>`. For `wptr`, advance by `Stride` instead of `sizeof(T)`.|
+| `++p` / `p++` | 1 byte | Consistent with byte-level arithmetic (`add`, `sub`, `operator+`) |
+| `--p` / `p--` | 1 byte | Works on `ptr<void>` as well |
 
 ### Binary Read / Write
 

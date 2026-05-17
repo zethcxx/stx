@@ -372,22 +372,22 @@ namespace lbyte::stx
 
         // ---- INCREMENT / DECREMENT --------------------------------
 
-        constexpr ptr& operator++() noexcept requires (not std::is_void_v<T>) {
-            address += sizeof(T);
+        constexpr ptr& operator++() noexcept {
+            ++address;
             return *this;
         }
-        constexpr ptr operator++(int) noexcept requires (not std::is_void_v<T>) {
+        constexpr ptr operator++(int) noexcept {
             auto tmp = *this;
-            address += sizeof(T);
+            ++address;
             return tmp;
         }
-        constexpr ptr& operator--() noexcept requires (not std::is_void_v<T>) {
-            address -= sizeof(T);
+        constexpr ptr& operator--() noexcept {
+            --address;
             return *this;
         }
-        constexpr ptr operator--(int) noexcept requires (not std::is_void_v<T>) {
+        constexpr ptr operator--(int) noexcept {
             auto tmp = *this;
-            address -= sizeof(T);
+            --address;
             return tmp;
         }
 
@@ -545,21 +545,21 @@ namespace lbyte::stx
         // ---- INCREMENT / DECREMENT --------------------------------
 
         constexpr wptr& operator++() noexcept {
-            this->ref() += Stride;
+            ++this->ref();
             return *this;
         }
         constexpr wptr operator++(int) noexcept {
             auto tmp = *this;
-            this->ref() += Stride;
+            ++this->ref();
             return tmp;
         }
         constexpr wptr& operator--() noexcept {
-            this->ref() -= Stride;
+            --this->ref();
             return *this;
         }
         constexpr wptr operator--(int) noexcept {
             auto tmp = *this;
-            this->ref() -= Stride;
+            --this->ref();
             return tmp;
         }
 
