@@ -154,15 +154,6 @@ namespace lbyte::stx
             return *this;
         }
 
-        constexpr ptr(const ptr&) noexcept = default;
-        constexpr ptr& operator=(const ptr&) noexcept = default;
-
-        constexpr ptr& operator=(ptr&& other) noexcept {
-            address = other.address;
-            other.address = 0;
-            return *this;
-        }
-
         // ---- BASE ------------------------------------------------
 
         [[nodiscard]]

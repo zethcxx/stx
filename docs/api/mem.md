@@ -243,7 +243,6 @@ public:
 | Member | Description |
 |--------|-------------|
 | `operator=(address_like)` | Change pointed address from address-like value |
-| `operator=(ptr&&)` | Move assignment — transfers address, source set to null |
 | `as_p<U>()` | Rebind to `ptr<U>` |
 | `as_w<U>()` | Rebind to `wptr<U>` |
 
