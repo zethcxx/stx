@@ -370,6 +370,27 @@ namespace lbyte::stx
             return ptr( ::lbyte::stx::align_down( address, static_cast<usize>(alignment) ));
         }
 
+        // ---- INCREMENT / DECREMENT --------------------------------
+
+        constexpr ptr& operator++() noexcept requires (not std::is_void_v<T>) {
+            address += sizeof(T);
+            return *this;
+        }
+        constexpr ptr operator++(int) noexcept requires (not std::is_void_v<T>) {
+            auto tmp = *this;
+            address += sizeof(T);
+            return tmp;
+        }
+        constexpr ptr& operator--() noexcept requires (not std::is_void_v<T>) {
+            address -= sizeof(T);
+            return *this;
+        }
+        constexpr ptr operator--(int) noexcept requires (not std::is_void_v<T>) {
+            auto tmp = *this;
+            address -= sizeof(T);
+            return tmp;
+        }
+
         // ---- STRONG TYPE CONVERSIONS -----------------------------
 
         [[nodiscard]] constexpr off_s off() const noexcept {
@@ -519,6 +540,27 @@ namespace lbyte::stx
         constexpr wptr& operator-=( OffT offset ) noexcept {
             this->ref() -= static_cast<::lbyte::stx::uptr>( offset.get() );
             return *this;
+        }
+
+        // ---- INCREMENT / DECREMENT --------------------------------
+
+        constexpr wptr& operator++() noexcept {
+            this->ref() += Stride;
+            return *this;
+        }
+        constexpr wptr operator++(int) noexcept {
+            auto tmp = *this;
+            this->ref() += Stride;
+            return tmp;
+        }
+        constexpr wptr& operator--() noexcept {
+            this->ref() -= Stride;
+            return *this;
+        }
+        constexpr wptr operator--(int) noexcept {
+            auto tmp = *this;
+            this->ref() -= Stride;
+            return tmp;
         }
 
         // ---- WALK (memcpy-safe pointer chasing) ------------------

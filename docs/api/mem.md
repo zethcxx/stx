@@ -252,6 +252,15 @@ public:
 |--------|-------------|
 | `operator->()` | Pointer-style member access |
 
+### Increment / Decrement
+
+| Member | Advance by | Description |
+|--------|-----------|-------------|
+| `++p` / `p++` | `sizeof(T)` | Advance to next `T` |
+| `--p` / `p--` | `sizeof(T)` | Rewind to previous `T` |
+
+Disabled for `ptr<void>`. For `wptr`, advance by `Stride` instead of `sizeof(T)`.|
+
 ### Binary Read / Write
 
 | Member | Requirements | Description |
