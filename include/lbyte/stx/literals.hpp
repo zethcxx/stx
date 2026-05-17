@@ -56,12 +56,66 @@ namespace lbyte::stx::literals
         return wptr<std::byte, 1>{ static_cast<uptr>(v) };
     }
 
-    // --- ENDIAN TYPES -------------------------------------------------------
-    constexpr le<u64> operator""_le( unsigned long long v ) noexcept {
-        return le<u64>{ static_cast<u64>(v) };
+    // --- ENDIAN TYPES (auto-sized) -----------------------------------------
+    namespace detail {
+        constexpr auto hex_val(char c) noexcept -> unsigned long long {
+            if (c >= '0' && c <= '9') return c - '0';
+            if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+            if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+            return 0;
+        }
+
+        constexpr auto pow10(unsigned long long n) noexcept -> unsigned long long {
+            auto r = 1ULL;
+            for (; n; --n) r *= 10;
+            return r;
+        }
+
+        template<char...> struct hex_parse
+            { static constexpr unsigned long long value = 0; };
+        template<char F, char... R> struct hex_parse<F, R...> {
+            static constexpr unsigned long long value =
+                (hex_val(F) << (4 * sizeof...(R))) | hex_parse<R...>::value;
+        };
+
+        template<char...> struct dec_parse
+            { static constexpr unsigned long long value = 0; };
+        template<char F, char... R> struct dec_parse<F, R...> {
+            static constexpr unsigned long long value =
+                static_cast<unsigned long long>(F - '0') * pow10(sizeof...(R))
+                + dec_parse<R...>::value;
+        };
+
+        template<char...> struct uint_value;
+        template<char... R> struct uint_value<'0', 'x', R...> : hex_parse<R...> {};
+        template<char... R> struct uint_value<'0', 'X', R...> : hex_parse<R...> {};
+        template<char F, char... R> struct uint_value<F, R...> : dec_parse<F, R...> {};
+        template<> struct uint_value<> { static constexpr unsigned long long value = 0; };
+
+        template<unsigned long long V>
+        constexpr auto deduce_le() noexcept {
+            if constexpr (V <= 0xFFull) return le<u8>{static_cast<u8>(V)};
+            else if constexpr (V <= 0xFFFFull) return le<u16>{static_cast<u16>(V)};
+            else if constexpr (V <= 0xFFFFFFFFull) return le<u32>{static_cast<u32>(V)};
+            else return le<u64>{static_cast<u64>(V)};
+        }
+
+        template<unsigned long long V>
+        constexpr auto deduce_be() noexcept {
+            if constexpr (V <= 0xFFull) return be<u8>{static_cast<u8>(V)};
+            else if constexpr (V <= 0xFFFFull) return be<u16>{static_cast<u16>(V)};
+            else if constexpr (V <= 0xFFFFFFFFull) return be<u32>{static_cast<u32>(V)};
+            else return be<u64>{static_cast<u64>(V)};
+        }
     }
 
-    constexpr be<u64> operator""_be( unsigned long long v ) noexcept {
-        return be<u64>{ static_cast<u64>(v) };
+    template<char... Cs>
+    constexpr auto operator""_le() noexcept {
+        return detail::deduce_le<detail::uint_value<Cs...>::value>();
+    }
+
+    template<char... Cs>
+    constexpr auto operator""_be() noexcept {
+        return detail::deduce_be<detail::uint_value<Cs...>::value>();
     }
 }
