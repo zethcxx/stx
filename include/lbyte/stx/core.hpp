@@ -240,7 +240,7 @@ namespace lbyte::stx
     struct defer {
         F fn_;
         bool armed_ = true;
-        defer(F f) : fn_(static_cast<F&&>(f)) {}
+        defer(F f) : fn_(std::forward<F>(f)) {}
         defer(defer&&) = delete;
         defer(const defer&) = delete;
         defer& operator=(defer&&) = delete;
