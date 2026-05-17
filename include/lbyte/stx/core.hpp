@@ -174,7 +174,7 @@ namespace lbyte::stx
         return value & ~( alignment - 1 );
     }
 
-    template<typename T, typename Tag, typename U>
+    template<typename T, typename Tag, std::integral U>
     [[nodiscard]] STX_FORCE_INLINE
     constexpr auto align_up(details::strong_type<T, Tag> st, U alignment) noexcept {
         using UT = std::make_unsigned_t<T>;
@@ -183,7 +183,7 @@ namespace lbyte::stx
         };
     }
 
-    template<typename T, typename Tag, typename U>
+    template<typename T, typename Tag, std::integral U>
     [[nodiscard]] STX_FORCE_INLINE
     constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept {
         using UT = std::make_unsigned_t<T>;
