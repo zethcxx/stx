@@ -46,9 +46,9 @@ namespace lbyte::stx
     }
 
     // SAFE MEMORY ACCESS (memcpy, well-defined, unaligned-safe) -----------------
-    template<binary_readable Type, address_like Addr>
+    template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
-    Type read( Addr base, off_s off = off_s{0} ) noexcept
+    Type read( Addr base, OffT off = OffT{} ) noexcept
     {
         Type value;
 
@@ -62,16 +62,16 @@ namespace lbyte::stx
     }
 
     // ENDIAN-AWARE READ -----------------------------------------------------
-    template<std::integral Type, address_like Addr>
+    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
-    Type read_le( Addr base, off_s off = off_s{0} ) noexcept
+    Type read_le( Addr base, OffT off = OffT{} ) noexcept
     {
         return read<Type>( base, off );
     }
 
-    template<std::integral Type, address_like Addr>
+    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
-    Type read_be( Addr base, off_s off = off_s{0} ) noexcept
+    Type read_be( Addr base, OffT off = OffT{} ) noexcept
     {
         if constexpr ( std::endian::native == std::endian::little )
             return std::byteswap( read<Type>( base, off ) );
@@ -79,9 +79,9 @@ namespace lbyte::stx
             return read<Type>( base, off );
     }
 
-    template< binary_readable Type, address_like Addr >
+    template< binary_readable Type, address_like Addr, byte_offset OffT = off_s >
     STX_FORCE_INLINE
-    void write( Addr base, off_s off, Type value ) noexcept
+    void write( Addr base, OffT off, Type value ) noexcept
     {
         std::memcpy(
             rcast<std::byte*>(normalize_addr(base)) + off.get(),
@@ -91,16 +91,16 @@ namespace lbyte::stx
     }
 
     // ENDIAN-AWARE WRITE ----------------------------------------------------
-    template<std::integral Type, address_like Addr>
+    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
     STX_FORCE_INLINE
-    void write_le( Addr base, off_s off, Type value ) noexcept
+    void write_le( Addr base, OffT off, Type value ) noexcept
     {
         write( base, off, value );
     }
 
-    template<std::integral Type, address_like Addr>
+    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
     STX_FORCE_INLINE
-    void write_be( Addr base, off_s off, Type value ) noexcept
+    void write_be( Addr base, OffT off, Type value ) noexcept
     {
         if constexpr ( std::endian::native == std::endian::little )
             write( base, off, std::byteswap( value ) );
@@ -109,18 +109,18 @@ namespace lbyte::stx
     }
 
     // UNSAFE MEMORY ACCESS (direct deref, requires alignment, strict-aliasing) --
-    template<binary_readable Type>
+    template<binary_readable Type, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
-    Type read_raw( address_like auto base, off_s off = off_s{0} ) noexcept
+    Type read_raw( address_like auto base, OffT off = OffT{} ) noexcept
     {
         return *rcast<Type*>(
             rcast<std::byte*>(normalize_addr(base)) + off.get()
         );
     }
 
-    template<binary_readable Type>
+    template<binary_readable Type, byte_offset OffT = off_s>
     STX_FORCE_INLINE
-    void write_raw( address_like auto base, off_s off, Type value ) noexcept
+    void write_raw( address_like auto base, OffT off, Type value ) noexcept
     {
         *rcast<Type*>(
             rcast<std::byte*>(normalize_addr(base)) + off.get()
@@ -217,9 +217,9 @@ namespace lbyte::stx
 
         // ---- SAFE (memcpy) ---------------------------------------
 
-        template<typename U = T>
+        template<typename U = T, byte_offset OffT = off_s>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read( off_s off = off_s{} ) const noexcept -> U
+        auto read( OffT off = OffT{} ) const noexcept -> U
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             U value;
@@ -231,9 +231,9 @@ namespace lbyte::stx
             return value;
         }
 
-        template<typename U = T>
+        template<typename U = T, byte_offset OffT = off_s>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_p( off_s off = off_s{} ) const noexcept -> ptr<U>
+        auto read_p( OffT off = OffT{} ) const noexcept -> ptr<U>
             requires ( not std::is_void_v<U> )
         {
             uptr value;
@@ -245,9 +245,9 @@ namespace lbyte::stx
             return ptr<U>( rcast<U*>( value ));
         }
 
-        template<typename U = T>
+        template<typename U = T, byte_offset OffT = off_s>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_w( off_s off = off_s{} ) const noexcept -> wptr<U>
+        auto read_w( OffT off = OffT{} ) const noexcept -> wptr<U>
             requires ( not std::is_void_v<U> )
         {
             uptr value;
@@ -259,25 +259,25 @@ namespace lbyte::stx
             return wptr<U>( rcast<U*>( value ));
         }
 
-        template<std::integral U = T>
+        template<std::integral U = T, byte_offset OffT = off_s>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_le( off_s off = off_s{} ) const noexcept -> U
+        auto read_le( OffT off = OffT{} ) const noexcept -> U
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             return ::lbyte::stx::read_le<U>( address, off );
         }
 
-        template<std::integral U = T>
+        template<std::integral U = T, byte_offset OffT = off_s>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_be( off_s off = off_s{} ) const noexcept -> U
+        auto read_be( OffT off = OffT{} ) const noexcept -> U
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             return ::lbyte::stx::read_be<U>( address, off );
         }
 
-        template<typename U = T>
+        template<typename U = T, byte_offset OffT = off_s>
         STX_FORCE_INLINE
-        void write( off_s off, U value ) const noexcept
+        void write( OffT off, U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             std::memcpy(
@@ -299,17 +299,17 @@ namespace lbyte::stx
             );
         }
 
-        template<std::integral U = T>
+        template<std::integral U = T, byte_offset OffT = off_s>
         STX_FORCE_INLINE
-        void write_le( off_s off, U value ) const noexcept
+        void write_le( OffT off, U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             ::lbyte::stx::write_le<U>( address, off, value );
         }
 
-        template<std::integral U = T>
+        template<std::integral U = T, byte_offset OffT = off_s>
         STX_FORCE_INLINE
-        void write_be( off_s off, U value ) const noexcept
+        void write_be( OffT off, U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             ::lbyte::stx::write_be<U>( address, off, value );
@@ -317,17 +317,17 @@ namespace lbyte::stx
 
         // ---- UNSAFE (direct deref) --------------------------------
 
-        template<typename U = T>
+        template<typename U = T, byte_offset OffT = off_s>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_raw( off_s off = off_s{} ) const noexcept -> U
+        auto read_raw( OffT off = OffT{} ) const noexcept -> U
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             return *rcast<U*>( address + off.get() );
         }
 
-        template<typename U = T>
+        template<typename U = T, byte_offset OffT = off_s>
         STX_FORCE_INLINE
-        void write_raw( off_s off, U value ) const noexcept
+        void write_raw( OffT off, U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             *rcast<U*>( address + off.get() ) = value;
@@ -386,30 +386,25 @@ namespace lbyte::stx
 
         // ---- ARITHMETIC -------------------------------------------
 
-        constexpr ptr& add( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr ptr& add( OffT offset ) noexcept {
             address += static_cast<uptr>( offset.get() );
             return *this;
         }
 
-        constexpr ptr& sub( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr ptr& sub( OffT offset ) noexcept {
             address -= static_cast<uptr>( offset.get() );
             return *this;
         }
 
-        constexpr ptr& add( rva_s offset ) noexcept {
-            address += static_cast<uptr>( offset.get() );
-            return *this;
-        }
-
-        [[nodiscard]] constexpr ptr operator+( off_s offset ) const noexcept {
+        template<byte_offset OffT>
+        [[nodiscard]] constexpr ptr operator+( OffT offset ) const noexcept {
             return ptr( address + static_cast<uptr>( offset.get() ));
         }
 
-        [[nodiscard]] constexpr ptr operator+( rva_s offset ) const noexcept {
-            return ptr( address + static_cast<uptr>( offset.get() ));
-        }
-
-        [[nodiscard]] constexpr ptr operator-( off_s offset ) const noexcept {
+        template<byte_offset OffT>
+        [[nodiscard]] constexpr ptr operator-( OffT offset ) const noexcept {
             return ptr( address - static_cast<uptr>( offset.get() ));
         }
 
@@ -417,12 +412,14 @@ namespace lbyte::stx
             return off_s{ scast<off_s::value_type>( address - other.address ) };
         }
 
-        constexpr ptr& operator+=( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr ptr& operator+=( OffT offset ) noexcept {
             address += static_cast<uptr>( offset.get() );
             return *this;
         }
 
-        constexpr ptr& operator-=( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr ptr& operator-=( OffT offset ) noexcept {
             address -= static_cast<uptr>( offset.get() );
             return *this;
         }
@@ -483,42 +480,38 @@ namespace lbyte::stx
 
         // ---- ARITHMETIC -------------------------------------------
 
-        constexpr wptr& add( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr wptr& add( OffT offset ) noexcept {
             this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
             return *this;
         }
 
-        constexpr wptr& add( rva_s offset ) noexcept {
-            this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
-            return *this;
-        }
-
-        constexpr wptr& sub( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr wptr& sub( OffT offset ) noexcept {
             this->ref() -= static_cast<::lbyte::stx::uptr>( offset.get() );
             return *this;
         }
 
+        template<byte_offset OffT>
         [[nodiscard]]
-        constexpr wptr operator+( off_s offset ) const noexcept {
-            return wptr( this->addr() + scast<::lbyte::stx::uptr>( offset.get() ));
-        }
-
-        [[nodiscard]]
-        constexpr wptr operator+( rva_s offset ) const noexcept {
+        constexpr wptr operator+( OffT offset ) const noexcept {
             return wptr( this->addr() + static_cast<::lbyte::stx::uptr>( offset.get() ));
         }
 
+        template<byte_offset OffT>
         [[nodiscard]]
-        constexpr wptr operator-( off_s offset ) const noexcept {
-            return wptr( this->addr() - scast<::lbyte::stx::uptr>( offset.get() ));
+        constexpr wptr operator-( OffT offset ) const noexcept {
+            return wptr( this->addr() - static_cast<::lbyte::stx::uptr>( offset.get() ));
         }
 
-        constexpr wptr& operator+=( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr wptr& operator+=( OffT offset ) noexcept {
             this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
             return *this;
         }
 
-        constexpr wptr& operator-=( off_s offset ) noexcept {
+        template<byte_offset OffT>
+        constexpr wptr& operator-=( OffT offset ) noexcept {
             this->ref() -= static_cast<::lbyte::stx::uptr>( offset.get() );
             return *this;
         }
@@ -534,8 +527,9 @@ namespace lbyte::stx
             return wptr( value );
         }
 
+        template<byte_offset OffT>
         [[nodiscard]] STX_FORCE_INLINE
-        wptr walk( off_s offset ) const noexcept {
+        wptr walk( OffT offset ) const noexcept {
             return walk( offset.get() );
         }
 
@@ -550,8 +544,9 @@ namespace lbyte::stx
             return wptr( value );
         }
 
+        template<byte_offset OffT>
         [[nodiscard]] STX_FORCE_INLINE
-        wptr operator[]( off_s offset ) const noexcept {
+        wptr operator[]( OffT offset ) const noexcept {
             return (*this)[ offset.get() ];
         }
 

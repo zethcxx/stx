@@ -1,5 +1,6 @@
 #pragma once
 #include "./mem.hpp"
+#include "./endian.hpp"
 
 namespace lbyte::stx::literals
 {
@@ -53,5 +54,14 @@ namespace lbyte::stx::literals
 
     constexpr wptr<std::byte, 1> operator""_wptr( unsigned long long v ) noexcept {
         return wptr<std::byte, 1>{ static_cast<uptr>(v) };
+    }
+
+    // --- ENDIAN TYPES -------------------------------------------------------
+    constexpr le<u64> operator""_le( unsigned long long v ) noexcept {
+        return le<u64>{ static_cast<u64>(v) };
+    }
+
+    constexpr be<u64> operator""_be( unsigned long long v ) noexcept {
+        return be<u64>{ static_cast<u64>(v) };
     }
 }

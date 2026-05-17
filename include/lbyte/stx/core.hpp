@@ -197,6 +197,11 @@ namespace lbyte::stx
         and not std::is_empty_v             <Type>
         and not std::is_pointer_v           <Type>;
 
+    template<typename T>
+    concept byte_offset
+        =  std::same_as<std::remove_cvref_t<T>, off_s>
+        or std::same_as<std::remove_cvref_t<T>, rva_s>;
+
     template<address_like Addr> [[nodiscard]]
     constexpr uptr normalize_addr( Addr base ) noexcept
     {
