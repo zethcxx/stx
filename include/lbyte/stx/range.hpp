@@ -10,6 +10,7 @@ namespace lbyte::stx
         template<typename Type>
         concept rangeable
             =  std::integral<Type>
+            or std::is_enum_v<Type>
             or requires { typename Type::value_type; }
             or requires( Type t ) { { t.get() } -> std::integral; };
 
@@ -18,6 +19,9 @@ namespace lbyte::stx
 
         template<typename T, typename Tag>
         struct base_type<strong_type<T, Tag>> { using type = T; };
+
+        template<typename T> requires std::is_enum_v<T>
+        struct base_type<T> { using type = std::underlying_type_t<T>; };
 
         template<typename T>
         using base_type_t = typename base_type<T>::type;
@@ -33,7 +37,7 @@ namespace lbyte::stx
         template<typename T>
         constexpr auto unwrap( T value ) noexcept
         {
-            if constexpr ( std::integral<T> )
+            if constexpr ( std::integral<T> or std::is_enum_v<T> )
                 return static_cast<base_type_t<T>>( value );
             else
                 return value.get();
@@ -205,16 +209,19 @@ struct lbyte::stx::details::range_view
     {
         ::lbyte::stx::usize remaining = 0;
 
+        assert( step != 0 && "range: step must be non-zero" );
+
         if ( dir == range_dir::Forward )
         {
             if ( from <= to )
             {
                 auto dist = static_cast<::lbyte::stx::usize>( to - from );
                 auto step_u = static_cast<::lbyte::stx::usize>( step );
-                remaining = dist / step_u;
 
-                if ( mode == range_mode::Inclusive && ( dist % step_u == 0 ) )
-                    remaining += 1;
+                if ( mode == range_mode::Exclusive )
+                    remaining = (dist + step_u - 1) / step_u;  // ceiling — include last partial step
+                else // Inclusive
+                    remaining = dist / step_u + 1;
             }
         }
         else // Backward
@@ -223,28 +230,17 @@ struct lbyte::stx::details::range_view
             {
                 auto dist = static_cast<::lbyte::stx::usize>( from - to );
                 auto step_u = static_cast<::lbyte::stx::usize>( step );
-                remaining = dist / step_u;
 
-                if ( mode == range_mode::Exclusive )
-                {
-                    // Backward Exclusive: visit (from, to] — exclude `from`, include `to`
-                    // remaining stays as dist / step
-                    // If dist % step != 0: last value reaches past `to`
-                    // The start adjustment below handles excluding `from`
-                }
-                else // Inclusive
-                {
-                    remaining += 1;
-                    // Backward Inclusive: visit [from, to] — include both
-                }
+                // Both modes: include `from` in count, then optionally skip it
+                remaining = dist / step_u + 1;
             }
         }
 
-        ValueT start = from;
+        auto it = iter_t { from, step, remaining, dir };
         if ( dir == range_dir::Backward && mode == range_mode::Exclusive )
-            start = from - step;
+            ++it;  // skip `from` (exclusive start boundary)
 
-        return iter_t { start, step, remaining, dir };
+        return it;
     }
 
     constexpr auto end() const noexcept {
