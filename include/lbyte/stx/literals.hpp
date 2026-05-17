@@ -36,15 +36,15 @@ namespace lbyte::stx::literals
 
     // --- SIZE LITERALS (powers of 1024) ------------------------------------
     constexpr usize operator""_kb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024;
+        return static_cast<usize>( v ) * 1024uz;
     }
 
     constexpr usize operator""_mb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024 * 1024;
+        return static_cast<usize>( v ) * 1024uz * 1024uz;
     }
 
     constexpr usize operator""_gb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024 * 1024 * 1024;
+        return static_cast<usize>( v ) * 1024uz * 1024uz * 1024uz;
     }
 
     // --- POINTERS (default to std::byte) ------------------------------------
