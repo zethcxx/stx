@@ -80,6 +80,11 @@ namespace lbyte::stx
                     return U{ static_cast<typename U::value_type>( get() ) };
                 }
 
+                constexpr strong_type& operator++()    noexcept { ++value; return *this; }
+                constexpr strong_type  operator++(int) noexcept { auto t{*this}; ++value; return t; }
+                constexpr strong_type& operator--()    noexcept { --value; return *this; }
+                constexpr strong_type  operator--(int) noexcept { auto t{*this}; --value; return t; }
+
                 constexpr strong_type& operator+=( Type rhs ) noexcept {
                     value += rhs;
                     return *this;
