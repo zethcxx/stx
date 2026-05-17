@@ -246,36 +246,26 @@ struct range_iter
 
 ### Behavior
 
-`range` always represents the progression from `from` down/up to `to` by `step`, with one endpoint excluded in exclusive mode:
+`range` always represents the progression from `from` down/up to `to` by `step`, with one endpoint excluded in exclusive mode. The interval is **always** `[from, to)` for `range` and `[from, to]` for `irange`, regardless of direction — direction only affects traversal order.
 
 | Direction | Mode       | Interval | First Value | Last Value | Example (`from=5, to=0, step=1`) |
 |-----------|------------|----------|-------------|------------|----------------------------------|
 | Forward   | Exclusive  | `[from, to)` | `from`       | `to - step` | `range(0, 5)` → `{0,1,2,3,4}`   |
 | Forward   | Inclusive  | `[from, to]` | `from`       | `to`        | `irange(0, 5)` → `{0,1,2,3,4,5}`|
-| Backward  | Exclusive  | `(from, to]` | `from - step`| `to`        | `range(5, 0, Backward)` → `{4,3,2,1,0}`|
+| Backward  | Exclusive  | `[from, to)` | `from`       | `to + step` | `range(5, 0, Backward)` → `{5,4,3,2,1}` |
 | Backward  | Inclusive  | `[from, to]` | `from`       | `to`        | `irange(5, 0, Backward)` → `{5,4,3,2,1,0}`|
 
-The key consistency:
-- **Forward** goes from `from` upward: exclusive removes the end (`to`), inclusive keeps it.
-- **Backward** goes from `from` downward: exclusive removes the start (`from`), inclusive keeps it.
-
-Both directions follow the same rule: **exclusive removes the boundary in the direction of travel**:
-- Forward (← →) → end (`to`) is removed → `[from, to)`
-- Backward (→ ←) → start (`from`) is removed → `(from, to]`
+Forward and backward exclusive both exclude `to` — the same interval `[from, to)`, just traversed in opposite directions.
 
 #### With `step > 1`
-
-The same rule applies: compute the full arithmetic progression, then remove the relevant endpoint.
 
 | Example | Full Progression | Exclusive Result |
 |---------|-----------------|------------------|
 | `range(0, 10, 3, Forward)` | `0, 3, 6, 9` | `{0, 3, 6, 9}` *(to=10 not in progression)* |
-| `range(10, 0, 3, Backward)` | `10, 7, 4, 1` | `{7, 4, 1}` *(from=10 removed)* |
-| `range(30, 0, 3, Backward)` | `30, 27, 24, ..., 3, 0` | `{27, 24, ..., 3, 0}` *(from=30 removed)* |
+| `range(10, 0, 3, Backward)` | `10, 7, 4, 1` | `{10, 7, 4, 1}` *(to=0 not in progression)* |
+| `range(30, 0, 3, Backward)` | `30, 27, 24, ..., 3, 0` | `{30, 27, ..., 3}` *(to=0 excluded)* |
 
-Backward exclusive removes `from` by advancing one step immediately (`from - step`), which is why the first value is `from - step` rather than `from - 1`.
-
-#### Other
+#### Internals
 
 | Direction | Step Operation | Termination |
 |-----------|---------------|-------------|
@@ -288,7 +278,7 @@ Backward exclusive removes `from` by advancing one step immediately (`from - ste
 |-----------|------------|-----------------|
 | Forward   | Exclusive  | `(dist + step - 1) / step` (ceiling division) |
 | Forward   | Inclusive  | `dist / step + 1` |
-| Backward  | Exclusive  | `dist / step + 1` |
+| Backward  | Exclusive  | `(dist + step - 1) / step` (ceiling division) |
 | Backward  | Inclusive  | `dist / step + 1` |
 
 Where `dist = to - from` (forward) or `dist = from - to` (backward).
@@ -349,7 +339,7 @@ for (auto i : stx::irange(0, 10, 1, stx::range_dir::Forward))
 ```cpp
 for (auto i : stx::range(10, 0, 1, stx::range_dir::Backward))
 {
-    // 9,8,7,6,5,4,3,2,1,0
+    // 10,9,8,7,6,5,4,3,2,1
 }
 ```
 
@@ -369,7 +359,7 @@ for (auto i : stx::range(0, 20, 4, stx::range_dir::Forward))
 ```cpp
 for (auto i : stx::range(30, 0, 3, stx::range_dir::Backward))
 {
-    // 27,24,21,18,15,12,9,6,3,0
+    // 30,27,24,21,18,15,12,9,6,3
 }
 ```
 

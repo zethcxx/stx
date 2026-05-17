@@ -231,14 +231,14 @@ struct lbyte::stx::details::range_view
                 auto dist = static_cast<::lbyte::stx::usize>( from - to );
                 auto step_u = static_cast<::lbyte::stx::usize>( step );
 
-                // Both modes: include `from` in count, then optionally skip it
-                remaining = dist / step_u + 1;
+                if ( mode == range_mode::Exclusive )
+                    remaining = (dist + step_u - 1) / step_u;  // ceiling — same as forward exclusive
+                else // Inclusive
+                    remaining = dist / step_u + 1;
             }
         }
 
         auto it = iter_t { from, step, remaining, dir };
-        if ( dir == range_dir::Backward && mode == range_mode::Exclusive )
-            ++it;  // skip `from` (exclusive start boundary)
 
         return it;
     }
