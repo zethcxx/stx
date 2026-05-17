@@ -306,7 +306,19 @@ constexpr explicit strong_type(value_type) noexcept;
 
 template<std::integral U>
 constexpr explicit strong_type(U) noexcept;
+
+template<typename U, typename Tag2>
+    requires (is_offset_tag<Tag>::value && is_offset_tag<Tag2>::value)
+constexpr explicit strong_type(strong_type<U, Tag2>) noexcept;
 ```
+
+The cross-strong_type constructor is constrained to offset-tagged types only:
+
+| From → To | Allowed | Reason |
+|-----------|---------|--------|
+| `off_s` ↔ `rva_s` | ✓ | Both are offset-tagged |
+| `off_s` ↔ `va_s` | ✗ | `va_tag` is not an offset tag |
+| `rva_s` ↔ `va_s` | ✗ | `va_tag` is not an offset tag |
 
 #### Access
 
@@ -321,13 +333,24 @@ template<typename U>
 constexpr auto as() const noexcept -> U;
 ```
 
-`.as<U>()` converts to another strong type `U`:
+`.as<U>()` converts to another strong type `U`. Direct construction also works for offset-tagged types:
 
 ```cpp
 rva_s rva{0x100};
-auto off = rva.as<off_s>();  // off_s{256}
-auto va  = off.as<va_s>();   // va_s{256}
+auto off = rva.as<off_s>();   // off_s{256}
+auto off2 = off_s{rva};       // same, via cross-strong_type ctor
 ```
+
+#### Increment / Decrement
+
+```cpp
+constexpr strong_type& operator++()    noexcept;
+constexpr strong_type  operator++(int) noexcept;
+constexpr strong_type& operator--()    noexcept;
+constexpr strong_type  operator--(int) noexcept;
+```
+
+Full pre/post increment and decrement support.
 
 #### Arithmetic
 
@@ -521,6 +544,8 @@ Arithmetic is restricted to the underlying type.
 stx::off_s off{100};
 off = off + 20;        // ok
 off = off - 10;        // ok
+++off;                 // ok
+off--;                 // ok
 
 stx::off_s a{200};
 stx::off_s b{150};

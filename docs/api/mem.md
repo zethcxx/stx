@@ -269,7 +269,8 @@ public:
 | `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>`. Accepts `off_s`, `rva_s`, `va_s` |
 | `write<T>(off, val)` | `binary_readable<T>` | Copy-based typed write with byte offset |
 | `write<T>(val)` | `binary_readable<T>` | Copy-based typed write at address |
-| `call<Sig>()` | — | Invoke address as function with signature `Sig` |
+| `call<Sig>(args...)` | — | Invoke address as function with signature `Sig` and forwarded args |
+| `caller<Sig>()` | — | Return reusable `caller_t<Sig>` without invoking |
 
 ### Example
 
@@ -443,7 +444,12 @@ stx::uptr v2 = root.at<4>()[3][5].addr();
 ```cpp
 stx::ptr<void> p{function_address};
 
+// Direct invocation
 int result = p.call<int(int, int)>(10, 20);
+
+// Reusable callable
+auto fn = p.caller<void(int)>();
+if (fn) fn(42);
 ```
 
 ---
