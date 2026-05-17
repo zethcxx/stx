@@ -48,6 +48,11 @@ namespace lbyte::stx
         struct rva_tag    {};
         struct va_tag     {};
 
+        template<typename Tag>
+        struct is_offset_tag : std::false_type {};
+        template<> struct is_offset_tag<offset_tag> : std::true_type {};
+        template<> struct is_offset_tag<rva_tag>    : std::true_type {};
+
         template< typename Type, typename Tag >
         class strong_type
         {
@@ -66,6 +71,7 @@ namespace lbyte::stx
                 {}
 
                 template<typename U, typename Tag2>
+                    requires (is_offset_tag<Tag>::value && is_offset_tag<Tag2>::value)
                 constexpr explicit strong_type( strong_type<U, Tag2> other ) noexcept
                     : value( static_cast<value_type>( other.get() ) )
                 {}
