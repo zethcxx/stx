@@ -75,6 +75,11 @@ namespace lbyte::stx
                     return std::forward<Self>( self ).value;
                 }
 
+                template<typename U>
+                [[nodiscard]] constexpr auto as() const noexcept -> U {
+                    return U{ static_cast<typename U::value_type>( get() ) };
+                }
+
                 constexpr strong_type& operator+=( Type rhs ) noexcept {
                     value += rhs;
                     return *this;

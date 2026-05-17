@@ -316,6 +316,17 @@ constexpr auto&& get(this Self&&) noexcept;
 
 template<typename Self>
 constexpr explicit operator Type(this Self&&) noexcept;
+
+template<typename U>
+constexpr auto as() const noexcept -> U;
+```
+
+`.as<U>()` converts to another strong type `U`:
+
+```cpp
+rva_s rva{0x100};
+auto off = rva.as<off_s>();  // off_s{256}
+auto va  = off.as<va_s>();   // va_s{256}
 ```
 
 #### Arithmetic
