@@ -75,6 +75,29 @@ using lbyte::stx::literals::operator""_off_s;
 | `_mb` | `usize` | `v * 1024^2` | `2_mb` = 2097152 |
 | `_gb` | `usize` | `v * 1024^3` | `1_gb` = 1073741824 |
 
+### Endian Literals
+
+| Suffix | Return Type | Example |
+|--------|-------------|---------|
+| `_le` | `le<u8>`, `le<u16>`, `le<u32>` or `le<u64>` | `0x1234_le` |
+| `_be` | `be<u8>`, `be<u16>`, `be<u32>` or `be<u64>` | `0x5678_be` |
+
+The return type is the smallest endian-wrapped unsigned integer that can hold the value:
+
+| Value Range | Return Type |
+|-------------|-------------|
+| `0` – `0xFF` | `le<u8>` / `be<u8>` |
+| `0x100` – `0xFFFF` | `le<u16>` / `be<u16>` |
+| `0x10000` – `0xFFFF'FFFF` | `le<u32>` / `be<u32>` |
+| `≥ 0x1'0000'0000` | `le<u64>` / `be<u64>` |
+
+Literals are implemented as template char-pack operators for compile-time value extraction:
+
+```cpp
+template<char... Cs>
+constexpr auto operator""_le() noexcept;
+```
+
 ## Usage Notes
 
 Because of pp-number greediness, a literal followed by a dot access requires parentheses:

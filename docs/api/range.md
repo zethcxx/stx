@@ -27,6 +27,7 @@ The design enables domain-safe iteration over:
 A type is `rangeable` if:
 
 - It is an integral type, or
+- It is an enum type, or
 - It exposes:
   - `value_type`
   - `.get()` returning an integral
@@ -35,13 +36,14 @@ A type is `rangeable` if:
 template<typename Type>
 concept rangeable =
        std::integral<Type>
+    or std::is_enum_v<Type>
     or requires(Type t) {
         typename Type::value_type;
         { t.get() } -> std::integral;
     };
 ```
 
-This allows seamless integration with `strong_type`.
+This allows seamless integration with `strong_type` and enum types.
 
 ---
 
@@ -56,6 +58,9 @@ struct base_type { using type = T; };
 template<typename T, typename Tag>
 struct base_type<strong_type<T, Tag>> { using type = T; };
 
+template<typename T> requires std::is_enum_v<T>
+struct base_type<T> { using type = std::underlying_type_t<T>; };
+
 template<typename T>
 using base_type_t = typename base_type<T>::type;
 ```
@@ -65,8 +70,9 @@ For example:
 | Type         | `base_type_t<Type>` |
 |--------------|---------------------|
 | `u32`        | `u32`               |
-| `offset_s`   | `usize`             |
-| `rav_s`      | `u32`               |
+| `off_s`      | `ptrdiff_t`         |
+| `rva_s`      | `u32`               |
+| `enum class Opcode : u32` | `u32` |
 
 ---
 
@@ -249,16 +255,20 @@ struct range_iter
 
 | Direction | Mode       | Remaining Count |
 |-----------|------------|-----------------|
-| Forward   | Exclusive  | `(to - from) / step` |
-| Forward   | Inclusive  | `(to - from) / step + 1` (if divisible) |
-| Backward  | Exclusive  | `(from - to) / step` — visits `(from, to]` |
-| Backward  | Inclusive  | `(from - to) / step + 1` — visits `[from, to]` |
+| Forward   | Exclusive  | `(dist + step - 1) / step` (ceiling division) |
+| Forward   | Inclusive  | `dist / step + 1` |
+| Backward  | Exclusive  | `dist / step + 1` — visits `(from, to]` |
+| Backward  | Inclusive  | `dist / step + 1` — visits `[from, to]` |
 
-Start offset for Backward Exclusive: `from - step` (excludes `from`).
+Where `dist = to - from` (forward) or `dist = from - to` (backward).
+
+Backward exclusive uses pre-increment (`++it`) in `begin()`, so the first dereference yields `from - step` without mutating the initial value. This avoids the `start = from - step` hack and correctly handles unsigned types.
+
+A `step == 0` triggers an assertion failure.
 
 ---
 
-# Strong Type Compatibility
+# Strong Type & Enum Compatibility
 
 When iterating over strong types:
 
@@ -270,12 +280,14 @@ constexpr Type operator*() const noexcept
 {
     if constexpr (std::integral<Type>)
         return cur;
+    else if constexpr (std::is_enum_v<Type>)
+        return static_cast<Type>(cur);
     else
         return Type{cur};
 }
 ```
 
-This preserves domain separation.
+This preserves domain separation and supports enum iteration.
 
 ---
 
@@ -323,6 +335,15 @@ for (auto i : stx::range(0, 20, 4, stx::range_dir::Forward))
 }
 ```
 
+## Backward with Custom Step
+
+```cpp
+for (auto i : stx::range(30, 0, 3, stx::range_dir::Backward))
+{
+    // 27,24,21,18,15,12,9,6,3,0
+}
+```
+
 ---
 
 ## Strong Type Example
@@ -339,6 +360,22 @@ for (auto off : stx::range(
 ```
 
 No implicit conversion occurs between strong types.
+
+## Enum Example
+
+```cpp
+enum class Perms : u32 {
+    Read    = 1,
+    Write   = 2,
+    Exec    = 4,
+    All     = 7,
+};
+
+for (auto p : stx::range(Perms{0}, Perms{8}, stx::range_dir::Forward))
+{
+    // p is of type Perms: 0, 1, 2, 3, 4, 5, 6, 7
+}
+```
 
 ---
 
