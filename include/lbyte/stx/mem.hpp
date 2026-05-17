@@ -154,6 +154,12 @@ namespace lbyte::stx
             return *this;
         }
 
+        constexpr ptr& operator=(ptr&& other) noexcept {
+            address = other.address;
+            other.address = 0;
+            return *this;
+        }
+
         // ---- BASE ------------------------------------------------
 
         [[nodiscard]]
@@ -171,10 +177,7 @@ namespace lbyte::stx
             return address;
         }
 
-        [[nodiscard]]
-        constexpr ::lbyte::stx::uptr& ref() noexcept {
-            return address;
-        }
+
 
         [[nodiscard]]
         constexpr explicit operator bool() const noexcept {
@@ -508,13 +511,13 @@ namespace lbyte::stx
 
         template<byte_offset OffT>
         constexpr wptr& add( OffT offset ) noexcept {
-            this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
+            base::add( offset );
             return *this;
         }
 
         template<byte_offset OffT>
         constexpr wptr& sub( OffT offset ) noexcept {
-            this->ref() -= static_cast<::lbyte::stx::uptr>( offset.get() );
+            base::sub( offset );
             return *this;
         }
 
@@ -532,34 +535,34 @@ namespace lbyte::stx
 
         template<byte_offset OffT>
         constexpr wptr& operator+=( OffT offset ) noexcept {
-            this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
+            base::operator+=( offset );
             return *this;
         }
 
         template<byte_offset OffT>
         constexpr wptr& operator-=( OffT offset ) noexcept {
-            this->ref() -= static_cast<::lbyte::stx::uptr>( offset.get() );
+            base::operator-=( offset );
             return *this;
         }
 
         // ---- INCREMENT / DECREMENT --------------------------------
 
         constexpr wptr& operator++() noexcept {
-            ++this->ref();
+            base::operator++();
             return *this;
         }
         constexpr wptr operator++(int) noexcept {
             auto tmp = *this;
-            ++this->ref();
+            base::operator++();
             return tmp;
         }
         constexpr wptr& operator--() noexcept {
-            --this->ref();
+            base::operator--();
             return *this;
         }
         constexpr wptr operator--(int) noexcept {
             auto tmp = *this;
-            --this->ref();
+            base::operator--();
             return tmp;
         }
 
@@ -629,6 +632,14 @@ namespace lbyte::stx
         template<typename U>
         [[nodiscard]] constexpr wptr<T, sizeof(U)> at() const noexcept {
             return wptr<T, sizeof(U)>( this->addr() );
+        }
+
+        // ---- CROSS-STRIDE ASSIGNMENT -----------------------------
+
+        template<uptr OtherStride>
+        constexpr wptr& operator=( const wptr<T, OtherStride>& other ) noexcept {
+            base::operator=( other.addr() );
+            return *this;
         }
     };
 }

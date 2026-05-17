@@ -242,7 +242,8 @@ public:
 
 | Member | Description |
 |--------|-------------|
-| `operator=(address_like)` | Change pointed address |
+| `operator=(address_like)` | Change pointed address from address-like value |
+| `operator=(ptr&&)` | Move assignment — transfers address, source set to null |
 | `as_p<U>()` | Rebind to `ptr<U>` |
 | `as_w<U>()` | Rebind to `wptr<U>` |
 
@@ -315,7 +316,95 @@ auto result = base.call<int(int, int)>(10, 20);
 
 ---
 
-# Safety Model
+## `wptr<T, Stride>`
+
+Non-owning stride-typed pointer for pointer chasing. Extends `ptr<T>` with a compile-time `Stride` that scales integral indexing. Primarily designed for walking linked pointer chains in memory-mapped structures (PE/ELF import tables, etc.).
+
+```cpp
+template<typename T, uptr Stride = 1>
+class wptr : public ptr<T>
+{
+    using base = ptr<T>;
+public:
+    using value_type = T;
+
+    constexpr wptr() noexcept = default;
+    constexpr explicit wptr(address_like auto addr) noexcept;
+};
+```
+
+### Chaining (`operator[]`)
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `wp[i]` (integral) | `wptr` | Advance address by `i × Stride`, **read a `uptr`** from that address, return new `wptr` wrapping the read value |
+| `wp[off]` (byte_offset) | `wptr` | Same as integral via `off.get()` |
+
+Semantics:
+
+- Integral offset `i`: address = `addr() + i × Stride`, then `memcpy` a `uptr` from that address → pointer chasing.
+- `byte_offset` offset: converts via `.get()` before applying Stride scaling.
+- Returns a **new** `wptr` — does not modify `*this`.
+
+This enables the chain syntax:
+
+```cpp
+stx::wptr<void> base{address};
+uptr target = base[0x10][0x20][0x08].addr();
+// equivalent to:
+//   read<uptr>(addr + 0x10 * Stride)
+//   → read<uptr>(result + 0x20 * Stride)
+//   → read<uptr>(result + 0x08 * Stride)
+```
+
+### Stride Management (`at<>`)
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `at<NewStride>()` | `wptr<T, NewStride>` | Return **new** wptr with different stride at same address (does not modify `*this`) |
+| `at<U>()` | `wptr<T, sizeof(U)>` | Return new wptr with stride = `sizeof(U)` |
+
+Examples:
+
+```cpp
+wptr<int, 2> wp{addr};
+auto wp2 = wp.at<4>();              // wptr<int, 4> at same address
+auto wp3 = wp.at<stx::u32>();       // wptr<int, 4> via sizeof(u32)
+
+// Changing stride in-place:
+wp = wptr<int, 4>{ wp.addr() };     // construct new wptr at same address
+```
+
+### Type Rebind
+
+| Member | Description |
+|--------|-------------|
+| `as_w<U>()` | Rebind to `wptr<U, Stride>` with same stride |
+| Inherits `as_p<U>()` from `ptr<T>` | Rebind to `ptr<U>` (no stride) |
+
+### Cross-Stride Assignment
+
+| Member | Description |
+|--------|-------------|
+| `operator=(const wptr<T, OtherStride>&)` | Assign address from `wptr` with **any stride** — enables `wp = wptr<int, 4>{...}` when `wp` is `wptr<int, 2>` |
+
+Example:
+
+```cpp
+wptr<int, 2> wp{addr};
+wp = wptr<int, 12>{ addr };   // OK: address copied, stride type unchanged
+```
+
+### Increment / Decrement
+
+Inherited from `ptr<T>` — advances by **1 byte** (not `Stride`). For stride-aware advancement, use:
+
+```cpp
+wp += off_s{4};       // advance by 4 bytes
+wp += stride_s<Stride * 2>{}; // advance by 2 elements (conceptual)
+```
+
+---
 
 This header assumes:
 
