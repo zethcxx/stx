@@ -100,6 +100,10 @@ namespace lbyte::stx
                     value += rhs;
                     return *this;
                 }
+                constexpr strong_type& operator+=( strong_type rhs ) noexcept {
+                    value += rhs.value;
+                    return *this;
+                }
 
                 friend constexpr strong_type operator+( strong_type lhs, Type rhs ) noexcept {
                     lhs.value += rhs;
@@ -116,6 +120,10 @@ namespace lbyte::stx
 
                 constexpr strong_type& operator-=( Type rhs ) noexcept {
                     value -= rhs;
+                    return *this;
+                }
+                constexpr strong_type& operator-=( strong_type rhs ) noexcept {
+                    value -= rhs.value;
                     return *this;
                 }
 
