@@ -257,8 +257,8 @@ public:
 | Member | Requirements | Description |
 |--------|-------------|-------------|
 | `read<T>(off)` | `binary_readable<T>`, non-void | Copy-based read with optional offset |
-| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>` |
-| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>` |
+| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>`. Accepts `off_s`, `rva_s`, `va_s` |
+| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>`. Accepts `off_s`, `rva_s`, `va_s` |
 | `write<T>(off, val)` | `binary_readable<T>` | Copy-based write with offset |
 | `write<T>(val)` | `binary_readable<T>` | Copy-based write at address |
 
@@ -384,8 +384,8 @@ public:
 | Member | Requirements | Description |
 |--------|-------------|-------------|
 | `read<T>(off)` | `binary_readable<T>`, non-void | Copy-based typed read with optional byte offset |
-| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>` |
-| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>` |
+| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>`. Accepts `off_s`, `rva_s`, `va_s` |
+| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>`. Accepts `off_s`, `rva_s`, `va_s` |
 | `write<T>(off, val)` | `binary_readable<T>` | Copy-based typed write with byte offset |
 | `write<T>(val)` | `binary_readable<T>` | Copy-based typed write at address |
 | `call<Sig>()` | — | Invoke address as function with signature `Sig` |
