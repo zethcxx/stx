@@ -287,6 +287,248 @@ if (!stx::last_read_ok(file)) {
 
 ---
 
+---
+
+# Write Positioning
+
+## `setposos`
+
+```cpp
+void setposos(
+    std::ostream& file,
+    const off_s offset,
+    const origin dir = origin::begin
+);
+```
+
+### Description
+
+Sets the write position of an output stream using strong-typed offset and origin.
+
+Internally converts:
+
+- `off_s` → `std::streamoff`
+- `origin` → `std::ios_base::seekdir`
+
+### Example
+
+```cpp
+std::ofstream file("out.bin", std::ios::binary);
+
+stx::setposos(file, stx::off_s{128});
+```
+
+---
+
+# Writing Single Object
+
+## `writefs<Type>(ostream&, off_s, const Type&)`
+
+```cpp
+template<binary_readable Type>
+std::expected<void, std::errc> writefs(
+    std::ostream& file,
+    const off_s offset,
+    const Type& value
+);
+```
+
+### Behavior
+
+1. Seeks to specified position.
+2. Writes `sizeof(Type)` bytes from `value`.
+
+### Example
+
+```cpp
+stx::u32 magic = 0xDEADBEEF;
+auto result = stx::writefs(file, stx::off_s{0}, magic);
+```
+
+---
+
+# Writing Span
+
+## `writefs<Type>(ostream&, off_s, span<const Type>)`
+
+```cpp
+template<binary_readable Type>
+std::expected<void, std::errc> writefs(
+    std::ostream& file,
+    const off_s offset,
+    std::span<const Type> buffer
+);
+```
+
+### Behavior
+
+1. Seeks to specified position.
+2. Writes `buffer.size() * sizeof(Type)` bytes.
+
+### Example
+
+```cpp
+std::array<stx::u32, 4> data{1, 2, 3, 4};
+auto result = stx::writefs(file, stx::off_s{0}, std::span{data});
+```
+
+---
+
+# Skipping Bytes (Write)
+
+## `skipos`
+
+```cpp
+template<binary_readable Type = u8>
+void skipos(
+    std::ostream& file,
+    const off_s offset
+);
+```
+
+### Behavior
+
+Moves the write position relative to current position.
+
+Equivalent to:
+
+```cpp
+seekp(offset, std::ios::cur)
+```
+
+### Example
+
+```cpp
+stx::skipos(file, stx::off_s{32});
+```
+
+---
+
+# Memory-Mapped Files
+
+## `map_flag`
+
+```cpp
+enum class map_flag : u8 {
+    none     = 0,
+    write    = 1 << 0,
+    exec     = 1 << 1,
+    shared   = 1 << 2,
+    priv     = 1 << 3,
+    populate = 1 << 4,
+};
+```
+
+| Flag | Effect |
+|------|--------|
+| `none` | Read-only, private |
+| `write` | Read-write mapping |
+| `exec` | Executable mapping |
+| `shared` | `MAP_SHARED` (changes visible to other processes) |
+| `priv` | `MAP_PRIVATE` (copy-on-write) |
+| `populate` | `MAP_POPULATE` (pre-fault pages, Linux) |
+
+Flags can be combined with `operator|`:
+
+```cpp
+stx::map_flag flags = stx::map_flag::write | stx::map_flag::shared;
+```
+
+Check flags with `operator&`:
+
+```cpp
+if (m.flags() & stx::map_flag::write) { ... }
+```
+
+---
+
+## `map_file`
+
+```cpp
+class map_file
+```
+
+RAII memory-mapped file wrapper. Uses `mmap` on POSIX, `CreateFileMapping`/`MapViewOfFile` on Windows.
+
+### Factory
+
+```cpp
+static auto open(const std::filesystem::path& path, map_flag flags = {})
+    -> std::expected<map_file, std::errc>;
+
+static auto open(const std::filesystem::path& path, off_s offset, usize size, map_flag flags = {})
+    -> std::expected<map_file, std::errc>;
+```
+
+### State
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `operator bool` | `bool` | Non-null check |
+| `size()` | `usize` | Mapped region size |
+| `base()` | `uptr` | Base address |
+| `flags()` | `map_flag` | Access flags |
+
+### Sequential I/O
+
+| Member | Description |
+|--------|-------------|
+| `seek(off_s, origin)` | Set sequential position |
+| `tell()` | Current sequential position |
+| `remaining()` | Remaining bytes |
+| `read<T>()` | Sequential read (advances position) |
+| `write<T>(const T&)` | Sequential write (advances position) |
+
+### Random-Access I/O
+
+| Member | Description |
+|--------|-------------|
+| `read<T>(off_s)` | Read at byte offset |
+| `write<T>(off_s, const T&)` | Write at byte offset |
+
+### View
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `bytes()` | `span<const byte>` / `span<byte>` | Full region as span |
+| `as_p<T>()` | `ptr<T>` | Typed pointer to base |
+
+### Example
+
+```cpp
+auto mapped = stx::map_file::open("data.bin", stx::map_flag::write);
+if (!mapped) return;
+
+auto& m = *mapped;
+
+// Random access
+stx::u32 val = m.read<stx::u32>(stx::off_s{0x100});
+m.write(stx::off_s{0x104}, 0xDEADBEEF);
+
+// Sequential
+m.seek(stx::off_s{0x100});
+stx::u32 a = m.read<stx::u32>();
+stx::u32 b = m.read<stx::u32>();
+
+// As span
+auto region = m.bytes();
+
+// As typed pointer
+auto ptr = m.as_p<stx::u32>();
+```
+
+### `readfs` / `writefs` Overloads for `map_file`
+
+```cpp
+template<binary_readable Type>
+std::expected<Type, std::errc> readfs(const map_file& m, const off_s offset);
+
+template<binary_readable Type>
+std::expected<void, std::errc> writefs(map_file& m, const off_s offset, const Type& value);
+```
+
+---
+
 # Safety Characteristics
 
 | Aspect                     | Guarantee |
@@ -305,7 +547,7 @@ if (!stx::last_read_ok(file)) {
 - Binary file parsing
 - Structured header extraction
 - Section-based file inspection
-- Memory-mapped stream adapters
+- Memory-mapped file analysis
 - Low-level file analysis tooling
 
 ---

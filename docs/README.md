@@ -14,7 +14,7 @@
 | File | `fs.hpp` | Binary file stream utilities |
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
 | Range | `range.hpp` | Integer range iteration |
-| Literals | `literals.hpp` | Literal suffixes for all core types (docs in [core.md](./api/core.md)). Also available as `import lbyte.stx.literals;` |
+| Literals | `literals.hpp` | Literal suffixes for all core types ([docs](./api/literals.md)) |
 
 ---
 
@@ -83,3 +83,4 @@ auto main() -> int
 - [File API](./api/fs.md) - Binary file stream utilities
 - [Time API](./api/time.md) - UNIX time and stopwatch
 - [Range API](./api/range.md) - Integer range iteration
+- [Literals API](./api/literals.md) - Literal suffixes for core types

@@ -280,12 +280,12 @@ public:
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `add(off_s)` | `ptr` | Advance address by signed offset |
-| `add(rva_s)` | `ptr` | Advance address by RVA |
-| `sub(off_s)` | `ptr` | Rewind address by signed offset |
-| `operator+(off_s)` | `ptr` | Advance address by signed offset |
-| `operator+(rva_s)` | `ptr` | Advance address by RVA |
-| `operator-(off_s)` | `ptr` | Rewind address by signed offset |
+| `add(off_s)` | `ptr&` | Advance address by signed offset (in-place) |
+| `add(rva_s)` | `ptr&` | Advance address by RVA (in-place) |
+| `sub(off_s)` | `ptr&` | Rewind address by signed offset (in-place) |
+| `operator+(off_s)` | `ptr` | Advance address by signed offset (new object) |
+| `operator+(rva_s)` | `ptr` | Advance address by RVA (new object) |
+| `operator-(off_s)` | `ptr` | Rewind address by signed offset (new object) |
 | `operator+=(off_s)` | `ptr&` | Advance in-place |
 | `operator-=(off_s)` | `ptr&` | Rewind in-place |
 
@@ -377,8 +377,7 @@ public:
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `operator*()` | `T&` / `const T&` | Direct dereference |
-| `operator[](off_s)` | `T&` / `const T&` | Raw dereference at byte offset |
-| `operator->()` | `T*` | Typed member access |
+| `operator->()` | `T*` | Pointer-style member access |
 
 ### Binary Read / Write (inherited)
 
@@ -521,10 +520,10 @@ auto aligned = p.align_up(16);    // align up to 16-byte boundary
 auto off     = p.off();           // address as signed offset
 auto rva     = p.rva();           // address as 32-bit RVA
 
-auto next = p.add(stx::off_s{8}); // advance by 8 bytes
-auto prev = p.sub(stx::off_s{4}); // rewind by 4 bytes
-auto same = p + stx::off_s{8};    // operator+ overload
-auto dist = next.diff(p);         // signed distance: off_s{8}
+p.add(stx::off_s{8});             // advance in-place by 8 bytes
+p.sub(stx::off_s{4});             // rewind in-place by 4 bytes
+auto same = p + stx::off_s{8};    // operator+ returns new ptr
+auto dist = same.diff(p);         // signed distance
 
 p += stx::off_s{16};              // advance in-place (ptr&)
 p -= stx::off_s{4};               // rewind in-place

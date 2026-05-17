@@ -203,20 +203,6 @@ namespace lbyte::stx
             return *rcast<const T*>(address);
         }
 
-        template<typename U = T>
-        [[nodiscard]] auto operator[]( off_s off ) noexcept -> U&
-            requires ( not std::is_void_v<U> )
-        {
-            return *rcast<U*>( address + off.get() );
-        }
-
-        template<typename U = T>
-        [[nodiscard]] auto operator[]( off_s off ) const noexcept -> const U&
-            requires ( not std::is_void_v<U> )
-        {
-            return *rcast<const U*>( address + off.get() );
-        }
-
         // ---- ARROW ACCESS ----------------------------------------
 
         [[nodiscard]]
@@ -400,16 +386,19 @@ namespace lbyte::stx
 
         // ---- ARITHMETIC -------------------------------------------
 
-        [[nodiscard]] constexpr ptr add( off_s offset ) const noexcept {
-            return ptr( address + static_cast<uptr>( offset.get() ));
+        constexpr ptr& add( off_s offset ) noexcept {
+            address += static_cast<uptr>( offset.get() );
+            return *this;
         }
 
-        [[nodiscard]] constexpr ptr sub( off_s offset ) const noexcept {
-            return ptr( address - static_cast<uptr>( offset.get() ));
+        constexpr ptr& sub( off_s offset ) noexcept {
+            address -= static_cast<uptr>( offset.get() );
+            return *this;
         }
 
-        [[nodiscard]] constexpr ptr add( rva_s offset ) const noexcept {
-            return ptr( address + static_cast<uptr>( offset.get() ));
+        constexpr ptr& add( rva_s offset ) noexcept {
+            address += static_cast<uptr>( offset.get() );
+            return *this;
         }
 
         [[nodiscard]] constexpr ptr operator+( off_s offset ) const noexcept {
@@ -494,19 +483,19 @@ namespace lbyte::stx
 
         // ---- ARITHMETIC -------------------------------------------
 
-        [[nodiscard]]
-        constexpr wptr add( off_s offset ) const noexcept {
-            return wptr( this->addr() + scast<::lbyte::stx::uptr>( offset.get() ));
+        constexpr wptr& add( off_s offset ) noexcept {
+            this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
+            return *this;
         }
 
-        [[nodiscard]]
-        constexpr wptr add( rva_s offset ) const noexcept {
-            return wptr( this->addr() + static_cast<::lbyte::stx::uptr>( offset.get() ));
+        constexpr wptr& add( rva_s offset ) noexcept {
+            this->ref() += static_cast<::lbyte::stx::uptr>( offset.get() );
+            return *this;
         }
 
-        [[nodiscard]]
-        constexpr wptr sub( off_s offset ) const noexcept {
-            return wptr( this->addr() - scast<::lbyte::stx::uptr>( offset.get() ));
+        constexpr wptr& sub( off_s offset ) noexcept {
+            this->ref() -= static_cast<::lbyte::stx::uptr>( offset.get() );
+            return *this;
         }
 
         [[nodiscard]]

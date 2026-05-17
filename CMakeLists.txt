@@ -14,17 +14,18 @@ if ( LBYTE_STX_USE_MODULES )
 
     target_sources( stx
     PUBLIC
-        FILE_SET CXX_MODULES
-        TYPE CXX_MODULES
-        BASE_DIRS modules/stx
-        FILES
-            modules/stx/core.cppm
-            modules/stx/mem.cppm
-            modules/stx/time.cppm
-            modules/stx/fn.cppm
-            modules/stx/range.cppm
-            modules/stx/fs.cppm
-            modules/stx/stx.cppm
+    FILE_SET CXX_MODULES
+    TYPE CXX_MODULES
+    BASE_DIRS modules/stx
+    FILES
+        modules/stx/core.cppm
+        modules/stx/mem.cppm
+        modules/stx/time.cppm
+        modules/stx/fn.cppm
+        modules/stx/range.cppm
+        modules/stx/fs.cppm
+        modules/stx/literals.cppm
+        modules/stx/stx.cppm
     )
 else()
     add_library(stx INTERFACE)
