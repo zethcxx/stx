@@ -446,12 +446,12 @@ namespace lbyte::stx
 
         template<class Sig, class... Args>
         [[nodiscard]] decltype(auto) call(Args&&... args) const noexcept {
-            return caller<Sig>(address)(std::forward<Args>(args)...);
+            return stx::caller<Sig>(address)(std::forward<Args>(args)...);
         }
 
         template<class Sig>
         [[nodiscard]] auto caller() const noexcept {
-            return caller<Sig>(address);
+            return stx::caller<Sig>(address);
         }
 
         // ---- SWAP ------------------------------------------------
