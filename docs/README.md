@@ -48,7 +48,7 @@ Floating: `f32`, `f64`
 | Concept | Description |
 |--------|-------------|
 | `address_like` | Types usable as memory addresses |
-| `binary_readable` | Types safe for raw binary deserialization |
+| `binary_readable` | Types safe for raw binary deserialization (including pointer types) |
 
 ---
 
