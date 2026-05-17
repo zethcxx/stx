@@ -65,6 +65,11 @@ namespace lbyte::stx
                     : value( static_cast<value_type>( v ) )
                 {}
 
+                template<typename U, typename Tag2>
+                constexpr explicit strong_type( strong_type<U, Tag2> other ) noexcept
+                    : value( static_cast<value_type>( other.get() ) )
+                {}
+
                 template<typename Self>
                 [[nodiscard]] constexpr auto&& get( this Self&& self ) noexcept {
                     return std::forward<Self>( self ).value;
