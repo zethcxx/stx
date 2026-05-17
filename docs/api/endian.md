@@ -10,7 +10,7 @@ Type-safe wrappers for little-endian and big-endian storage. Guarantee a fixed i
 
 ```cpp
 template<typename T>
-concept endian_compatible = /* integral and not any char type */;
+concept endian_compatible = byte_swappable<T>; /* std::integral or enum, excluding char/bool */
 
 template<endian_compatible T, byte_order Order>
 struct endian_value;

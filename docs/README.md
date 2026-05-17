@@ -49,6 +49,7 @@ Floating: `f32`, `f64`
 |--------|-------------|
 | `address_like` | Types usable as memory addresses |
 | `binary_readable` | Types safe for raw binary deserialization (including pointer types) |
+| `byte_swappable` | Types suitable for byte swapping (integral + enum, excluding char types) |
 
 ---
 

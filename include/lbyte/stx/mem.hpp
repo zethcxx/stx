@@ -62,19 +62,20 @@ namespace lbyte::stx
     }
 
     // ENDIAN-AWARE READ -----------------------------------------------------
-    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
+    template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
     Type read_le( Addr base, OffT off = OffT{} ) noexcept
     {
         return read<Type>( base, off );
     }
 
-    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
+    template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
     Type read_be( Addr base, OffT off = OffT{} ) noexcept
     {
+        using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
         if constexpr ( std::endian::native == std::endian::little )
-            return std::byteswap( read<Type>( base, off ) );
+            return static_cast<Type>( std::byteswap( static_cast<Raw>( read<Raw>( base, off ) ) ) );
         else
             return read<Type>( base, off );
     }
@@ -91,19 +92,20 @@ namespace lbyte::stx
     }
 
     // ENDIAN-AWARE WRITE ----------------------------------------------------
-    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
+    template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
     STX_FORCE_INLINE
     void write_le( Addr base, OffT off, Type value ) noexcept
     {
         write( base, off, value );
     }
 
-    template<std::integral Type, address_like Addr, byte_offset OffT = off_s>
+    template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
     STX_FORCE_INLINE
     void write_be( Addr base, OffT off, Type value ) noexcept
     {
+        using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
         if constexpr ( std::endian::native == std::endian::little )
-            write( base, off, std::byteswap( value ) );
+            write( base, off, static_cast<Type>( std::byteswap( static_cast<Raw>( value ) ) ) );
         else
             write( base, off, value );
     }

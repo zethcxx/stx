@@ -730,6 +730,29 @@ T read_object(const void* buffer)
 
 ---
 
+## Concept: `byte_swappable`
+
+Defines a type suitable for byte swapping (endian conversion). Accepts integral and enum types, excluding character types and `bool`.
+
+### Requirements
+
+| Constraint              | Enforced By                         |
+|------------------------|--------------------------------------|
+| Integral or enum       | `std::integral<T> or std::is_enum_v<T>` |
+| Not bool               | `!std::same_as<T, bool>`            |
+| Not character          | `!std::same_as<T, char/wchar_t/char8_t/char16_t/char32_t>` |
+
+### Valid Types
+
+```cpp
+static_assert(stx::byte_swappable<stx::u32>);
+static_assert(stx::byte_swappable<stx::i64>);
+enum my_enum : u32 { A, B };
+static_assert(stx::byte_swappable<my_enum>);
+```
+
+---
+
 ## Strong Type Internal Design (C++23 Features)
 
 Uses:

@@ -18,14 +18,7 @@ namespace lbyte::stx
     // --- endian_compatible concept -------------------------------------------------
 
     template<typename T>
-    concept endian_compatible
-        =  std::integral<T>
-        and not std::same_as<std::remove_cv_t<T>, bool>
-        and not std::same_as<std::remove_cv_t<T>, char>
-        and not std::same_as<std::remove_cv_t<T>, wchar_t>
-        and not std::same_as<std::remove_cv_t<T>, char8_t>
-        and not std::same_as<std::remove_cv_t<T>, char16_t>
-        and not std::same_as<std::remove_cv_t<T>, char32_t>;
+    concept endian_compatible = byte_swappable<T>;
 
     // --- endian_value<T, Order> ----------------------------------------------------
 
@@ -70,16 +63,22 @@ namespace lbyte::stx
         }
 
         static constexpr T swap_if(T v) noexcept {
-            if constexpr (needs_swap)
-                return std::byteswap(v);
-            else
+            if constexpr (needs_swap) {
+                if constexpr (std::is_enum_v<T>) {
+                    using UT = std::underlying_type_t<T>;
+                    return static_cast<T>(std::byteswap(static_cast<UT>(v)));
+                } else {
+                    return std::byteswap(v);
+                }
+            } else {
                 return v;
+            }
         }
 
         // --- compound assignment -----------------------------------------------
 
         #define LBYTE_ENDIAN_COMPOUND(OP) \
-        constexpr endian_value& operator OP##=(T v) noexcept { \
+        constexpr endian_value& operator OP##=(T v) noexcept requires std::integral<T> { \
             store = swap_if(static_cast<T>(swap_if(store) OP v)); \
             return *this; \
         }
@@ -95,35 +94,35 @@ namespace lbyte::stx
 
         #undef LBYTE_ENDIAN_COMPOUND
 
-        constexpr endian_value& operator<<=(T v) noexcept {
+        constexpr endian_value& operator<<=(T v) noexcept requires std::integral<T> {
             store = swap_if(static_cast<T>(swap_if(store) << v));
             return *this;
         }
 
-        constexpr endian_value& operator>>=(T v) noexcept {
+        constexpr endian_value& operator>>=(T v) noexcept requires std::integral<T> {
             store = swap_if(static_cast<T>(swap_if(store) >> v));
             return *this;
         }
 
         // --- increment / decrement ---------------------------------------------
 
-        constexpr endian_value& operator++() noexcept {
+        constexpr endian_value& operator++() noexcept requires std::integral<T> {
             store = swap_if(static_cast<T>(swap_if(store) + 1));
             return *this;
         }
 
-        constexpr endian_value operator++(int) noexcept {
+        constexpr endian_value operator++(int) noexcept requires std::integral<T> {
             auto tmp = *this;
             ++*this;
             return tmp;
         }
 
-        constexpr endian_value& operator--() noexcept {
+        constexpr endian_value& operator--() noexcept requires std::integral<T> {
             store = swap_if(static_cast<T>(swap_if(store) - 1));
             return *this;
         }
 
-        constexpr endian_value operator--(int) noexcept {
+        constexpr endian_value operator--(int) noexcept requires std::integral<T> {
             auto tmp = *this;
             --*this;
             return tmp;
@@ -131,28 +130,28 @@ namespace lbyte::stx
 
         // --- unary -------------------------------------------------------------
 
-        [[nodiscard]] friend constexpr endian_value operator+(endian_value v) noexcept {
+        [[nodiscard]] friend constexpr endian_value operator+(endian_value v) noexcept requires std::integral<T> {
             return endian_value{ +v.get() };
         }
 
-        [[nodiscard]] friend constexpr endian_value operator-(endian_value v) noexcept {
+        [[nodiscard]] friend constexpr endian_value operator-(endian_value v) noexcept requires std::integral<T> {
             return endian_value{ -v.get() };
         }
 
-        [[nodiscard]] friend constexpr endian_value operator~(endian_value v) noexcept {
+        [[nodiscard]] friend constexpr endian_value operator~(endian_value v) noexcept requires std::integral<T> {
             return endian_value{ ~v.get() };
         }
 
         // --- binary arithmetic -------------------------------------------------
 
         #define LBYTE_ENDIAN_BINARY(OP) \
-        [[nodiscard]] friend constexpr endian_value operator OP(endian_value lhs, T rhs) noexcept { \
+        [[nodiscard]] friend constexpr endian_value operator OP(endian_value lhs, T rhs) noexcept requires std::integral<T> { \
             return endian_value{ static_cast<T>(lhs.get() OP rhs) }; \
         } \
-        [[nodiscard]] friend constexpr endian_value operator OP(T lhs, endian_value rhs) noexcept { \
+        [[nodiscard]] friend constexpr endian_value operator OP(T lhs, endian_value rhs) noexcept requires std::integral<T> { \
             return endian_value{ static_cast<T>(lhs OP rhs.get()) }; \
         } \
-        [[nodiscard]] friend constexpr endian_value operator OP(endian_value lhs, endian_value rhs) noexcept { \
+        [[nodiscard]] friend constexpr endian_value operator OP(endian_value lhs, endian_value rhs) noexcept requires std::integral<T> { \
             return endian_value{ static_cast<T>(lhs.get() OP rhs.get()) }; \
         }
 
@@ -169,11 +168,11 @@ namespace lbyte::stx
 
         // --- shift -------------------------------------------------------------
 
-        [[nodiscard]] friend constexpr endian_value operator<<(endian_value lhs, T rhs) noexcept {
+        [[nodiscard]] friend constexpr endian_value operator<<(endian_value lhs, T rhs) noexcept requires std::integral<T> {
             return endian_value{ static_cast<T>(lhs.get() << rhs) };
         }
 
-        [[nodiscard]] friend constexpr endian_value operator>>(endian_value lhs, T rhs) noexcept {
+        [[nodiscard]] friend constexpr endian_value operator>>(endian_value lhs, T rhs) noexcept requires std::integral<T> {
             return endian_value{ static_cast<T>(lhs.get() >> rhs) };
         }
 
