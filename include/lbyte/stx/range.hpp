@@ -147,6 +147,12 @@ namespace lbyte::stx
     {
         return range( to, dir, range_mode::Inclusive );
     }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( Type from, Type to, range_dir dir ) noexcept
+    {
+        return range( from, to, details::base_type_t<Type>{ 1 }, dir, range_mode::Inclusive );
+    }
 }
 
 // DETAILS IMPLEMENTATIONS ---------------------------------------------------
