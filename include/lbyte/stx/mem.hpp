@@ -181,7 +181,7 @@ namespace lbyte::stx
         }
 
         [[nodiscard]]
-        constexpr operator ::lbyte::stx::uptr() const noexcept {
+        constexpr explicit operator ::lbyte::stx::uptr() const noexcept {
             return address;
         }
 

@@ -45,7 +45,7 @@ namespace lbyte::stx
             return swap_if(store);
         }
 
-        [[nodiscard]] constexpr operator T() const noexcept {
+        [[nodiscard]] constexpr explicit operator T() const noexcept {
             return get();
         }
 
