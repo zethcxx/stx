@@ -196,6 +196,86 @@ Equivalent to `range(..., range_mode::Inclusive)`.
 
 ---
 
+## 5. Convenience Overloads (Explicit Type, Auto-Converting Args)
+
+```cpp
+// range:
+template<rangeable Type> constexpr auto range( auto to ) noexcept;
+template<rangeable Type> constexpr auto range( auto from, auto to ) noexcept;
+template<rangeable Type> constexpr auto range( auto from, auto to, auto step ) noexcept;
+template<rangeable Type> constexpr auto range( auto from, auto to, auto step, range_dir dir, range_mode flag = Exclusive ) noexcept;
+template<rangeable Type> constexpr auto range( auto from, auto to, range_dir dir, range_mode flag = Exclusive ) noexcept;
+template<rangeable Type> constexpr auto range( auto to, range_dir dir, range_mode flag = Exclusive ) noexcept;
+
+// irange:
+template<rangeable Type> constexpr auto irange( auto to ) noexcept;
+template<rangeable Type> constexpr auto irange( auto to, range_dir dir ) noexcept;
+template<rangeable Type> constexpr auto irange( auto from, auto to, range_dir dir ) noexcept;
+template<rangeable Type> constexpr auto irange( auto from, auto to, auto step, range_dir dir ) noexcept;
+```
+
+These overloads accept **raw integral** arguments and construct `Type` from them via `Type{value}`.
+They only participate when `Type` is a **strong type** or **enum** (`base_type_t<Type> != Type`);
+for plain integral `Type` the originals are used instead.
+
+```cpp
+// Verbose (original):
+for (auto off : range(off_s{0}, off_s{64}, off_s{8}))
+    ...
+
+// Ergonomic (convenience):
+for (auto off : range<off_s>(0, 64, 8))
+    ...
+```
+
+### ⚠️ Safety Warning
+
+The call `range<T>(args...)` is equivalent to `range(T{arg1}, T{arg2}, ...)`.
+When `T` is an **unsigned** strong type (e.g. `rva_s`, whose base is `u32`),
+a negative literal wraps silently:
+
+```cpp
+// rva_s is based on u32 (unsigned 32-bit)
+range<rva_s>(0, -1, 16)
+//  →  range(rva_s{u32{0}}, rva_s{u32{-1}}, 16)
+//  →  range(rva_s{0}, rva_s{4294967295}, 16)
+```
+
+The `-1` becomes `MAX_U32` — the range spans from `0` to `4 GiB`,
+which is almost certainly unintended.
+
+For **signed** strong types (e.g. `off_s`, base `ptrdiff_t`) negative values are safe:
+
+```cpp
+range<off_s>(0, -1, 16)   // off_s is signed → -1 stays -1, empty range
+```
+
+For **plain integral** `T` (e.g. `u32`), these convenience overloads are
+**disabled** (`base_type_t<u32> == u32`). The original `range(Type, Type)`
+overloads still apply, with standard C++ implicit narrowing:
+
+```cpp
+range<u32>(0, -1)      // compiles (original), -1 wraps to MAX_U32
+range<u32>(0, -1, 16)  // does NOT compile — no 3-arg original overload
+```
+
+### Available Variants
+
+The convenience family mirrors the original API, supporting all combinations of from/to/step/dir/mode.
+
+| Example | Equivalent |
+|---------|-----------|
+| `range<off_s>(10)` | `range(off_s{10})` |
+| `range<off_s>(0, 64)` | `range(off_s{0}, off_s{64})` |
+| `range<off_s>(0, 64, 8)` | `range(off_s{0}, off_s{64}, ptrdiff_t{8}, Forward, Exclusive)` |
+| `range<off_s>(0, 64, 8, Backward, Exclusive)` | `range(off_s{0}, off_s{64}, ptrdiff_t{8}, Backward, Exclusive)` |
+| `range<off_s>(0, 64, Forward)` | `range(off_s{0}, off_s{64}, ptrdiff_t{1}, Forward, Exclusive)` |
+| `range<off_s>(10, Backward)` | `range(off_s{10}, Backward, Exclusive)` |
+| `irange<off_s>(10)` | `irange(off_s{10})` |
+| `irange<off_s>(0, 64, 8, Forward)` | `irange(off_s{0}, off_s{64}, ptrdiff_t{8}, Forward)` |
+
+---
+
 # Internal Design
 
 ## `range_view`

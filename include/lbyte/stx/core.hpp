@@ -88,7 +88,7 @@ namespace lbyte::stx
 
                 template<typename U>
                 [[nodiscard]] constexpr auto as() const noexcept -> U {
-                    return U{ static_cast<typename U::value_type>( get() ) };
+                    return static_cast<U>( get() );
                 }
 
                 constexpr strong_type& operator++()    noexcept { ++value; return *this; }

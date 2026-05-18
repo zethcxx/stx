@@ -130,6 +130,8 @@ namespace lbyte::stx
         return range( from, to, details::base_type_t<Type>{ 1 }, dir, flag );
     }
 
+    // --- ORIGINAL irange OVERLOADS (deduced Type from Type args) ---------------
+
     template<details::rangeable Type> [[nodiscard]]
     constexpr auto irange( Type from, Type to, details::base_type_t<Type> step, range_dir dir ) noexcept
     {
@@ -152,6 +154,105 @@ namespace lbyte::stx
     constexpr auto irange( Type from, Type to, range_dir dir ) noexcept
     {
         return range( from, to, details::base_type_t<Type>{ 1 }, dir, range_mode::Inclusive );
+    }
+
+    // --- CONVENIENCE OVERLOADS (explicit Type, auto-converting args) ------------
+    // Enable ergonomic range<off_s>(0, count, 16) instead of
+    // range(off_s{0}, off_s{count}, off_s{16}).  Only enabled when Type is a
+    // strong type or enum (i.e. Type != base_type_t<Type>) so there is no
+    // ambiguity with plain integral ranges.  The original Type-param overloads
+    // are more specialised and win when both match.
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range( auto _to ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return range( Type{ _to } );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range( auto _from, auto _to ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return range( Type{ _from }, Type{ _to } );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range( auto _from, auto _to, auto step ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return range(
+            Type{ _from }, Type{ _to },
+            static_cast<details::base_type_t<Type>>( step ),
+            range_dir::Forward, range_mode::Exclusive
+        );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range(
+        auto      _from,
+        auto      _to  ,
+        auto      step ,
+        range_dir dir  ,
+        range_mode flag = range_mode::Exclusive
+    ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return range( Type{ _from }, Type{ _to },
+            static_cast<details::base_type_t<Type>>( step ), dir, flag );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range(
+        auto      from,
+        auto      to  ,
+        range_dir dir ,
+        range_mode flag = range_mode::Exclusive
+    ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return range( Type{ from }, Type{ to },
+            details::base_type_t<Type>{ 1 }, dir, flag );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto range(
+        auto      _to,
+        range_dir dir,
+        range_mode flag = range_mode::Exclusive
+    ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return range( Type{ _to }, dir, flag );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( auto to ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return irange( Type{ to } );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( auto to, range_dir dir ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return irange( Type{ to }, dir );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( auto from, auto to, range_dir dir ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return irange( Type{ from }, Type{ to }, dir );
+    }
+
+    template<details::rangeable Type> [[nodiscard]]
+    constexpr auto irange( auto from, auto to, auto step, range_dir dir ) noexcept
+        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    {
+        return irange( Type{ from }, Type{ to },
+            static_cast<details::base_type_t<Type>>( step ), dir );
     }
 }
 
