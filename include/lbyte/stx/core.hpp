@@ -223,12 +223,12 @@ namespace lbyte::stx
     template<typename T>
     concept byte_swappable
         =  (std::integral<T> or std::is_enum_v<T>)
-        and not std::same_as<std::remove_cv_t<T>, bool>
-        and not std::same_as<std::remove_cv_t<T>, char>
-        and not std::same_as<std::remove_cv_t<T>, wchar_t>
-        and not std::same_as<std::remove_cv_t<T>, char8_t>
-        and not std::same_as<std::remove_cv_t<T>, char16_t>
-        and not std::same_as<std::remove_cv_t<T>, char32_t>;
+        and not std::same_as<std::remove_cvref_t<T>, bool>
+        and not std::same_as<std::remove_cvref_t<T>, char>
+        and not std::same_as<std::remove_cvref_t<T>, wchar_t>
+        and not std::same_as<std::remove_cvref_t<T>, char8_t>
+        and not std::same_as<std::remove_cvref_t<T>, char16_t>
+        and not std::same_as<std::remove_cvref_t<T>, char32_t>;
 
     template<typename T>
     concept byte_offset
