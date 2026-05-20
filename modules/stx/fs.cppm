@@ -22,5 +22,4 @@ export namespace lbyte::stx
     using ::lbyte::stx::map_flag;
     using ::lbyte::stx::map_file;
     using ::lbyte::stx::reader_view;
-    using ::lbyte::stx::reader_raw;
 }

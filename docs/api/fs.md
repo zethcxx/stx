@@ -551,14 +551,23 @@ class reader_view {
 
 ### Read
 
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `read<T>()` | `T` | Single value (advances cursor) |
+| `read<T>(count)` | `dirty_vector<T>` | Copy `count` elements into new vector (advances cursor) |
+| `read<T, N>()` | `array<T, N>` | Copy `N` elements into fixed-size array (advances cursor) |
+| `read_view<T>(count)` | `span<const T>` | Zero-copy view of `count` elements (advances cursor) |
+| `read_strvw()` | `string_view` | Scan for `\0` until end of buffer (zero-copy) |
+| `read_strvw(max)` | `string_view` | Scan for `\0` bounded by `max` bytes (zero-copy) |
+
+### Write
+
 | Member | Description |
 |--------|-------------|
-| `read<T>()` | Sequential read (advances cursor) |
-| `read_span<T>(count)` | Zero-copy view of `count` elements (advances cursor) |
-| `read_strvw()` | Scan for `\0` until end of buffer (zero-copy) |
-| `read_strvw(max)` | Scan for `\0` bounded by `max` bytes (zero-copy) |
+| `write<T>(const T&)` | Write single value (advances cursor) |
+| `write<T>(span<const T>)` | Write span of values (advances cursor) |
 
-> **⚠️ Lifetime:** `read_span` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
+> **⚠️ Lifetime:** `read_view` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
 
 ### Example
 
@@ -566,57 +575,21 @@ class reader_view {
 std::vector<std::byte> buf = /* ... */;
 stx::reader_view r{buf};
 
+// Single reads
 auto magic = r.read<stx::le<stx::u32>>();
 auto count = r.read<stx::u16>();
-auto entries = r.read_span<Entry>(count);
+
+// Zero-copy view
+auto entries = r.read_view<Entry>(count);
+
+// Copy into vector
+auto names = r.read<char>(32);
+
+// String
 auto name = r.read_strvw();
-```
 
----
-
-## `reader_raw` (Unbounded)
-
-Cursor-based binary reader over a raw pointer **without known size**. No bounds checking — use only when you know the data is sufficient.
-
-```cpp
-class reader_raw {
-    reader_raw() noexcept;
-    explicit reader_raw(const void* ptr) noexcept;
-};
-```
-
-### State
-
-| Member | Returns | Description |
-|--------|---------|-------------|
-| `operator bool` | `bool` | Pointer non-null |
-
-### Cursor
-
-| Member | Description |
-|--------|-------------|
-| `seek(off_s, origin)` | Set position (no bounds) |
-| `skip(off_s)` | Advance relative |
-| `tell()` | Current position |
-
-### Read
-
-| Member | Description |
-|--------|-------------|
-| `read<T>()` | Sequential read (no bounds, advances cursor) |
-| `read_strvw()` | Scan for `\0` (no max limit — reads until terminator) |
-
-> **⚠️ No bounds, no `size`, no `remaining`, no `read_span`.** Designed for cases where the buffer size is genuinely unknown (e.g., walking through linked structures). Prefer `reader_view` when the size is available.
-
-### Example
-
-```cpp
-const void* base = /* ... */;
-stx::reader_raw r{base};
-
-auto node = r.read<Node>();
-r.skip(node.next_offset);
-auto data = r.read_strvw();
+// Write
+r.write<stx::u32>(0xDEADBEEF);
 ```
 
 ---
