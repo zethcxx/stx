@@ -5,6 +5,8 @@ module;
 export module lbyte.stx.literals;
 
 import lbyte.stx.core;
+import lbyte.stx.mem;
+import lbyte.stx.endian;
 
 export namespace lbyte::stx::literals
 {

@@ -1,7 +1,6 @@
 #pragma once
 #include "core.hpp"
 
-#include <concepts>
 #include <limits>
 #include <type_traits>
 

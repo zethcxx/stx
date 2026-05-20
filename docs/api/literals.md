@@ -65,7 +65,6 @@ using lbyte::stx::literals::operator""_off_s;
 | Suffix | Type | Example |
 |--------|------|---------|
 | `_ptr` | `ptr<std::byte>` | `0x1000_ptr` |
-| `_wptr` | `wptr<std::byte, 1>` | `0x2000_wptr` |
 
 ### Size Multiples (powers of 1024)
 

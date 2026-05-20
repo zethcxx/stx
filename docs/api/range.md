@@ -16,7 +16,7 @@ It supports:
 The design enables domain-safe iteration over:
 
 - Raw integral values
-- `stx::strong_type` wrappers (e.g., `off_s`, `rav_s`)
+- `stx::strong_type` wrappers (e.g., `off_s`, `rva_s`)
 
 ---
 
@@ -379,101 +379,117 @@ constexpr Type operator*() const noexcept
 {
     if constexpr (std::integral<Type>)
         return cur;
-    else if constexpr (std::is_enum_v<Type>)
-        return static_cast<Type>(cur);
     else
         return Type{cur};
 }
 ```
 
-This preserves domain separation and supports enum iteration.
+This preserves domain separation and supports enum iteration — `Type{cur}` is valid for both strong types and scoped enums in C++23.
 
 ---
 
 # Example Usage
 
-## Forward Exclusive
+## 1. Scanning Memory Regions (Reverse Engineering)
+
+Iterate over offset ranges while preserving domain types — no accidental mixing of offsets, RVAs, or virtual addresses:
 
 ```cpp
-for (auto i : stx::range(0, 10, 1, stx::range_dir::Forward))
+// Walk PE section headers at `off_s` granularity
+for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
 {
-    // 0,1,2,3,4,5,6,7,8,9
+    auto name = reader.read<stx::u64>(off);
+    auto vmsz = reader.read<stx::u32>(off + 0x18);
+    // off is off_s — type-safe against rva_s/va_s
 }
 ```
 
----
+## 2. Iterating Virtual Addresses
 
-## Forward Inclusive
+Convenience overloads avoid repetitive `Type{value}` construction:
 
 ```cpp
-for (auto i : stx::irange(0, 10, 1, stx::range_dir::Forward))
+for (auto va : stx::range<stx::va_s>(0x1000, 0x2000, 0x100))
 {
-    // 0,1,2,3,4,5,6,7,8,9,10
+    // va is va_s — iteration over virtual address space
+    walk_page_table(va);
 }
 ```
 
----
+## 3. Permission Flags Enumeration
 
-## Backward Exclusive
-
-```cpp
-for (auto i : stx::range(10, 0, 1, stx::range_dir::Backward))
-{
-    // 10,9,8,7,6,5,4,3,2,1
-}
-```
-
----
-
-## Custom Step
+Iterate over all possible permission combinations for fuzzing or analysis:
 
 ```cpp
-for (auto i : stx::range(0, 20, 4, stx::range_dir::Forward))
-{
-    // 0,4,8,12,16
-}
-```
-
-## Backward with Custom Step
-
-```cpp
-for (auto i : stx::range(30, 0, 3, stx::range_dir::Backward))
-{
-    // 30,27,24,21,18,15,12,9,6,3
-}
-```
-
----
-
-## Strong Type Example
-
-```cpp
-for (auto off : stx::range(
-        stx::off_s{0},
-        stx::off_s{64},
-        8,
-        stx::range_dir::Forward))
-{
-    // off is off_s
-}
-```
-
-No implicit conversion occurs between strong types.
-
-## Enum Example
-
-```cpp
-enum class Perms : u32 {
+enum class Perms : stx::u32 {
     Read    = 1,
     Write   = 2,
     Exec    = 4,
     All     = 7,
 };
 
-for (auto p : stx::range(Perms{0}, Perms{8}, stx::range_dir::Forward))
+for (auto p : stx::irange(Perms{0}, Perms{7}))
 {
-    // p is of type Perms: 0, 1, 2, 3, 4, 5, 6, 7
+    // p is Perms: 0, 1, 2, 3, 4, 5, 6, 7
+    test_protection(p);
 }
+```
+
+## 4. Processing Data in Chunks
+
+Walk a buffer backwards in aligned blocks — useful for stack unwinding or walking unwind tables:
+
+```cpp
+// Walk backwards from end, 16 bytes at a time
+for (auto off : stx::range<stx::off_s>(1024, 0, 16, stx::range_dir::Backward))
+{
+    auto block = reader.read<Block>(off);
+    // off: 1024, 1008, 992, ..., 16, 0
+}
+```
+
+## 5. Bidirectional RVA Traversal
+
+Non-trivial binary parsers need both directions — `range` handles both with the same API:
+
+```cpp
+// Forward: walk import descriptors
+auto idesc = map.at<stx::off_s>(import_dir);
+for (auto off : stx::range<stx::off_s>(idesc, idesc + 0x100, 0x14))
+    parse_import_desc(data, stx::rva_s{off});
+
+// Backward: walk unwind info from end to start
+for (auto off : stx::range<stx::off_s>(0x2000, 0, 8, stx::range_dir::Backward))
+    parse_unwind_entry(data, off);
+```
+
+## 6. Compile-Time Sequence Generation
+
+All range functions are `constexpr` — usable in template metaprogramming and `static_assert`:
+
+```cpp
+// Sum of first 100 numbers at compile time
+constexpr auto sum = [] {
+    auto s = 0;
+    for (auto i : stx::irange(0, 100))
+        s += i;
+    return s;
+}();
+static_assert(sum == 5050);
+```
+
+## 7. Safety Against Domain Confusion
+
+Strong types prevent passing an RVA where an offset is expected:
+
+```cpp
+stx::off_s file_off{0x400};
+stx::rva_s image_rva{0x1000};
+
+for (auto off : stx::range(file_off, file_off + 0x200, 8, stx::range_dir::Forward))
+    scan_section(data, off);          // ✅ off is off_s
+
+// for (auto off : stx::range(image_rva, file_off, ...))  // ❌ won't compile — type mismatch
 ```
 
 ---

@@ -53,7 +53,7 @@ namespace lbyte::stx::literals
     }
 
     // --- ENDIAN TYPES (auto-sized) -----------------------------------------
-    namespace detail {
+    namespace details {
         constexpr auto hex_val(char c) noexcept -> unsigned long long {
             if (c >= '0' && c <= '9') return c - '0';
             if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
@@ -107,11 +107,11 @@ namespace lbyte::stx::literals
 
     template<char... Cs>
     constexpr auto operator""_le() noexcept {
-        return detail::deduce_le<detail::uint_value<Cs...>::value>();
+        return details::deduce_le<details::uint_value<Cs...>::value>();
     }
 
     template<char... Cs>
     constexpr auto operator""_be() noexcept {
-        return detail::deduce_be<detail::uint_value<Cs...>::value>();
+        return details::deduce_be<details::uint_value<Cs...>::value>();
     }
 }

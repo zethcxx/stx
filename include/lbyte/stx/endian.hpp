@@ -3,8 +3,6 @@
 
 #include <bit>
 #include <compare>
-#include <concepts>
-#include <cstdint>
 #include <functional>
 #include <iosfwd>
 #include <type_traits>
@@ -222,7 +220,7 @@ namespace lbyte::stx
 
     // --- is_endian_value trait ----------------------------------------------------
 
-    namespace detail
+    namespace details
     {
         template<typename T>
         struct is_endian_value_impl : std::false_type {};
@@ -232,7 +230,7 @@ namespace lbyte::stx
     }
 
     template<typename T>
-    constexpr bool is_endian_value_v = detail::is_endian_value_impl<std::remove_cvref_t<T>>::value;
+    constexpr bool is_endian_value_v = details::is_endian_value_impl<std::remove_cvref_t<T>>::value;
 
 } // namespace lbyte::stx
 

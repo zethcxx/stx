@@ -254,36 +254,6 @@ namespace lbyte::stx
         }
 
         template<typename U = T, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read_ptr( OffT off = OffT{} ) const noexcept -> ptr<U>
-            requires ( not std::is_void_v<U> )
-        {
-            ::lbyte::stx::uptr value;
-            std::memcpy(
-                &value,
-                rcast<const std::byte*>(address) + off.get(),
-                sizeof(::lbyte::stx::uptr)
-            );
-            return ptr<U>( rcast<U*>( value ));
-        }
-
-        template<std::integral U = T, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read_le( OffT off = OffT{} ) const noexcept -> U
-            requires ( not std::is_void_v<U> && binary_readable<U> )
-        {
-            return ::lbyte::stx::read_le<U>( address, off );
-        }
-
-        template<std::integral U = T, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read_be( OffT off = OffT{} ) const noexcept -> U
-            requires ( not std::is_void_v<U> && binary_readable<U> )
-        {
-            return ::lbyte::stx::read_be<U>( address, off );
-        }
-
-        template<typename U = T, byte_offset OffT = off_s>
         STX_FORCE_INLINE
         void write( OffT off, U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
@@ -406,7 +376,7 @@ namespace lbyte::stx
             return ptr( address - static_cast<uptr>( offset.get() ));
         }
 
-        [[nodiscard]] off_s operator-( ptr other ) const noexcept {
+        [[nodiscard]] constexpr off_s operator-( ptr other ) const noexcept {
             return off_s{ scast<off_s::value_type>( address - other.address ) };
         }
 
@@ -424,7 +394,7 @@ namespace lbyte::stx
 
         // ---- DISTANCE --------------------------------------------
 
-        [[nodiscard]] off_s diff( ptr other ) const noexcept {
+        [[nodiscard]] constexpr off_s diff( ptr other ) const noexcept {
             return off_s{ scast<off_s::value_type>( address - other.address ) };
         }
 

@@ -40,11 +40,15 @@ export namespace lbyte::stx
 
     using ::lbyte::stx::address_like;
     using ::lbyte::stx::binary_readable;
+    using ::lbyte::stx::byte_swappable;
+    using ::lbyte::stx::byte_offset;
 
     using ::lbyte::stx::normalize_addr;
 
     using ::lbyte::stx::gap_v;
     using ::lbyte::stx::gap_align_v;
+    using ::lbyte::stx::align_up;
+    using ::lbyte::stx::align_down;
 
     using ::lbyte::stx::defer;
 }

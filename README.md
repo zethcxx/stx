@@ -1,7 +1,7 @@
 # STX - Systems Toolbelt for C++23
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 2.3.0
+**Version:** 3.0.0
 
 STX is a header-only C++23 library providing a rich set of low-level abstractions and utilities for systems programming, binary analysis, runtime instrumentation, and scripting at the OS/hardware interface. It emphasizes type safety, zero-overhead abstractions, and modern C++ idioms to enhance productivity in reverse engineering, red teaming, and tooling for binary formats.
 
@@ -72,7 +72,6 @@ Provides type-safe, binary-oriented file operations over `std::istream`.
 | `readfs<Type, Size>(file, offset, dir)` | Reads a fixed-size array |
 | `setposfs(file, offset, dir)` | Strongly-typed stream positioning |
 | `skipfs<Type>(file, offset)` | Moves stream forward by `offset` elements |
-| `last_read_ok(file)` | Checks stream state |
 
 Characteristics:
 
@@ -131,73 +130,6 @@ Provides domain-safe, constexpr-friendly integer and strong-type ranges for iter
 ---
 
 
-## Example: Hex Dump Utility
-
-A general-purpose hex viewer showcasing offset types, file I/O, ranges, and timing.
-
-```cpp
-#include <lbyte/stx.hpp>
-#include <fstream>
-#include <cstdio>
-
-using namespace lbyte::stx;
-
-auto hex_dump(std::span<const u8> bytes, off_s base = {}) -> void
-{
-    for (auto row : range(base.get(), scast<isize>(bytes.size()), isize{16}, range_dir::Forward)) {
-        std::printf("%08zx  ", row);
-
-        auto end = std::min<usize>(16, bytes.size() - (row - base.get()));
-        auto line = bytes.subspan(row - base.get(), end);
-        for (auto i : range(line.size())) {
-            if (i == 8) std::printf(" ");
-            std::printf("%02x ", line[i]);
-        }
-
-        auto pad = 16 - line.size();
-        for (usize i{}; i < pad; ++i) std::printf("   ");
-        if (pad >= 8) std::printf(" ");
-        if (pad) std::printf(" ");
-
-        for (auto b : line)
-            std::printf("%c", b >= 32 && b < 127 ? b : '.');
-        std::printf("\n");
-    }
-}
-
-auto main(int argc, char** argv) -> int
-{
-    if (argc < 2) { std::fprintf(stderr, "usage: hd <file>\n"); return 1; }
-
-    std::ifstream file{argv[1], std::ios::binary | std::ios::ate};
-    if (!file) { std::perror("open"); return 1; }
-
-    auto size = scast<usize>(file.tellg());
-    file.seekg(0);
-
-    defer cleanup{ [&] { std::printf("--- EOF ---\n"); } };
-
-    auto stop = stop_watch{};
-
-    auto buf = readfs<u8>(file, off_s{0}, size);
-    if (!buf) { std::fprintf(stderr, "read error\n"); return 1; }
-    hex_dump(*buf, off_s{0});
-
-    std::printf("\n%zu bytes in %lld us\n",
-        size, stop.elapsed<std::chrono::microseconds>());
-}
-```
-
-Demonstrates:
-
-- `off_s` for typed offset arithmetic
-- `readfs` + `dirty_vector` for bulk file reads
-- `range()` for safe, constexpr-friendly iteration
-- `stop_watch` for lightweight profiling
-- `defer` for scoped cleanup (LIFO, cancelable)
-- `scast`/`rcast` for explicit casts
-- `_uz` literal for `usize`
-
 ---
 
 ## Integration with CMake
@@ -225,7 +157,7 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v2.3.0
+    GIT_TAG        v3.0.0
 )
 
 # To use modules with FetchContent:
@@ -249,7 +181,7 @@ package("zethcxx.stx")
     add_versions( "v2.0.0", "v2.0.0" )
     add_versions( "v2.1.0", "v2.1.0" )
     add_versions( "v2.2.0", "v2.2.0" )
-    add_versions( "v2.3.0", "v2.3.0" )
+    add_versions( "v3.0.0", "v3.0.0" )
  
     add_configs( "use_modules", {
         builtin = false,
@@ -281,7 +213,7 @@ package("zethcxx.stx")
     end)
 package_end()
 
-add_requires( "zethcxx.stx v2.3.0" -- or other version
+add_requires( "zethcxx.stx v3.0.0" -- or other version
     -- , { configs = { use_modules = true }} -- if modules is required
 )
 

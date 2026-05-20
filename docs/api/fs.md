@@ -120,7 +120,7 @@ stx::setposfs(file, stx::off_s{32}, stx::origin::current);
 
 ```cpp
 template<binary_readable Type>
-Type readfs(
+std::expected<Type, std::errc> readfs(
     std::istream& file,
     const off_s offset = off_s{},
     const origin dir = origin::begin
@@ -144,7 +144,8 @@ struct header {
 
 static_assert(stx::binary_readable<header>);
 
-header h = stx::readfs<header>(file, stx::off_s{0});
+auto h = stx::readfs<header>(file, stx::off_s{0});
+if (!h) return;
 ```
 
 ---
@@ -155,7 +156,7 @@ header h = stx::readfs<header>(file, stx::off_s{0});
 
 ```cpp
 template<binary_readable Type>
-void readfs(
+std::expected<void, std::errc> readfs(
     std::istream& file,
     std::span<Type> out_buffer
 );
@@ -181,7 +182,7 @@ stx::readfs(file, std::span{arr});
 
 ```cpp
 template<binary_readable Type = u8>
-dirty_vector<Type> readfs(
+std::expected<dirty_vector<Type>, std::errc> readfs(
     std::istream& file,
     const off_s offset,
     const usize count,
@@ -200,8 +201,10 @@ dirty_vector<Type> readfs(
 
 ```cpp
 auto bytes = stx::readfs<>(file, stx::off_s{0}, 256);
+if (!bytes) return;
 
 auto words = stx::readfs<stx::u16>(file, stx::off_s{128}, 64);
+if (!words) return;
 ```
 
 ---
@@ -212,7 +215,7 @@ auto words = stx::readfs<stx::u16>(file, stx::off_s{128}, 64);
 
 ```cpp
 template<binary_readable Type, usize Size>
-std::array<Type, Size> readfs(
+std::expected<std::array<Type, Size>, std::errc> readfs(
     std::istream& file,
     const off_s offset,
     const origin dir = origin::begin
@@ -227,6 +230,7 @@ Constraint:
 
 ```cpp
 auto block = stx::readfs<stx::u8, 64>(file, stx::off_s{0});
+if (!block) return;
 ```
 
 ---
@@ -257,32 +261,6 @@ seekg(offset, std::ios::cur)
 
 ```cpp
 stx::skipfs(file, stx::off_s{32});
-```
-
----
-
-# Stream State
-
-## `last_read_ok`
-
-```cpp
-bool last_read_ok(const std::istream& file) noexcept;
-```
-
-Returns:
-
-```cpp
-file.good() and not file.eof()
-```
-
-### Example
-
-```cpp
-auto value = stx::readfs<stx::u32>(file);
-
-if (!stx::last_read_ok(file)) {
-    // handle error
-}
 ```
 
 ---
@@ -465,6 +443,7 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `operator bool` | `bool` | Non-null check |
+| `is_alive()` | `bool` | `data_ != nullptr` (same as `operator bool`) |
 | `size()` | `usize` | Mapped region size |
 | `base()` | `uptr` | Base address |
 | `flags()` | `map_flag` | Access flags |
@@ -474,6 +453,7 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 | Member | Description |
 |--------|-------------|
 | `seek(off_s, origin)` | Set sequential position |
+| `skip(off_s)` | Advance relative to current (`seek(off, origin::current)`) |
 | `tell()` | Current sequential position |
 | `remaining()` | Remaining bytes |
 | `read<T>()` | Sequential read (advances position) |
@@ -486,12 +466,17 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 | `read<T>(off_s)` | Read at byte offset |
 | `write<T>(off_s, const T&)` | Write at byte offset |
 
-### View
+### Zero-Copy Views
 
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `bytes()` | `span<const byte>` / `span<byte>` | Full region as span |
 | `as_p<T>()` | `ptr<T>` | Typed pointer to base |
+| `read_span<T>(count)` | `span<const T>` | View of `count` elements at cursor (zero-copy, advances cursor) |
+| `read_strvw()` | `string_view` | Scans for `\0` until end of buffer (zero-copy, advances cursor) |
+| `read_strvw(max)` | `string_view` | Scans for `\0` bounded by `max` bytes (zero-copy, advances cursor) |
+
+> **Semantics:** scans forward from cursor for a null terminator (`\0`) within the available range. If found, cursor advances past the null and returns the string before it. If not found, cursor advances by the scanned amount and returns everything scanned. Valid while the `map_file` is alive — views become dangling on move/destroy.
 
 ### Example
 
@@ -510,8 +495,15 @@ m.seek(stx::off_s{0x100});
 stx::u32 a = m.read<stx::u32>();
 stx::u32 b = m.read<stx::u32>();
 
-// As span
-auto region = m.bytes();
+// Skip bytes
+m.skip(stx::off_s{8});
+
+// Zero-copy span of structs
+struct Entry { stx::u32 id; stx::u64 off; };
+auto entries = m.read_span<Entry>(4);
+
+// Zero-copy string (bounded, null-terminated)
+auto name = m.read_strvw(32);
 
 // As typed pointer
 auto ptr = m.as_p<stx::u32>();
@@ -538,7 +530,7 @@ std::expected<void, std::errc> writefs(map_file& m, const off_s offset, const Ty
 | No implicit domain mixing  | Yes |
 | Bounds checking            | No |
 | Endianness handling        | Not provided |
-| Stream state validation    | Explicit via `last_read_ok` |
+| Stream state validation    | Explicit via `!file.fail()` |
 
 ---
 

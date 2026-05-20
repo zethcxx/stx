@@ -21,11 +21,11 @@ The design emphasizes type safety, ABI clarity, and compile-time validation usin
 | Symbol        | Type          | Description                          |
 |--------------|--------------|--------------------------------------|
 | `version_info` | struct        | Semantic version container           |
-| `version`      | `constexpr`   | Current library version (`2.3.0`)    |
+| `version`      | `constexpr`   | Current library version (`3.0.0`)    |
 
 ```cpp
 struct version_info { int major, minor, patch; };
-inline constexpr version_info version { 2, 3, 0 };
+inline constexpr version_info version { 3, 0, 0 };
 ```
 
 ---
@@ -414,7 +414,6 @@ using lbyte::stx::literals::operator""_off_s;
 | `_rva_s`    | `rva_s`   | `0x1000_rva_s`           |
 | `_va_s`     | `va_s`    | `0xDEAD_BEEF_va_s`       |
 | `_ptr`      | `ptr<std::byte>` | `nullptr`-based `ptr`; pass address to non-null |
-| `_wptr`     | `wptr<std::byte, 1>` | `nullptr`-based `wptr`; pass address to non-null |
 | `_kb`       | `usize`   | `4_kb` = 4096 |
 | `_mb`       | `usize`   | `2_mb` = 2097152 |
 | `_gb`       | `usize`   | `1_gb` = 1073741824 |
@@ -554,7 +553,7 @@ Cross-tag arithmetic is ill-formed:
 
 ```cpp
 // stx::off_s x{10};
-// stx::rav_s y{20};
+// stx::rva_s y{20};
 // auto invalid = x - y;  // compilation error
 ```
 

@@ -14,7 +14,6 @@ export namespace lbyte::stx
     using ::lbyte::stx::setposfs;
     using ::lbyte::stx::readfs;
     using ::lbyte::stx::skipfs;
-    using ::lbyte::stx::last_read_ok;
 
     using ::lbyte::stx::setposos;
     using ::lbyte::stx::writefs;

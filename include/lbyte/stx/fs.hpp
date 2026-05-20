@@ -132,17 +132,12 @@ namespace lbyte::stx
         return arr;
     }
 
-    template<binary_readable Type = std::byte> inline
+    inline
     void skipfs(
         std::istream& file,
         const off_s offset
     ) noexcept {
         setposfs(file, offset, origin::current);
-    }
-
-    // STATUS -------------------------------------------------------------------
-    inline bool last_read_ok( const std::istream& file ) noexcept {
-        return not file.fail();
     }
 
     // FILE WRITE UTILITIES ----------------------------------------------------
@@ -189,7 +184,6 @@ namespace lbyte::stx
         return {};
     }
 
-    template<binary_readable Type = u8>
     void skipos(
         std::ostream& file,
         const off_s offset
@@ -292,13 +286,32 @@ namespace lbyte::stx
 
         void seek(off_s off, origin dir = origin::begin) noexcept
         {
+            auto const o = off.get();
             switch (dir) {
-                case origin::begin:   pos_ = static_cast<usize>(off.get()); break;
-                case origin::current: pos_ += static_cast<usize>(off.get()); break;
-                case origin::end:     pos_ = size_ - static_cast<usize>(off.get()); break;
+                case origin::begin:
+                    pos_ = o > 0 ? static_cast<usize>(o) : usize{0};
+                    break;
+                case origin::current: {
+                    auto const p = static_cast<std::ptrdiff_t>(pos_);
+                    auto const r = p + o;
+                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
+                    break;
+                }
+                case origin::end: {
+                    auto const s = static_cast<std::ptrdiff_t>(size_);
+                    auto const r = s - o;
+                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
+                    break;
+                }
             }
             if (pos_ > size_) pos_ = size_;
         }
+
+        void skip(const off_s offset) noexcept {
+            seek(offset, origin::current);
+        }
+
+        [[nodiscard]] bool is_alive() const noexcept { return data_ != nullptr; }
 
         [[nodiscard]] off_s tell() const noexcept { return off_s{static_cast<off_s::value_type>(pos_)}; }
         [[nodiscard]] off_s remaining() const noexcept
@@ -320,6 +333,37 @@ namespace lbyte::stx
         {
             write(tell(), value);
             pos_ += sizeof(T);
+        }
+
+        // --- zero-copy views ------------------------------------------------
+
+        template<binary_readable T>
+        [[nodiscard]] auto read_span(usize count) noexcept -> std::span<const T>
+        {
+            auto rem = size_ - pos_;
+            auto max = rem / sizeof(T);
+            if (count > max) return {};
+            auto* ptr = static_cast<const T*>(
+                static_cast<const void*>(
+                    static_cast<const std::byte*>(data_) + pos_));
+            pos_ += count * sizeof(T);
+            return {ptr, count};
+        }
+
+        [[nodiscard]] std::string_view read_strvw() noexcept
+        {
+            return read_strvw(size_ - pos_);
+        }
+
+        [[nodiscard]] std::string_view read_strvw(usize max) noexcept
+        {
+            auto rem = size_ - pos_;
+            auto avail = std::min(max, rem);
+            if (avail == 0) return {};
+            auto* base = static_cast<const char*>(data_) + pos_;
+            auto len = strnlen(base, avail);
+            pos_ += len < avail ? len + 1 : avail;
+            return {base, len};
         }
 
         // --- random-access I/O ---------------------------------------------
@@ -460,8 +504,12 @@ namespace lbyte::stx
             }
 
             usize file_size = static_cast<usize>(fileSize.QuadPart);
+            if (offset > file_size) {
+                CloseHandle(hFile);
+                return std::unexpected(std::errc::argument_out_of_domain);
+            }
             if (size == 0) size = file_size - offset;
-            if (offset + size > file_size) {
+            if (size > file_size - offset) {
                 CloseHandle(hFile);
                 return std::unexpected(std::errc::argument_out_of_domain);
             }
@@ -557,14 +605,19 @@ namespace lbyte::stx
             }
 
             usize file_size = static_cast<usize>(st.st_size);
+            if (offset > file_size) {
+                ::close(fd);
+                return std::unexpected(std::errc::argument_out_of_domain);
+            }
             if (size == 0) size = file_size - offset;
-            if (offset + size > file_size) {
+            if (size > file_size - offset) {
                 ::close(fd);
                 return std::unexpected(std::errc::argument_out_of_domain);
             }
 
             // mmap requires page-aligned offset
             long page = sysconf(_SC_PAGE_SIZE);
+            if (page <= 0) page = 4096;
             usize align_off = (offset / static_cast<usize>(page)) * static_cast<usize>(page);
             usize delta = offset - align_off;
             usize map_sz = size + delta;

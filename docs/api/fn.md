@@ -141,8 +141,8 @@ Because it uses `address_like`, the following are valid inputs:
 | `std::uintptr_t`  | Yes      |
 | `std::intptr_t`   | Yes      |
 | `stx::va_s`       | Yes      |
-| `stx::rav_s`      | No       |
-| `stx::offset_s`   | No       |
+| `stx::rva_s`      | No       |
+| `stx::off_s`      | No       |
 
 ---
 
