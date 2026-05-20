@@ -418,3 +418,125 @@ ptr<int, 4> p{addr};
 ptr<int, 8> q{addr};
 p = q;  // address copied, p's stride stays 4
 ```
+
+---
+
+## C/C++ Comparison: `ptr` vs Raw Pointers
+
+### Pointer Chase (`/`)
+
+```cpp
+// stx: chainable, zero-cost
+stx::ptr<void> base{0x140000000};
+uptr target = (base[0x100] / 0x10 / 0x20).addr();
+```
+
+```c
+// C equivalent: manual deread + offset
+u64 tmp1 = *(u64*)((char*)0x140000000 + 0x100);
+u64 tmp2 = *(u64*)((char*)tmp1 + 0x10);
+u64 target = *(u64*)((char*)tmp2 + 0x20);
+```
+
+```cpp
+// C++ raw equivalent: verbose, error-prone
+u64 t1 = *reinterpret_cast<u64*>(0x140000000 + 0x100);
+u64 t2 = *reinterpret_cast<u64*>(reinterpret_cast<char*>(t1) + 0x10);
+u64 t3 = *reinterpret_cast<u64*>(reinterpret_cast<char*>(t2) + 0x20);
+```
+
+`ptr::operator/` compiles to the same assembly as the raw C version — zero overhead.
+
+---
+
+### Walk (Byte Chase, No Stride)
+
+```cpp
+// stx:  explicit intent
+auto p = base.walk(off_s{8});
+```
+
+```c
+// C:  identical assembly
+u64 p = *(u64*)((char*)addr + 8);
+```
+
+`walk` communicates "read a pointer at this raw byte offset" — its intent is clearer than the C version and impossible to confuse with stride-scaled access.
+
+---
+
+### `read<T>(off)` vs `memcpy`
+
+```cpp
+// stx:  safe, typed, unaligned-friendly
+stx::u32 val = p.read<stx::u32>(off_s{0x200});
+```
+
+```c
+// C:  caller must manage alignment and casting manually
+u32 val;
+memcpy(&val, (char*)addr + 0x200, sizeof(val));
+```
+
+```cpp
+// C++ raw:  same cost, more ceremony
+u32 val;
+std::memcpy(&val, reinterpret_cast<const char*>(addr) + 0x200, sizeof(val));
+```
+
+All three produce identical `memcpy` calls. `ptr::read` saves the boilerplate and enforces `binary_readable` at compile time.
+
+---
+
+### Stride Management (`at<N>`)
+
+```cpp
+// stx:  stride is part of the type
+auto entry_table = base.at<4>();   // ptr<void, 4>
+uptr entry = (entry_table / 3 / 5).addr();
+```
+
+```c
+// C:  stride math is manual and repeated
+u64 e1 = *(u64*)((char*)addr + 3 * 4);
+u64 e2 = *(u64*)((char*)e1 + 5 * 4);
+```
+
+With `ptr`, the stride is set once via `at<N>()` and `/` automatically scales — no mental recalculation of `sizeof` at each step.
+
+---
+
+### Arithmetic (`+`, `-`, `++`, `--`)
+
+```cpp
+// stx:  byte-level, type-preserving
+auto next = base + off_s{0x100};
+next += 8;
+--next;
+```
+
+```c
+// C:  same byte-level math, no type safety
+void* next = (char*)addr + 0x100;
+next = (char*)next + 8;
+next = (char*)next - 1;
+```
+
+`ptr` arithmetic works at byte granularity — consistent with `read<T>(off)`, `walk()`, and `operator[]`. No implicit element-type scaling.
+
+---
+
+### Read Pointer (`read_p`)
+
+```cpp
+// stx:  read_p<T> returns ptr<T>, chainable
+auto chain = base.read_p<Entry>(off_s{0x10}) / 4;
+```
+
+```c
+// C:  must re-wrap the result manually
+Entry* ptr = *(Entry**)((char*)addr + 0x10);
+u64 val = *(u64*)((char*)ptr + 4 * sizeof(void*));
+```
+
+`read_p` preserves the `ptr` wrapper, enabling further chaining without manual `reinterpret_cast`.

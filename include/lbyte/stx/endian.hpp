@@ -257,3 +257,4 @@ struct std::hash<lbyte::stx::endian_value<T, O>>
         }
     };
 #endif
+

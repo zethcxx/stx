@@ -9,7 +9,7 @@
 | Module | Header | Description |
 |--------|--------|-------------|
 | Core | `core.hpp` | Fundamental types, strong types, concepts |
-| Memory | `mem.hpp` | Low-level memory access, `ptr<T>`, `wptr<T>` |
+| Memory | `mem.hpp` | Low-level memory access, `ptr<T>` |
 | Function | `fn.hpp` | Function pointer abstractions |
 | File | `fs.hpp` | Binary file stream utilities |
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
@@ -33,7 +33,7 @@
 | Type | Description |
 |------|-------------|
 | `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `addr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `wptr<T>` | Walk pointer for pointer chasing / chain traversal: `[](off)`, `walk()`, `uptr()`, `raw()`, `read<T>()` |
+| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator/`, `read/write<T>`, `at<Stride>()`, `align_up/down` |
 
 ### Fundamental Aliases
 
@@ -79,7 +79,7 @@ auto main() -> int
 
 - [Main README](../README.md) - Project overview and integration guides
 - [Core API](./api/core.md) - Detailed core documentation
-- [Memory API](./api/mem.md) - Memory access, ptr, wptr
+- [Memory API](./api/mem.md) - Memory access, ptr
 - [Function API](./api/fn.md) - Function pointer invocations
 - [File API](./api/fs.md) - Binary file stream utilities
 - [Time API](./api/time.md) - UNIX time and stopwatch

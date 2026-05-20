@@ -52,6 +52,44 @@ namespace lbyte::stx
                 traits::construct(static_cast<Allocator&>(*this), ptr, std::forward<Args>(args)...);
             }
         };
+
+        // --- cursor utilities (seek / skip / tell / remaining) -------------
+
+        inline void seek_cursor(usize& pos, usize bound, off_s off, origin dir) noexcept
+        {
+            auto const o = off.get();
+            switch (dir) {
+                case origin::begin:
+                    pos = o > 0 ? static_cast<usize>(o) : usize{0};
+                    break;
+                case origin::current: {
+                    auto const p = static_cast<std::ptrdiff_t>(pos);
+                    auto const r = p + o;
+                    pos = r > 0 ? static_cast<usize>(r) : usize{0};
+                    break;
+                }
+                case origin::end: {
+                    auto const s = static_cast<std::ptrdiff_t>(bound);
+                    auto const r = s + o;
+                    pos = r > 0 ? static_cast<usize>(r) : usize{0};
+                    break;
+                }
+            }
+            if (pos > bound) pos = bound;
+        }
+
+        inline void skip_cursor(usize& pos, usize bound, off_s off) noexcept {
+            seek_cursor(pos, bound, off, origin::current);
+        }
+
+        inline off_s tell_cursor(usize pos) noexcept {
+            return off_s{static_cast<off_s::value_type>(pos)};
+        }
+
+        inline off_s remaining_cursor(usize pos, usize bound) noexcept {
+            auto rem = bound - pos;
+            return off_s{static_cast<off_s::value_type>(rem)};
+        }
     }
 
     // DIRTY VECTOR --------------------------------------------------------------
@@ -284,41 +322,18 @@ namespace lbyte::stx
 
         // --- sequential I/O ------------------------------------------------
 
-        void seek(off_s off, origin dir = origin::begin) noexcept
-        {
-            auto const o = off.get();
-            switch (dir) {
-                case origin::begin:
-                    pos_ = o > 0 ? static_cast<usize>(o) : usize{0};
-                    break;
-                case origin::current: {
-                    auto const p = static_cast<std::ptrdiff_t>(pos_);
-                    auto const r = p + o;
-                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
-                    break;
-                }
-                case origin::end: {
-                    auto const s = static_cast<std::ptrdiff_t>(size_);
-                    auto const r = s - o;
-                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
-                    break;
-                }
-            }
-            if (pos_ > size_) pos_ = size_;
+        void seek(off_s off, origin dir = origin::begin) noexcept {
+            details::seek_cursor(pos_, size_, off, dir);
         }
 
         void skip(const off_s offset) noexcept {
-            seek(offset, origin::current);
+            details::skip_cursor(pos_, size_, offset);
         }
 
         [[nodiscard]] bool is_alive() const noexcept { return data_ != nullptr; }
 
-        [[nodiscard]] off_s tell() const noexcept { return off_s{static_cast<off_s::value_type>(pos_)}; }
-        [[nodiscard]] off_s remaining() const noexcept
-        {
-            auto rem = size_ - pos_;
-            return off_s{static_cast<off_s::value_type>(rem)};
-        }
+        [[nodiscard]] off_s tell() const noexcept { return details::tell_cursor(pos_); }
+        [[nodiscard]] off_s remaining() const noexcept { return details::remaining_cursor(pos_, size_); }
 
         template<binary_readable T>
         auto read() noexcept -> T
@@ -329,16 +344,53 @@ namespace lbyte::stx
         }
 
         template<binary_readable T>
+        auto read(usize count) noexcept -> dirty_vector<T>
+        {
+            auto rem = size_ - pos_;
+            auto max = rem / sizeof(T);
+            if (count > max) return {};
+            auto* src = static_cast<const T*>(
+                static_cast<const void*>(
+                    static_cast<const std::byte*>(data_) + pos_));
+            dirty_vector<T> vec(count);
+            std::memcpy(vec.data(), src, count * sizeof(T));
+            pos_ += count * sizeof(T);
+            return vec;
+        }
+
+        template<binary_readable T, usize N>
+        auto read() noexcept -> std::array<T, N>
+        {
+            std::array<T, N> arr;
+            auto rem = size_ - pos_;
+            auto max = rem / sizeof(T);
+            if (N > max) return arr;
+            auto* src = static_cast<const T*>(
+                static_cast<const void*>(
+                    static_cast<const std::byte*>(data_) + pos_));
+            std::memcpy(arr.data(), src, N * sizeof(T));
+            pos_ += N * sizeof(T);
+            return arr;
+        }
+
+        template<binary_readable T>
         auto write(const T& value) noexcept -> void
         {
             write(tell(), value);
             pos_ += sizeof(T);
         }
 
+        template<binary_readable T>
+        auto write(std::span<const T> buf) noexcept -> void
+        {
+            std::memcpy(static_cast<std::byte*>(data_) + pos_, buf.data(), buf.size_bytes());
+            pos_ += buf.size_bytes();
+        }
+
         // --- zero-copy views ------------------------------------------------
 
         template<binary_readable T>
-        [[nodiscard]] auto read_span(usize count) noexcept -> std::span<const T>
+        [[nodiscard]] auto read_view(usize count) noexcept -> std::span<const T>
         {
             auto rem = size_ - pos_;
             auto max = rem / sizeof(T);
@@ -439,64 +491,78 @@ namespace lbyte::stx
         return {};
     }
 
+    // --- readfs/writefs overloads for spans (positional, no reader_view needed) -
+
+    template<binary_readable Type> [[nodiscard]]
+    std::expected<Type, std::errc> readfs(
+        std::span<const std::byte> buf,
+        const off_s offset
+    ) noexcept
+    {
+        auto end = offset.get() + static_cast<off_s::value_type>(sizeof(Type));
+        if (end > static_cast<off_s::value_type>(buf.size()))
+            return std::unexpected(std::errc::argument_out_of_domain);
+        Type val;
+        std::memcpy(&val, buf.data() + offset.get(), sizeof(Type));
+        return val;
+    }
+
+    template<binary_readable Type>
+    std::expected<void, std::errc> writefs(
+        std::span<std::byte> buf,
+        const off_s offset,
+        const Type& value
+    ) noexcept
+    {
+        auto end = offset.get() + static_cast<off_s::value_type>(sizeof(Type));
+        if (end > static_cast<off_s::value_type>(buf.size()))
+            return std::unexpected(std::errc::argument_out_of_domain);
+        std::memcpy(buf.data() + offset.get(), &value, sizeof(Type));
+        return {};
+    }
+
     // --- reader_view (bounded, span-based) ------------------------------------
 
     class reader_view
     {
-        std::span<const std::byte> buf_;
+        std::span<std::byte> buf_;
         usize pos_ = 0;
 
     public:
         reader_view() noexcept = default;
 
-        reader_view(std::span<const std::byte> buf) noexcept
+        reader_view(std::span<std::byte> buf) noexcept
             : buf_(buf) {}
 
+        reader_view(void* data, usize size) noexcept
+            : buf_(static_cast<std::byte*>(data), size) {}
+
         reader_view(const void* data, usize size) noexcept
-            : buf_(static_cast<const std::byte*>(data), size) {}
+            : buf_(const_cast<std::byte*>(static_cast<const std::byte*>(data)), size) {}
 
         // --- state ---------------------------------------------------------
 
         explicit operator bool() const noexcept { return !buf_.empty(); }
         usize size() const noexcept { return buf_.size(); }
 
+        [[nodiscard]] std::span<const std::byte> bytes() const noexcept { return buf_; }
+        [[nodiscard]] std::span<std::byte> bytes() noexcept { return buf_; }
+
+        template<typename T = std::byte>
+        [[nodiscard]] ptr<T> as_p() const noexcept { return ptr<T>(reinterpret_cast<uptr>(buf_.data())); }
+
         // --- cursor --------------------------------------------------------
 
-        void seek(off_s off, origin dir = origin::begin) noexcept
-        {
-            auto const o = off.get();
-            switch (dir) {
-                case origin::begin:
-                    pos_ = o > 0 ? static_cast<usize>(o) : usize{0};
-                    break;
-                case origin::current: {
-                    auto const p = static_cast<std::ptrdiff_t>(pos_);
-                    auto const r = p + o;
-                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
-                    break;
-                }
-                case origin::end: {
-                    auto const s = static_cast<std::ptrdiff_t>(buf_.size());
-                    auto const r = s - o;
-                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
-                    break;
-                }
-            }
-            if (pos_ > buf_.size()) pos_ = buf_.size();
+        void seek(off_s off, origin dir = origin::begin) noexcept {
+            details::seek_cursor(pos_, buf_.size(), off, dir);
         }
 
         void skip(const off_s offset) noexcept {
-            seek(offset, origin::current);
+            details::skip_cursor(pos_, buf_.size(), offset);
         }
 
-        off_s tell() const noexcept {
-            return off_s{static_cast<off_s::value_type>(pos_)};
-        }
-
-        off_s remaining() const noexcept {
-            auto rem = buf_.size() - pos_;
-            return off_s{static_cast<off_s::value_type>(rem)};
-        }
+        off_s tell() const noexcept { return details::tell_cursor(pos_); }
+        off_s remaining() const noexcept { return details::remaining_cursor(pos_, buf_.size()); }
 
         // --- read ----------------------------------------------------------
 
@@ -574,6 +640,22 @@ namespace lbyte::stx
             auto bytes = buf.size_bytes();
             std::memcpy(buf_.data() + pos_, buf.data(), bytes);
             pos_ += bytes;
+        }
+
+        // --- random-access I/O ---------------------------------------------
+
+        template<binary_readable T>
+        T read(off_s off) const noexcept
+        {
+            T val;
+            std::memcpy(&val, buf_.data() + off.get(), sizeof(T));
+            return val;
+        }
+
+        template<binary_readable T>
+        void write(off_s off, const T& value) const noexcept
+        {
+            std::memcpy(buf_.data() + off.get(), &value, sizeof(T));
         }
     };
 

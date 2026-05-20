@@ -465,8 +465,8 @@ The header provides a minimal, strongly-typed foundation for higher-level binary
 ## Versioning
 
 ```cpp
-static_assert(stx::version.major == 2);
-static_assert(stx::version.minor == 3);
+static_assert(stx::version.major == 3);
+static_assert(stx::version.minor == 0);
 static_assert(stx::version.patch == 0);
 ```
 
@@ -749,6 +749,86 @@ static_assert(stx::byte_swappable<stx::i64>);
 enum my_enum : u32 { A, B };
 static_assert(stx::byte_swappable<my_enum>);
 ```
+
+---
+
+## C/C++ Comparison: Strong Types vs Raw Integers
+
+### Offset Type Safety
+
+```cpp
+// stx:  off_s is distinct from rva_s — no accidental mixing
+stx::off_s file_off{0x400};
+stx::rva_s img_rva{0x1000};
+
+auto delta = file_off - stx::off_s{0x100};  // ✅ off_s arithmetic
+// auto bad = file_off - img_rva;            // ❌ won't compile
+```
+
+```cpp
+// C++ raw:  same underlying type (u32/ptrdiff_t) — easy to mix
+ptrdiff_t file_off = 0x400;
+u32 img_rva = 0x1000;
+
+auto delta = file_off - 0x100;              // ✅ works
+auto bad = file_off - img_rva;              // ⚠️ compiles, but semantically wrong
+```
+
+```c
+// C:  everything is integer — no protection at all
+off_t file_off = 0x400;
+uint32_t img_rva = 0x1000;
+off_t delta = file_off - 0x100;             // ok
+off_t bad = file_off - img_rva;             // compiles fine, but nonsense
+```
+
+`off_s` and `rva_s` are the same size as their raw counterparts — zero overhead, but the compiler catches domain mismatches.
+
+---
+
+### Explicit Construction
+
+```cpp
+// stx:  no implicit narrowing
+stx::off_s off{128};            // explicit from int — OK
+// stx::off_s off2 = 128;       // ❌ implicit — won't compile
+```
+
+```cpp
+// C++ raw:  implicit conversions everywhere
+ptrdiff_t a = 128;              // implicit from int — fine
+int b = a;                      // implicit narrowing — compiles, possible truncation
+```
+
+```c
+// C:  all implicit
+off_t a = 128;
+int b = a;                      // silent truncation on 64-bit
+```
+
+Strong types require explicit construction and don't implicitly narrow — the cost is zero at runtime.
+
+---
+
+### Origin Enum vs Seek Constants
+
+```cpp
+// stx:  scoped, typed
+void seek(stx::off_s offset, stx::origin where = stx::origin::begin);
+seek(stx::off_s{128}, stx::origin::current);
+```
+
+```cpp
+// C++ raw:  magic constants
+file.seekg(128, std::ios::cur);
+```
+
+```c
+// C:  macros
+fseek(file, 128, SEEK_CUR);
+```
+
+`origin::current` is self-documenting and scoped — no confusion between `SEEK_CUR`, `SEEK_SET`, `std::ios::cur`, or numeric `0`, `1`, `2`.
 
 ---
 

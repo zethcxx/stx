@@ -494,6 +494,76 @@ for (auto off : stx::range(file_off, file_off + 0x200, 8, stx::range_dir::Forwar
 
 ---
 
+## C++ Comparison: `range` vs Raw Loop
+
+### Strong-Typed Iteration
+
+```cpp
+// stx:  preserves off_s type, no accidental domain mixing
+for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
+    scan_section(data, off);          // off is off_s
+```
+
+```cpp
+// C++ raw:  raw integer, easy to pass to wrong API
+for (ptrdiff_t off = 0; off < 0x200; off += 0x28)
+    scan_section(data, off_s{off});   // extra wrapping every iteration
+```
+
+With `range<off_s>`, `off` is already `off_s` — no manual wrapping, no risk of passing an untyped integer where a domain type is expected.
+
+---
+
+### Backward Iteration
+
+```cpp
+// stx:  same API, just change direction
+for (auto off : stx::range<stx::off_s>(1024, 0, 16, stx::range_dir::Backward))
+    process(off);
+```
+
+```cpp
+// C++ raw:  manual decrement, easy to underflow unsigned
+for (ptrdiff_t off = 1024; off >= 0; off -= 16)
+    process(stx::off_s{off});
+```
+
+`range` with `Backward` handles the loop bounds and direction internally — no risk of infinite loops from unsigned underflow or off-by-one errors.
+
+---
+
+### Enum Iteration
+
+```cpp
+// stx:  domain-preserving
+enum class Perms : u32 { Read = 1, Write = 2, Exec = 4, All = 7 };
+for (auto p : stx::irange(Perms{0}, Perms{7}))
+    test_protection(p);              // p is Perms
+```
+
+```cpp
+// C++ raw:  must cast at every use
+for (u32 i = 0; i <= 7; ++i)
+    test_protection(static_cast<Perms>(i));  // explicit cast each loop
+```
+
+---
+
+### Bounds Safety
+
+```cpp
+// C++ raw:  easy to write wrong signedness
+for (auto i = 0u; i < 10u; ++i) { /* i is unsigned, fine */ }
+
+// stx:  direction and mode are explicit, no signedness surprises
+for (auto i : stx::range(0, 10))
+    /* i is int, correct direction and exclusive end */
+```
+
+The raw loop requires the author to manually track direction, step, and signedness — `range` encodes them in the call.
+
+---
+
 # Design Characteristics
 
 - C++23 constexpr-friendly

@@ -48,7 +48,7 @@ Provides safe, low-level memory access, alignment primitives, and typed pointer 
 | `write<Type>(addr, offset, value)` | Copy-based write |
 | `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
 | `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `uptr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `wptr<T>` | Walk pointer for pointer chasing / chain traversal: `[](off)`, `walk()`, `uptr()`, `raw()`, `read<T>()` |
+| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator/`, `read/write<T>`, `at<Stride>()`, `align_up/down` |
 | `align_up` / `align_down` | Aligns integral or strong types to power-of-two boundaries |
 
 Intended use:
@@ -71,7 +71,7 @@ Provides type-safe, binary-oriented file operations over `std::istream`.
 | `readfs<Type>(file, offset, count, dir)` | Reads multiple objects into `dirty_vector<Type>` |
 | `readfs<Type, Size>(file, offset, dir)` | Reads a fixed-size array |
 | `setposfs(file, offset, dir)` | Strongly-typed stream positioning |
-| `skipfs<Type>(file, offset)` | Moves stream forward by `offset` elements |
+| `skipfs(file, offset)` | Moves stream forward by `offset` elements |
 
 Characteristics:
 

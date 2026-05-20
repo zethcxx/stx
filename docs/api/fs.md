@@ -240,7 +240,6 @@ if (!block) return;
 ## `skipfs`
 
 ```cpp
-template<binary_readable Type = std::byte>
 void skipfs(
     std::istream& file,
     const off_s offset
@@ -357,7 +356,6 @@ auto result = stx::writefs(file, stx::off_s{0}, std::span{data});
 ## `skipos`
 
 ```cpp
-template<binary_readable Type = u8>
 void skipos(
     std::ostream& file,
     const off_s offset
@@ -466,13 +464,23 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 | `read<T>(off_s)` | Read at byte offset |
 | `write<T>(off_s, const T&)` | Write at byte offset |
 
+### Read / Write (Sequential)
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `read<T>()` | `T` | Single value (advances cursor) |
+| `read<T>(count)` | `dirty_vector<T>` | Copy `count` elements into vector (advances cursor) |
+| `read<T, N>()` | `array<T, N>` | Copy `N` elements into fixed-size array (advances cursor) |
+| `write<T>(const T&)` | — | Write single value (advances cursor) |
+| `write<T>(span<const T>)` | — | Write span of values (advances cursor) |
+
 ### Zero-Copy Views
 
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `bytes()` | `span<const byte>` / `span<byte>` | Full region as span |
 | `as_p<T>()` | `ptr<T>` | Typed pointer to base |
-| `read_span<T>(count)` | `span<const T>` | View of `count` elements at cursor (zero-copy, advances cursor) |
+| `read_view<T>(count)` | `span<const T>` | View of `count` elements at cursor (zero-copy, advances cursor) |
 | `read_strvw()` | `string_view` | Scans for `\0` until end of buffer (zero-copy, advances cursor) |
 | `read_strvw(max)` | `string_view` | Scans for `\0` bounded by `max` bytes (zero-copy, advances cursor) |
 
@@ -498,15 +506,18 @@ stx::u32 b = m.read<stx::u32>();
 // Skip bytes
 m.skip(stx::off_s{8});
 
-// Zero-copy span of structs
+// Zero-copy view of structs
 struct Entry { stx::u32 id; stx::u64 off; };
-auto entries = m.read_span<Entry>(4);
+auto entries = m.read_view<Entry>(4);
 
 // Zero-copy string (bounded, null-terminated)
 auto name = m.read_strvw(32);
 
+// Copy into vector
+auto buf = m.read<stx::u8>(256);
+
 // As typed pointer
-auto ptr = m.as_p<stx::u32>();
+auto p = m.as_p<stx::u32>();
 ```
 
 ### `readfs` / `writefs` Overloads for `map_file`
@@ -528,7 +539,8 @@ Cursor-based binary reader over an existing buffer with known size. Zero-copy �
 ```cpp
 class reader_view {
     reader_view() noexcept;
-    reader_view(std::span<const std::byte> buf) noexcept;
+    reader_view(std::span<std::byte> buf) noexcept;
+    reader_view(void* data, usize size) noexcept;
     reader_view(const void* data, usize size) noexcept;
 };
 ```
@@ -539,6 +551,8 @@ class reader_view {
 |--------|---------|-------------|
 | `operator bool` | `bool` | Buffer non-empty |
 | `size()` | `usize` | Buffer size |
+| `bytes()` | `span<const byte>` | Full buffer as span |
+| `as_p<T>()` | `ptr<T>` | Typed pointer to buffer base |
 
 ### Cursor
 
@@ -567,6 +581,13 @@ class reader_view {
 | `write<T>(const T&)` | Write single value (advances cursor) |
 | `write<T>(span<const T>)` | Write span of values (advances cursor) |
 
+### Random-Access I/O
+
+| Member | Description |
+|--------|-------------|
+| `read<T>(off_s)` | Positional read (no cursor change) |
+| `write<T>(off_s, const T&)` | Positional write (no cursor change) |
+
 > **⚠️ Lifetime:** `read_view` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
 
 ### Example
@@ -591,6 +612,102 @@ auto name = r.read_strvw();
 // Write
 r.write<stx::u32>(0xDEADBEEF);
 ```
+
+---
+
+## C/C++ Comparison: `map_file` vs Raw `mmap`
+
+```cpp
+// stx:  RAII, bounded cursor, zero-copy views
+auto mapped = stx::map_file::open("data.bin");
+if (!mapped) return;
+auto& m = *mapped;
+
+stx::u32 magic = m.read<stx::u32>(stx::off_s{0});
+m.seek(stx::off_s{8});
+auto entries = m.read_view<Entry>(count);
+auto name = m.read_strvw();
+// closes automatically — no cleanup
+```
+
+```c
+// C:  manual open, mmap, pointer math, munmap
+int fd = open("data.bin", O_RDONLY);
+struct stat st;
+fstat(fd, &st);
+void* data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+close(fd);
+
+u32 magic = *(u32*)((char*)data + 0);
+// must track offset manually
+size_t off = 8;
+Entry* entries = (Entry*)((char*)data + off);
+off += count * sizeof(Entry);
+const char* name = (const char*)data + off;
+size_t len = strnlen(name, st.st_size - off);
+// munmap at the end — easy to forget or exception-unsafe
+munmap(data, st.st_size);
+```
+
+`map_file` is RAII (no leak), provides a cursor (`seek`/`tell`/`skip`), and returns type-safe views.
+
+---
+
+## C/C++ Comparison: `readfs` vs Raw `fread`
+
+```cpp
+// stx:  one call, bounds-checked
+auto h = stx::readfs<header>(file, stx::off_s{0});
+if (!h) return;
+```
+
+```c
+// C:  manual seek, read, error check
+struct header h;
+fseek(file, 0, SEEK_SET);
+if (fread(&h, sizeof(h), 1, file) != 1)
+{
+    fclose(file);
+    return;
+}
+```
+
+```cpp
+// C++ raw:  seekg + read + fail check
+std::ifstream file("data.bin", std::ios::binary);
+header h;
+file.seekg(0);
+if (!file.read(reinterpret_cast<char*>(&h), sizeof(h)))
+    return;
+```
+
+`readfs` returns `std::expected` — no streams to fail/clear, no casts, no manual size calculation.
+
+---
+
+## C/C++ Comparison: `readfs` over `span` vs Manual Bounds
+
+```cpp
+// stx:  bounds-checked, typed, zero-overhead
+auto val = stx::readfs<u32>(buf, stx::off_s{0x100});
+if (!val) return;
+```
+
+```c
+// C:  caller manages everything
+if (0x100 + sizeof(u32) > buf_size) return;
+u32 val;
+memcpy(&val, (char*)buf + 0x100, sizeof(val));
+```
+
+```cpp
+// C++ raw:  same cost, more lines
+if (off_s{0x100}.get() + sizeof(u32) > buf.size()) return;
+u32 val;
+std::memcpy(&val, buf.data() + 0x100, sizeof(u32));
+```
+
+`readfs<Type>(span, off)` performs the same bounds check and `memcpy` — but the caller writes one line instead of four.
 
 ---
 

@@ -5,21 +5,21 @@
 namespace lbyte::stx::literals
 {
     // --- FLOATING TYPES ------------------------------------------------------
-    constexpr float  operator""_f32( long double v ) noexcept { return static_cast<float>(v);  }
-    constexpr float  operator""_f32( unsigned long long v ) noexcept { return static_cast<float>(v); }
-    constexpr double operator""_f64( long double v ) noexcept { return static_cast<double>(v); }
+    constexpr float  operator""_f32( long double        v ) noexcept { return static_cast<float >(v); }
+    constexpr float  operator""_f32( unsigned long long v ) noexcept { return static_cast<float >(v); }
+    constexpr double operator""_f64( long double        v ) noexcept { return static_cast<double>(v); }
     constexpr double operator""_f64( unsigned long long v ) noexcept { return static_cast<double>(v); }
 
     // --- INTEGER TYPES -------------------------------------------------------
-    constexpr u8   operator""_u8  ( unsigned long long v ) noexcept { return static_cast<u8>(v);   }
-    constexpr u16  operator""_u16 ( unsigned long long v ) noexcept { return static_cast<u16>(v);  }
-    constexpr u32  operator""_u32 ( unsigned long long v ) noexcept { return static_cast<u32>(v);  }
-    constexpr u64  operator""_u64 ( unsigned long long v ) noexcept { return static_cast<u64>(v);  }
-    constexpr i8   operator""_i8  ( unsigned long long v ) noexcept { return static_cast<i8>(v);   }
-    constexpr i16  operator""_i16 ( unsigned long long v ) noexcept { return static_cast<i16>(v);  }
-    constexpr i32  operator""_i32 ( unsigned long long v ) noexcept { return static_cast<i32>(v);  }
-    constexpr i64  operator""_i64 ( unsigned long long v ) noexcept { return static_cast<i64>(v);  }
-    constexpr usize operator""_uz ( unsigned long long v ) noexcept { return static_cast<usize>(v); }
+    constexpr u8    operator""_u8  ( unsigned long long v ) noexcept { return static_cast<u8   >(v); }
+    constexpr u16   operator""_u16 ( unsigned long long v ) noexcept { return static_cast<u16  >(v); }
+    constexpr u32   operator""_u32 ( unsigned long long v ) noexcept { return static_cast<u32  >(v); }
+    constexpr u64   operator""_u64 ( unsigned long long v ) noexcept { return static_cast<u64  >(v); }
+    constexpr i8    operator""_i8  ( unsigned long long v ) noexcept { return static_cast<i8   >(v); }
+    constexpr i16   operator""_i16 ( unsigned long long v ) noexcept { return static_cast<i16  >(v); }
+    constexpr i32   operator""_i32 ( unsigned long long v ) noexcept { return static_cast<i32  >(v); }
+    constexpr i64   operator""_i64 ( unsigned long long v ) noexcept { return static_cast<i64  >(v); }
+    constexpr usize operator""_uz  ( unsigned long long v ) noexcept { return static_cast<usize>(v); }
 
     // --- STRONG TYPES --------------------------------------------------------
     constexpr off_s operator""_off_s( unsigned long long v ) noexcept {
@@ -115,3 +115,4 @@ namespace lbyte::stx::literals
         return details::deduce_be<details::uint_value<Cs...>::value>();
     }
 }
+

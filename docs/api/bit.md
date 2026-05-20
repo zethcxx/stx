@@ -12,13 +12,13 @@ All template parameters are compile-time constants. `Pos` = bit position (0 = LS
 
 | Function | Description |
 |----------|-------------|
-| `bit_extract<Pos, Len>(v)` | Extrae `Len` bits empezando en `Pos`, desplazado a derecha |
-| `bit_mask<Pos, Len>(v)` | Conserva solo los bits `[Pos, Pos+Len)` |
-| `bit_insert<Pos, Len>(dest, src)` | Inserta `src` en los bits `[Pos, Pos+Len)` de `dest` |
-| `bit_test<Pos>(v)` | `true` si el bit `Pos` está a 1 |
-| `bit_set<Pos>(v)` | Devuelve `v` con el bit `Pos` a 1 |
-| `bit_clear<Pos>(v)` | Devuelve `v` con el bit `Pos` a 0 |
-| `bit_flip<Pos>(v)` | Devuelve `v` con el bit `Pos` invertido |
+| `bit_extract<Pos, Len>(v)` | Extract `Len` bits starting at `Pos`, right-shifted |
+| `bit_mask<Pos, Len>(v)` | Keep only bits `[Pos, Pos+Len)` |
+| `bit_insert<Pos, Len>(dest, src)` | Insert `src` into bits `[Pos, Pos+Len)` of `dest` |
+| `bit_test<Pos>(v)` | `true` if bit `Pos` is 1 |
+| `bit_set<Pos>(v)` | Return `v` with bit `Pos` set to 1 |
+| `bit_clear<Pos>(v)` | Return `v` with bit `Pos` set to 0 |
+| `bit_flip<Pos>(v)` | Return `v` with bit `Pos` flipped |
 
 ## Byte Operations
 
@@ -48,9 +48,9 @@ byte_swap<0, 3>(x);      // x → 0x78345612
 
 ## Compatibility
 
-- Funciona con `u8`, `u16`, `u32`, `u64` y cualquier `std::unsigned_integral`
-- Todas las funciones son `constexpr`
-- `static_assert` en parámetros fuera de rango (compile-time check)
+- Works with `u8`, `u16`, `u32`, `u64` and any `std::unsigned_integral`
+- All functions are `constexpr`
+- `static_assert` on out-of-range parameters (compile-time check)
 
 ## See Also
 

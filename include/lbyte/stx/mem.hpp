@@ -493,3 +493,4 @@ struct std::hash<lbyte::stx::ptr<T, Stride>>
 #endif
 
 #undef STX_FORCE_INLINE
+
