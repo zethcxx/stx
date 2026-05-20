@@ -28,7 +28,6 @@ export namespace lbyte::stx::literals
     using ::lbyte::stx::literals::operator""_va_s;
 
     using ::lbyte::stx::literals::operator""_ptr;
-    using ::lbyte::stx::literals::operator""_wptr;
 
     using ::lbyte::stx::literals::operator""_kb;
     using ::lbyte::stx::literals::operator""_mb;

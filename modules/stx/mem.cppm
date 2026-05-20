@@ -26,24 +26,15 @@ export namespace lbyte::stx
     using ::lbyte::stx::write_be;
 
     using ::lbyte::stx::ptr;
-    using ::lbyte::stx::wptr;
 
     using ::lbyte::stx::align_up;
     using ::lbyte::stx::align_down;
 }
 
-export template<typename T>
-struct std::hash<lbyte::stx::ptr<T>>
-{
-    auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
-        return std::hash<lbyte::stx::uptr>{}( p.addr() );
-    }
-};
-
 export template<typename T, lbyte::stx::uptr Stride>
-struct std::hash<lbyte::stx::wptr<T, Stride>>
+struct std::hash<lbyte::stx::ptr<T, Stride>>
 {
-    auto operator()( const lbyte::stx::wptr<T, Stride>& p ) const noexcept {
+    auto operator()( const lbyte::stx::ptr<T, Stride>& p ) const noexcept {
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };

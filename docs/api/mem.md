@@ -212,12 +212,12 @@ No domain leakage occurs.
 
 # Typed Pointer Wrappers
 
-## `ptr<T>`
+## `ptr<T, Stride>`
 
-Non-owning typed pointer. Stores a normalized address and provides typed access to the underlying object.
+Stores a normalized address and provides typed access. `Stride` scales the pointer chase operator (`/`) for structured pointer chains (e.g. PE/ELF tables where entries are `N` bytes apart).
 
 ```cpp
-template<typename T = void>
+template<typename T = void, uptr Stride = 1>
 class ptr
 {
     uptr address = 0;
@@ -236,325 +236,185 @@ public:
 | `raw()` | `T*` | Typed pointer to the object |
 | `addr()` | `uptr` | Address as unsigned integer |
 | `operator bool` | `bool` | Non-null check |
-| `operator uptr` | `uptr` | Implicit conversion to `uptr` |
+| `operator uptr` | `uptr` | Explicit conversion to `uptr` |
 
 ### Address Rebind
 
 | Member | Description |
 |--------|-------------|
-| `operator=(address_like)` | Change pointed address from address-like value |
-| `as_p<U>()` | Rebind to `ptr<U>` |
-| `as_w<U>()` | Rebind to `wptr<U>` |
+| `operator=(address_like)` | Rebind from address-like value |
+| `operator=(const ptr<T, OtherStride>&)` | Cross-stride copy — address only, stride type unchanged |
+| `as_p<U>()` | Rebind to `ptr<U, 1>` |
+| `as<U>()` | Cast address to `U` (e.g. `as<off_s>()`, `as<va_s>()`) |
 
-### Typed Access
+### Dereference / Member Access
 
-| Member | Description |
-|--------|-------------|
-| `operator->()` | Pointer-style member access |
+| Member | Requirements | Description |
+|--------|-------------|-------------|
+| `operator*()` | non-void `T` | Dereference: returns `T&` |
+| `operator->()` | — | Member access via `T*` |
 
-### Increment / Decrement
+### Navigation
 
-| Member | Advance by | Description |
-|--------|-----------|-------------|
-| `++p` / `p++` | 1 byte | Consistent with byte-level arithmetic (`add`, `sub`, `operator+`) |
-| `--p` / `p--` | 1 byte | Works on `ptr<void>` as well |
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `p[n]` (integral) | `ptr<T, Stride>` | Offset address by `n` bytes, return new `ptr` (no memory access) |
+
+Address offsetting without dereferencing. Useful for reaching a base address before chasing:
+
+```cpp
+ptr<void> base{address};
+auto p = base[0x100];   // ptr at address + 0x100
+p / 0x20;               // chase from there
+```
+
+### Pointer Chase (`/`)
+
+| Expression | Returns | Description |
+|-----------|---------|-------------|
+| `p / i` (integral) | `ptr<T, Stride>` | Enter `p` at offset `i × Stride`, read `uptr`, return new `ptr` wrapping the result |
+| `p / off` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off.get()` |
+
+Analogous to directory traversal: `ptr / 0x10 / 0x20` reads as *"enter ptr, walk 0x10 Stride entries, read the pointer there, enter the result, walk 0x20 Stride entries, read again"*.
+
+Semantics:
+1. Target = `addr() + i × Stride`
+2. `memcpy` a `uptr` from Target
+3. Return `ptr<T, Stride>` wrapping the read value (preserves `T` and `Stride`)
+
+Does **not** modify `*this`. All temporaries have the same `T` and `Stride` as the original.
+
+```cpp
+ptr<void> pe_base{0x140000000};
+
+// Navigate, then chase
+uptr target = (pe_base[0x100] / 0x10 / 0x20 / 0x08).addr();
+
+// stride via at<N>
+uptr v2 = (pe_base.at<4>() / 3 / 5).addr();
+// / 3 → reads uptr at addr + 3*4
+// / 5 → reads uptr at result + 5*4
+```
+
+### Walk (Byte-Level Chase)
+
+| Expression | Returns | Description |
+|-----------|---------|-------------|
+| `p.walk(n)` (integral) | `ptr<T, Stride>` | Read `uptr` at `addr + n` (no stride scaling), return new `ptr` |
+| `p.walk(off)` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off.get()` |
+
+Like `/` but ignores `Stride` — offset is an absolute byte offset, not multiplied.
+
+### Stride Management
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `at<NewStride>()` | `ptr<T, NewStride>` | New `ptr` with stride `N` at same address (does not modify `*this`) |
+| `at<U>()` | `ptr<T, sizeof(U)>` | New `ptr` with stride = `sizeof(U)` |
+
+```cpp
+ptr<int, 2> p{addr};
+auto p2 = p.at<4>();              // ptr<int, 4> at same address
+auto p3 = p.at<stx::u32>();       // ptr<int, 4> via sizeof(u32)
+p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
+```
 
 ### Binary Read / Write
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read<T>(off)` | `binary_readable<T>`, non-void | Copy-based read with optional offset |
-| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>` |
-| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>` |
+| `read<T>(off)` | `binary_readable<T>` | Copy-based read with optional byte offset |
+| `read_p<T>(off)` | non-void | Read a pointer value at offset, returns `ptr<T, 1>` |
+| `read_le<T>(off)` | `std::integral<T>` | Little-endian read |
+| `read_be<T>(off)` | `std::integral<T>` | Big-endian read |
+| `write<T>(off, val)` | `binary_readable<T>` | Copy-based write with byte offset |
+| `write<T>(val)` | `binary_readable<T>` | Copy-based write at address |
+| `write_le<T>(off, val)` | `std::integral<T>` | Little-endian write |
+| `write_be<T>(off, val)` | `std::integral<T>` | Big-endian write |
 
-### Binary Read / Write (inherited)
+### Unsafe (Direct Deref)
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read<T>(off)` | `binary_readable<T>`, non-void | Copy-based typed read with optional byte offset |
-| `read_p<T>(off)` | non-void | Read pointer value at offset, returns `ptr<T>`. Accepts `off_s`, `rva_s`, `va_s` |
-| `read_w<T>(off)` | non-void | Read pointer value at offset, returns `wptr<T>`. Accepts `off_s`, `rva_s`, `va_s` |
-| `write<T>(off, val)` | `binary_readable<T>` | Copy-based typed write with byte offset |
-| `write<T>(val)` | `binary_readable<T>` | Copy-based typed write at address |
-| `call<Sig>(args...)` | — | Invoke address as function with signature `Sig` and forwarded args |
-| `caller<Sig>()` | — | Return reusable `caller_t<Sig>` without invoking |
+| `read_raw<T>(off)` | `binary_readable<T>` | Direct deref at byte offset |
+| `write_raw(off, val)` | `binary_readable<T>` | Direct deref write |
+| `write_raw(val)` | `binary_readable<T>` | Direct deref write at address |
+
+### Alignment
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `align_up(n)` | `ptr<T, Stride>` | Align address up to `n`-byte boundary |
+| `align_down(n)` | `ptr<T, Stride>` | Align address down to `n`-byte boundary |
+| `is_aligned<T>()` | `bool` | Check alignment to `alignof(T)` |
+| `is_aligned<N>()` | `bool` | Check alignment to `N` |
+
+### Arithmetic
+
+| Expression | Returns | Description |
+|-----------|---------|-------------|
+| `p + off` | `ptr<T, Stride>` | New ptr at `addr + off` |
+| `p - off` | `ptr<T, Stride>` | New ptr at `addr - off` |
+| `p += off` | `ptr<T, Stride>&` | Advance in-place |
+| `p -= off` | `ptr<T, Stride>&` | Rewind in-place |
+| `p - q` | `off_s` | Signed distance |
+| `p.diff(q)` | `off_s` | Signed distance (equivalent to `p - q`) |
+
+### Increment / Decrement
+
+| Expression | Advance by |
+|-----------|-----------|
+| `++p` / `p++` | 1 byte |
+| `--p` / `p--` | 1 byte |
+
+Byte-level, consistent with `+`/`-` arithmetic. Advances the address, not a typed element.
+
+### Call
+
+| Member | Description |
+|--------|-------------|
+| `call<Sig>(args...)` | Invoke address as function with signature `Sig` |
+| `caller<Sig>()` | Return reusable `caller_t<Sig>` without invoking |
+
+### Other
+
+| Member | Description |
+|--------|-------------|
+| `swap(p)` | Exchange addresses |
+| `std::hash<ptr<T, Stride>>` | Hash by address, usable in `unordered_set`/`map` |
 
 ### Example
 
 ```cpp
-stx::wptr<void> base{0x140000000};
+ptr<void> base{0x140000000};
 
 // Address
 auto addr = base.addr();                  // uptr
 auto ptr  = base.raw();                   // void*
 
-// Offset
-auto next = base + stx::off_s{0x100};
+// Offset navigation
+auto next = base[0x100];                  // ptr at offset 0x100 (no read)
+auto next2 = base + off_s{0x100};         // same, via operator+
 
-// Pointer chasing
-stx::wptr<uptr> entry = base[0x10][0x20][0x08];  // preserva uptr
+// Pointer chase (directory traversal metaphor)
+uptr target = (base[0x100] / 0x10 / 0x20).addr();
 
-// raw() devuelve T*: wptr<uptr>::raw() → uptr*
-stx::uptr* p = entry.raw();
+// Walk (byte offset, no stride)
+uptr via_walk = (base.walk(off_s{8})).addr();
 
-// read<u32>() para leer valor en la direccion final
-stx::u32 val = entry.read<stx::u32>();
+// Safe read/write
+u32 val = base.read<u32>(off_s{0x200});
+base.write(off_s{8}, u16{0x1234});
 
-// Typed member access (operator->)
-struct S { int x; };
-wptr<S> p = base.as_w<S>();
-int mx = p->x;
-
-// Read / Write
-stx::u32 val = base.read<stx::u32>();
-base.write(off_s{8}, stx::u16{0x1234});
+// Stride management
+auto with_stride = base.at<4>();          // ptr<void, 4>
+uptr chased = (with_stride / 3 / 5).addr();
 
 // Call as function
 auto result = base.call<int(int, int)>(10, 20);
+
+// Cross-stride assignment
+ptr<int, 4> p{addr};
+ptr<int, 8> q{addr};
+p = q;  // address copied, p's stride stays 4
 ```
-
----
-
-## `wptr<T, Stride>`
-
-Non-owning stride-typed pointer for pointer chasing. Extends `ptr<T>` with a compile-time `Stride` that scales integral indexing. Primarily designed for walking linked pointer chains in memory-mapped structures (PE/ELF import tables, etc.).
-
-```cpp
-template<typename T, uptr Stride = 1>
-class wptr : public ptr<T>
-{
-    using base = ptr<T>;
-public:
-    using value_type = T;
-
-    constexpr wptr() noexcept = default;
-    constexpr explicit wptr(address_like auto addr) noexcept;
-};
-```
-
-### Chaining (`operator[]`)
-
-| Member | Returns | Description |
-|--------|---------|-------------|
-| `wp[i]` (integral) | `wptr` | Advance address by `i × Stride`, **read a `uptr`** from that address, return new `wptr` wrapping the read value |
-| `wp[off]` (byte_offset) | `wptr` | Same as integral via `off.get()` |
-
-Semantics:
-
-- Integral offset `i`: address = `addr() + i × Stride`, then `memcpy` a `uptr` from that address → pointer chasing.
-- `byte_offset` offset: converts via `.get()` before applying Stride scaling.
-- Returns a **new** `wptr` — does not modify `*this`.
-
-This enables the chain syntax:
-
-```cpp
-stx::wptr<void> base{address};
-uptr target = base[0x10][0x20][0x08].addr();
-// equivalent to:
-//   read<uptr>(addr + 0x10 * Stride)
-//   → read<uptr>(result + 0x20 * Stride)
-//   → read<uptr>(result + 0x08 * Stride)
-```
-
-### Stride Management (`at<>`)
-
-| Member | Returns | Description |
-|--------|---------|-------------|
-| `at<NewStride>()` | `wptr<T, NewStride>` | Return **new** wptr with different stride at same address (does not modify `*this`) |
-| `at<U>()` | `wptr<T, sizeof(U)>` | Return new wptr with stride = `sizeof(U)` |
-
-Examples:
-
-```cpp
-wptr<int, 2> wp{addr};
-auto wp2 = wp.at<4>();              // wptr<int, 4> at same address
-auto wp3 = wp.at<stx::u32>();       // wptr<int, 4> via sizeof(u32)
-
-// Changing stride in-place:
-wp = wptr<int, 4>{ wp.addr() };     // construct new wptr at same address
-```
-
-### Type Rebind
-
-| Member | Description |
-|--------|-------------|
-| `as_w<U>()` | Rebind to `wptr<U, Stride>` with same stride |
-| Inherits `as_p<U>()` from `ptr<T>` | Rebind to `ptr<U>` (no stride) |
-
-### Cross-Stride Assignment
-
-| Member | Description |
-|--------|-------------|
-| `operator=(const wptr<T, OtherStride>&)` | Assign address from `wptr` with **any stride** — enables `wp = wptr<int, 4>{...}` when `wp` is `wptr<int, 2>` |
-
-Example:
-
-```cpp
-wptr<int, 2> wp{addr};
-wp = wptr<int, 12>{ addr };   // OK: address copied, stride type unchanged
-```
-
-### Increment / Decrement
-
-Inherited from `ptr<T>` — advances by **1 byte** (not `Stride`). For stride-aware advancement, use:
-
-```cpp
-wp += off_s{4};       // advance by 4 bytes
-wp += stride_s<Stride * 2>{}; // advance by 2 elements (conceptual)
-```
-
----
-
-This header assumes:
-
-- Caller ensures region validity.
-- No bounds checking is performed.
-- No lifetime validation.
-- No race condition protection.
-
-| Responsibility | Owner |
-|---------------|-------|
-| Memory validity | Caller |
-| Alignment correctness | Caller |
-| Concurrency safety | Caller |
-
----
-
-# Design Characteristics
-
-- Header-only.
-- Zero dynamic allocation.
-- constexpr-friendly where possible.
-- Explicit separation between defined and raw memory semantics.
-- Strong type compatibility (`off_s`, `rva_s`, `va_s`).
-- Integral alignment utilities provided by `core.hpp`.
-- C++23 compliant.
-
----
-
-# Example Usage
-
----
-
-## Safe Read
-
-```cpp
-struct header
-{
-    stx::u32 magic;
-    stx::u16 version;
-    stx::u16 flags;
-};
-
-stx::va_s base{0x140000000};
-
-header h = stx::read<header>(base, stx::off_s{0x100});
-```
-
----
-
-## Raw Read
-
-```cpp
-stx::u32 value =
-    stx::read_raw<stx::u32>(base, stx::off_s{0x200});
-```
-
----
-
-## Write
-
-```cpp
-stx::write<stx::u32>(base, stx::off_s{0x300}, 0xDEADBEEF);
-```
-
----
-
-## Strong Type Alignment
-
-```cpp
-stx::off_s off{123};
-auto aligned = stx::align_up(off, 16);  // returns off_s{128}
-```
-
----
-
-## Typed Pointer
-
-```cpp
-stx::ptr<int> p{some_address};
-
-auto raw_ptr = p.raw();           // int*
-auto addr    = p.addr();          // uptr
-p->x = 10;                        // member access
-p = another_addr;                 // rebind
-auto val = p.read<stx::u32>();      // binary read of u32
-auto ptr = p.read_p<int>(stx::off_s{8}); // read pointer at offset, returns ptr<int>
-p.write(42);                          // write value
-auto cp = p.as_p<short>();        // type rebind
-
-auto aligned = p.align_up(16);    // align up to 16-byte boundary
-auto off     = p.off();           // address as signed offset
-auto rva     = p.rva();           // address as 32-bit RVA
-
-p.add(stx::off_s{8});             // advance in-place by 8 bytes
-p.sub(stx::off_s{4});             // rewind in-place by 4 bytes
-auto same = p + stx::off_s{8};    // operator+ returns new ptr
-auto dist = same.diff(p);         // signed distance
-
-p += stx::off_s{16};              // advance in-place (ptr&)
-p -= stx::off_s{4};               // rewind in-place
-
-auto back = q - stx::off_s{32};   // operator- returns ptr
-auto diff = q - p;                // ptr - ptr = off_s
-
-auto& ref = *p;                   // dereference: T&
-std::swap(a, b);                  // swap via ADL
-auto h = std::hash<ptr<int>>{}(p); // hash for unordered containers
-
-if (p.is_aligned<int>())    { }   // aligned to alignof(int)
-if (p.is_aligned<16>())     { }   // aligned to 16 bytes
-```
-
----
-
-## Walk Pointer (Chaining)
-
-```cpp
-stx::wptr<uptr> root{0x140000000};
-
-// cada [] ≡ read<uptr>(base + offset), preserva wptr<uptr,1>
-stx::uptr target = root[0x10][0x20][0x08].addr();
-
-// stride compile-time via template
-stx::uptr v2 = root.at<4>()[3][5].addr();
-// [3] → read(addr+3*4)
-// [5] → read(addr'+5*4)
-```
-
----
-
-## Call Through Pointer
-
-```cpp
-stx::ptr<void> p{function_address};
-
-// Direct invocation
-int result = p.call<int(int, int)>(10, 20);
-
-// Reusable callable
-auto fn = p.caller<void(int)>();
-if (fn) fn(42);
-```
-
----
-
-# Intended Usage Domain
-
-- PE/ELF/Mach-O loaders
-- Memory inspection tools
-- Runtime patching frameworks
-- Red team internal tooling
-- Systems-level diagnostics
-
-`mem.hpp` provides a controlled abstraction layer for raw memory manipulation while preserving C++23 compile-time guarantees where applicable.

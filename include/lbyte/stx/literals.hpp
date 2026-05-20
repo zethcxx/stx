@@ -52,10 +52,6 @@ namespace lbyte::stx::literals
         return ptr<std::byte>{ static_cast<uptr>(v) };
     }
 
-    constexpr wptr<std::byte, 1> operator""_wptr( unsigned long long v ) noexcept {
-        return wptr<std::byte, 1>{ static_cast<uptr>(v) };
-    }
-
     // --- ENDIAN TYPES (auto-sized) -----------------------------------------
     namespace detail {
         constexpr auto hex_val(char c) noexcept -> unsigned long long {
