@@ -439,6 +439,175 @@ namespace lbyte::stx
         return {};
     }
 
+    // --- reader_view (bounded, span-based) ------------------------------------
+
+    class reader_view
+    {
+        std::span<const std::byte> buf_;
+        usize pos_ = 0;
+
+    public:
+        reader_view() noexcept = default;
+
+        reader_view(std::span<const std::byte> buf) noexcept
+            : buf_(buf) {}
+
+        reader_view(const void* data, usize size) noexcept
+            : buf_(static_cast<const std::byte*>(data), size) {}
+
+        // --- state ---------------------------------------------------------
+
+        explicit operator bool() const noexcept { return !buf_.empty(); }
+        usize size() const noexcept { return buf_.size(); }
+
+        // --- cursor --------------------------------------------------------
+
+        void seek(off_s off, origin dir = origin::begin) noexcept
+        {
+            auto const o = off.get();
+            switch (dir) {
+                case origin::begin:
+                    pos_ = o > 0 ? static_cast<usize>(o) : usize{0};
+                    break;
+                case origin::current: {
+                    auto const p = static_cast<std::ptrdiff_t>(pos_);
+                    auto const r = p + o;
+                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
+                    break;
+                }
+                case origin::end: {
+                    auto const s = static_cast<std::ptrdiff_t>(buf_.size());
+                    auto const r = s - o;
+                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
+                    break;
+                }
+            }
+            if (pos_ > buf_.size()) pos_ = buf_.size();
+        }
+
+        void skip(const off_s offset) noexcept {
+            seek(offset, origin::current);
+        }
+
+        off_s tell() const noexcept {
+            return off_s{static_cast<off_s::value_type>(pos_)};
+        }
+
+        off_s remaining() const noexcept {
+            auto rem = buf_.size() - pos_;
+            return off_s{static_cast<off_s::value_type>(rem)};
+        }
+
+        // --- read ----------------------------------------------------------
+
+        template<binary_readable T>
+        T read() noexcept
+        {
+            T val;
+            std::memcpy(&val, buf_.data() + pos_, sizeof(T));
+            pos_ += sizeof(T);
+            return val;
+        }
+
+        // --- zero-copy views -----------------------------------------------
+
+        template<binary_readable T>
+        std::span<const T> read_span(usize count) noexcept
+        {
+            auto rem = buf_.size() - pos_;
+            auto max = rem / sizeof(T);
+            if (count > max) return {};
+            auto* ptr = static_cast<const T*>(
+                static_cast<const void*>(buf_.data() + pos_));
+            pos_ += count * sizeof(T);
+            return {ptr, count};
+        }
+
+        std::string_view read_strvw() noexcept
+        {
+            return read_strvw(buf_.size() - pos_);
+        }
+
+        std::string_view read_strvw(usize max) noexcept
+        {
+            auto rem = buf_.size() - pos_;
+            auto avail = std::min(max, rem);
+            if (avail == 0) return {};
+            auto* base = reinterpret_cast<const char*>(buf_.data() + pos_);
+            auto len = strnlen(base, avail);
+            pos_ += len < avail ? len + 1 : avail;
+            return {base, len};
+        }
+    };
+
+    // --- reader_raw (unbounded, pointer-based) -------------------------------
+
+    class reader_raw
+    {
+        const std::byte* ptr_ = nullptr;
+        usize pos_ = 0;
+
+    public:
+        reader_raw() noexcept = default;
+
+        explicit reader_raw(const void* ptr) noexcept
+            : ptr_(static_cast<const std::byte*>(ptr)) {}
+
+        // --- state ---------------------------------------------------------
+
+        explicit operator bool() const noexcept { return ptr_ != nullptr; }
+
+        // --- cursor --------------------------------------------------------
+
+        void seek(off_s off, origin dir = origin::begin) noexcept
+        {
+            auto const o = off.get();
+            switch (dir) {
+                case origin::begin:
+                    pos_ = o > 0 ? static_cast<usize>(o) : usize{0};
+                    break;
+                case origin::current: {
+                    auto const p = static_cast<std::ptrdiff_t>(pos_);
+                    auto const r = p + o;
+                    pos_ = r > 0 ? static_cast<usize>(r) : usize{0};
+                    break;
+                }
+                case origin::end:
+                    pos_ = o <= 0 ? usize{0} : pos_;
+                    break;
+            }
+        }
+
+        void skip(const off_s offset) noexcept {
+            seek(offset, origin::current);
+        }
+
+        off_s tell() const noexcept {
+            return off_s{static_cast<off_s::value_type>(pos_)};
+        }
+
+        // --- read (no bounds) ----------------------------------------------
+
+        template<binary_readable T>
+        T read() noexcept
+        {
+            T val;
+            std::memcpy(&val, ptr_ + pos_, sizeof(T));
+            pos_ += sizeof(T);
+            return val;
+        }
+
+        // --- zero-copy (no bounds) -----------------------------------------
+
+        std::string_view read_strvw() noexcept
+        {
+            auto* base = reinterpret_cast<const char*>(ptr_ + pos_);
+            auto len = std::strlen(base);
+            pos_ += len + 1;
+            return {base, len};
+        }
+    };
+
     // --- platform ------------------------------------------------------------
 
     #if defined(_WIN32)

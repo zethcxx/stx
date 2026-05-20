@@ -521,6 +521,106 @@ std::expected<void, std::errc> writefs(map_file& m, const off_s offset, const Ty
 
 ---
 
+## `reader_view` (Bounded)
+
+Cursor-based binary reader over an existing buffer with known size. Zero-copy — views point directly into the buffer.
+
+```cpp
+class reader_view {
+    reader_view() noexcept;
+    reader_view(std::span<const std::byte> buf) noexcept;
+    reader_view(const void* data, usize size) noexcept;
+};
+```
+
+### State
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `operator bool` | `bool` | Buffer non-empty |
+| `size()` | `usize` | Buffer size |
+
+### Cursor
+
+| Member | Description |
+|--------|-------------|
+| `seek(off_s, origin)` | Set position (clamped to buffer) |
+| `skip(off_s)` | Advance relative (`seek(off, current)`) |
+| `tell()` | Current position |
+| `remaining()` | Remaining bytes |
+
+### Read
+
+| Member | Description |
+|--------|-------------|
+| `read<T>()` | Sequential read (advances cursor) |
+| `read_span<T>(count)` | Zero-copy view of `count` elements (advances cursor) |
+| `read_strvw()` | Scan for `\0` until end of buffer (zero-copy) |
+| `read_strvw(max)` | Scan for `\0` bounded by `max` bytes (zero-copy) |
+
+> **⚠️ Lifetime:** `read_span` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
+
+### Example
+
+```cpp
+std::vector<std::byte> buf = /* ... */;
+stx::reader_view r{buf};
+
+auto magic = r.read<stx::le<stx::u32>>();
+auto count = r.read<stx::u16>();
+auto entries = r.read_span<Entry>(count);
+auto name = r.read_strvw();
+```
+
+---
+
+## `reader_raw` (Unbounded)
+
+Cursor-based binary reader over a raw pointer **without known size**. No bounds checking — use only when you know the data is sufficient.
+
+```cpp
+class reader_raw {
+    reader_raw() noexcept;
+    explicit reader_raw(const void* ptr) noexcept;
+};
+```
+
+### State
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `operator bool` | `bool` | Pointer non-null |
+
+### Cursor
+
+| Member | Description |
+|--------|-------------|
+| `seek(off_s, origin)` | Set position (no bounds) |
+| `skip(off_s)` | Advance relative |
+| `tell()` | Current position |
+
+### Read
+
+| Member | Description |
+|--------|-------------|
+| `read<T>()` | Sequential read (no bounds, advances cursor) |
+| `read_strvw()` | Scan for `\0` (no max limit — reads until terminator) |
+
+> **⚠️ No bounds, no `size`, no `remaining`, no `read_span`.** Designed for cases where the buffer size is genuinely unknown (e.g., walking through linked structures). Prefer `reader_view` when the size is available.
+
+### Example
+
+```cpp
+const void* base = /* ... */;
+stx::reader_raw r{base};
+
+auto node = r.read<Node>();
+r.skip(node.next_offset);
+auto data = r.read_strvw();
+```
+
+---
+
 # Safety Characteristics
 
 | Aspect                     | Guarantee |
