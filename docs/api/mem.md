@@ -265,20 +265,20 @@ Address offsetting without dereferencing. Useful for reaching a base address bef
 ```cpp
 ptr<void> base{address};
 auto p = base[0x100];   // ptr at address + 0x100
-p / 0x20;               // chase from there
+p >> 0x20;               // chase from there
 ```
 
-### Pointer Chase (`/`)
+### Pointer Chase (`>>`)
 
 | Expression | Returns | Description |
 |-----------|---------|-------------|
-| `p / i` (integral) | `ptr<T, Stride>` | Enter `p` at offset `i × Stride`, read `uptr`, return new `ptr` wrapping the result |
-| `p / off` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off.get()` |
+| `p >> i` (integral) | `ptr<T, Stride>` | Enter `p` at offset `i × Stride`, read `uptr`, return new `ptr` wrapping the result |
+| `p >> off` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off.get()` |
 
-Analogous to directory traversal: `ptr / 0x10 / 0x20` reads as *"enter ptr, walk 0x10 Stride entries, read the pointer there, enter the result, walk 0x20 Stride entries, read again"*.
+Analogous to directory traversal: `ptr >> 0x10 >> 0x20` reads as *"enter ptr, walk 0x10 Stride entries, read the pointer there, enter the result, walk 0x20 Stride entries, read again"*.
 
 Semantics:
-1. Target = `addr() + i × Stride`
+1. Target = `addr() + i*Stride`
 2. `memcpy` a `uptr` from Target
 3. Return `ptr<T, Stride>` wrapping the read value (preserves `T` and `Stride`)
 
@@ -288,10 +288,10 @@ Does **not** modify `*this`. All temporaries have the same `T` and `Stride` as t
 ptr<void> pe_base{0x140000000};
 
 // Navigate, then chase
-uptr target = (pe_base[0x100] / 0x10 / 0x20 / 0x08).addr();
+uptr target = (pe_base[0x100] >> 0x10 >> 0x20 >> 0x08).addr();
 
 // stride via at<N>
-uptr v2 = (pe_base.at<4>() / 3 / 5).addr();
+uptr v2 = (pe_base.at<4>() >> 3 >> 5).addr();
 // / 3 → reads uptr at addr + 3*4
 // / 5 → reads uptr at result + 5*4
 ```
@@ -397,7 +397,7 @@ auto next = base[0x100];                  // ptr at offset 0x100 (no read)
 auto next2 = base + off_s{0x100};         // same, via operator+
 
 // Pointer chase (directory traversal metaphor)
-uptr target = (base[0x100] / 0x10 / 0x20).addr();
+uptr target = (base[0x100] >> 0x10 >> 0x20).addr();
 
 // Walk (byte offset, no stride)
 uptr via_walk = (base.walk(off_s{8})).addr();
@@ -408,7 +408,7 @@ base.write(off_s{8}, u16{0x1234});
 
 // Stride management
 auto with_stride = base.at<4>();          // ptr<void, 4>
-uptr chased = (with_stride / 3 / 5).addr();
+uptr chased = (with_stride >> 3 >> 5).addr();
 
 // Call as function
 auto result = base.call<int(int, int)>(10, 20);
@@ -423,12 +423,12 @@ p = q;  // address copied, p's stride stays 4
 
 ## C/C++ Comparison: `ptr` vs Raw Pointers
 
-### Pointer Chase (`/`)
+### Pointer Chase (`>>`)
 
 ```cpp
 // stx: chainable, zero-cost
 stx::ptr<void> base{0x140000000};
-uptr target = (base[0x100] / 0x10 / 0x20).addr();
+uptr target = (base[0x100] >> 0x10 >> 0x20).addr();
 ```
 
 ```c
@@ -445,7 +445,7 @@ u64 t2 = *reinterpret_cast<u64*>(reinterpret_cast<char*>(t1) + 0x10);
 u64 t3 = *reinterpret_cast<u64*>(reinterpret_cast<char*>(t2) + 0x20);
 ```
 
-`ptr::operator/` compiles to the same assembly as the raw C version — zero overhead.
+`ptr::operator>>` compiles to the same assembly as the raw C version — zero overhead.
 
 ---
 
@@ -493,7 +493,7 @@ All three produce identical `memcpy` calls. `ptr::read` saves the boilerplate an
 ```cpp
 // stx:  stride is part of the type
 auto entry_table = base.at<4>();   // ptr<void, 4>
-uptr entry = (entry_table / 3 / 5).addr();
+uptr entry = (entry_table >> 3 >> 5).addr();
 ```
 
 ```c
@@ -502,7 +502,7 @@ u64 e1 = *(u64*)((char*)addr + 3 * 4);
 u64 e2 = *(u64*)((char*)e1 + 5 * 4);
 ```
 
-With `ptr`, the stride is set once via `at<N>()` and `/` automatically scales — no mental recalculation of `sizeof` at each step.
+With `ptr`, the stride is set once via `at<N>()` and `>>` automatically scales — no mental recalculation of `sizeof` at each step.
 
 ---
 
@@ -530,7 +530,7 @@ next = (char*)next - 1;
 
 ```cpp
 // stx:  read_p<T> returns ptr<T>, chainable
-auto chain = base.read_p<Entry>(off_s{0x10}) / 4;
+auto chain = base.read_p<Entry>(off_s{0x10}) >> 4;
 ```
 
 ```c
@@ -540,3 +540,4 @@ u64 val = *(u64*)((char*)ptr + 4 * sizeof(void*));
 ```
 
 `read_p` preserves the `ptr` wrapper, enabling further chaining without manual `reinterpret_cast`.
+

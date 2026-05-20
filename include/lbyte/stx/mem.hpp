@@ -419,7 +419,7 @@ namespace lbyte::stx
 
         template<std::integral U>
         [[nodiscard]] STX_FORCE_INLINE
-        ptr operator/( U offset ) const noexcept {
+        ptr operator>>( U offset ) const noexcept {
             ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>( offset ) * Stride;
             ::lbyte::stx::uptr value;
             std::memcpy( &value, reinterpret_cast<const std::byte*>( target ), sizeof( value ));
@@ -428,8 +428,8 @@ namespace lbyte::stx
 
         template<byte_offset OffT>
         [[nodiscard]] STX_FORCE_INLINE
-        ptr operator/( OffT offset ) const noexcept {
-            return operator/( offset.get() );
+        ptr operator>>( OffT offset ) const noexcept {
+            return operator>>( offset.get() );
         }
 
         // ---- STRIDE MANAGEMENT -----------------------------------
