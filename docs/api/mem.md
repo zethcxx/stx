@@ -345,6 +345,8 @@ The offset is specified via `operator[]`; read/write methods operate at the curr
 |--------|-------------|-------------|
 | `read<T>()` | `binary_readable<T>` | Copy-based read at current address |
 | `read_p<T>()` | non-void | Read a pointer value at current address, returns `ptr<T, 1>` |
+| `read_le<T>()` | `std::integral<T>` | Little-endian read at current address |
+| `read_be<T>()` | `std::integral<T>` | Big-endian read at current address |
 | `write<T>(val)` | `binary_readable<T>` | Copy-based write at current address |
 | `write_le<T>(val)` | `std::integral<T>` | Little-endian write |
 | `write_be<T>(val)` | `std::integral<T>` | Big-endian write |

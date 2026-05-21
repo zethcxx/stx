@@ -64,20 +64,34 @@ namespace lbyte::stx
     // ENDIAN-AWARE READ -----------------------------------------------------
     template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
-    Type read_le( Addr base, OffT off = OffT{} ) noexcept
+    Type read_le( Addr base, OffT off ) noexcept
     {
         return read<Type>( base, off );
     }
 
+    template<byte_swappable Type, address_like Addr>
+    [[nodiscard]] STX_FORCE_INLINE
+    Type read_le( Addr base ) noexcept
+    {
+        return read_le<Type>( base, off_s{} );
+    }
+
     template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
     [[nodiscard]] STX_FORCE_INLINE
-    Type read_be( Addr base, OffT off = OffT{} ) noexcept
+    Type read_be( Addr base, OffT off ) noexcept
     {
         using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
         if constexpr ( std::endian::native == std::endian::little )
             return static_cast<Type>( std::byteswap( static_cast<Raw>( read<Raw>( base, off ) ) ) );
         else
             return read<Type>( base, off );
+    }
+
+    template<byte_swappable Type, address_like Addr>
+    [[nodiscard]] STX_FORCE_INLINE
+    Type read_be( Addr base ) noexcept
+    {
+        return read_be<Type>( base, off_s{} );
     }
 
     template< binary_readable Type, address_like Addr, byte_offset OffT = off_s >
@@ -308,6 +322,22 @@ namespace lbyte::stx
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             ::lbyte::stx::write_be<U>( address, value );
+        }
+
+        template<std::integral U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_le() const noexcept -> U
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            return ::lbyte::stx::read_le<U>( address );
+        }
+
+        template<std::integral U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_be() const noexcept -> U
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            return ::lbyte::stx::read_be<U>( address );
         }
 
         // ---- UNSAFE (direct deref) --------------------------------
