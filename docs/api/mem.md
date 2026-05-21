@@ -238,6 +238,23 @@ public:
 | `operator bool` | `bool` | Non-null check |
 | `operator uptr` | `uptr` | Explicit conversion to `uptr` |
 
+### Null State
+
+The library provides `stx::null` (type `null_t`) for null-pointer construction and comparison.
+
+| Expression | Description |
+|------------|-------------|
+| `ptr{null}` | Construct null `ptr` (address = 0) |
+| `p == null` | True if `p.addr() == 0` |
+| `p != null` | True if `p.addr() != 0` |
+
+Unlike `nullptr`, `stx::null` does not satisfy the `address_like` concept, so it cannot accidentally be passed to address-expecting APIs. The explicit `ptr(null_t)` constructor and comparison operators keep the interface safe and intentional.
+
+```cpp
+stx::ptr<int> p{stx::null};       // null ptr
+if (p == stx::null) { /* empty */ }
+```
+
 ### Address Rebind
 
 | Member | Description |

@@ -145,6 +145,10 @@ namespace lbyte::stx
           : address { normalize_addr( addr ) }
         {}
 
+        constexpr ptr(null_t) noexcept
+          : address { 0 }
+        {}
+
         // ---- REBIND ADDRESS --------------------------------------
 
         constexpr ptr& operator=(address_like auto addr) noexcept {
@@ -189,6 +193,12 @@ namespace lbyte::stx
 
         [[nodiscard]]
         constexpr auto operator<=>( const ptr& ) const noexcept = default;
+
+        [[nodiscard]]
+        constexpr bool operator==( const ptr& ) const noexcept = default;
+
+        [[nodiscard]] constexpr bool operator==(null_t) const noexcept { return address == 0; }
+        [[nodiscard]] constexpr bool operator!=(null_t) const noexcept { return address != 0; }
 
         // ---- DEREFERENCE ------------------------------------------
 

@@ -259,6 +259,18 @@ namespace lbyte::stx
         void cancel() noexcept { armed_ = false; }
     };
     template<std::invocable<> F> defer(F) -> defer<F>;
+
+    // --- null_t ----------------------------------------------------------------
+
+    struct null_t {
+        constexpr operator uptr()         const noexcept { return 0; }
+        constexpr operator std::nullptr_t() const noexcept { return nullptr; }
+        constexpr explicit operator bool() const noexcept { return false; }
+
+        friend constexpr const null_t& operator<<(const null_t& n, auto&&) noexcept { return n; }
+    };
+
+    inline constexpr null_t null{};
 }
 
 #undef STX_FORCE_INLINE

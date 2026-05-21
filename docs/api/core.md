@@ -598,6 +598,62 @@ Satisfied by:
 
 ---
 
+## Type: `null_t`
+
+A null constant type for safe zero-state representation.
+
+```cpp
+struct null_t {
+    template<address_like T>
+    constexpr operator T() const noexcept;       // → uptr(0)
+
+    constexpr operator std::nullptr_t() const noexcept;
+    explicit constexpr operator bool() const noexcept;  // false
+
+    // suppresses [[nodiscard]] for discarded expressions
+    constexpr const null_t& operator<<(auto&&) const noexcept;
+};
+
+inline constexpr null_t null{};
+```
+
+### Members
+
+| Expression | Result | Description |
+|------------|--------|-------------|
+| `null_t{}` | `null_t` | Default-initialised (same as `null`) |
+| `(uptr)null` | `0` | Converts to address zero |
+| `(nullptr_t)null` | `nullptr` | Converts to null pointer |
+| `(bool)null` | `false` | Contextually false |
+| `null << expr` | `const null_t&` | Suppress `[[nodiscard]]` on discarded value |
+
+### Rationale
+
+- **Zero-cost**: empty struct, all operations `constexpr` and inline.
+- **Safer than `nullptr`**: does not satisfy `address_like`, so it cannot accidentally slip into APIs that expect an address. Explicit `ptr(null_t)` constructor keeps the contract clear.
+- **Typed null state**: `stx::null` expresses "no address" in the `stx` type system without ambiguity with `0` or `NULL`.
+
+### C/C++ Comparison
+
+| Language | Null Value | Null Type |
+|----------|-----------|-----------|
+| C | `NULL` / `0` | macro / integer |
+| C++ | `nullptr` | `std::nullptr_t` |
+| stx | `stx::null` | `stx::null_t` |
+
+### Usage
+
+```cpp
+stx::uptr addr = stx::null;           // addr == 0
+auto np = static_cast<std::nullptr_t>(stx::null);
+if (!stx::null) { /* never reached */ }
+
+// Suppress [[nodiscard]] on discarded results
+stx::null << some_nodiscard_function();
+```
+
+---
+
 ## Alignment Functions
 
 ### Integral Alignment
