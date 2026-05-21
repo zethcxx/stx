@@ -34,4 +34,6 @@ export namespace lbyte::stx::literals
     using ::lbyte::stx::literals::operator""_kb;
     using ::lbyte::stx::literals::operator""_mb;
     using ::lbyte::stx::literals::operator""_gb;
+
+    using ::lbyte::stx::literals::operator""_sl;
 }

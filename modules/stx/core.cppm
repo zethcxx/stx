@@ -51,4 +51,6 @@ export namespace lbyte::stx
     using ::lbyte::stx::align_down;
 
     using ::lbyte::stx::defer;
+    using ::lbyte::stx::null_t;
+    using ::lbyte::stx::null;
 }
