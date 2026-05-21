@@ -276,6 +276,7 @@ if (p == stx::null) { /* empty */ }
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `p[n]` (integral) | `ptr<T, Stride>` | Offset address by `n` bytes, return new `ptr` (no memory access) |
+| `p[off]` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off_s`/`rva_s` offset |
 
 Address offsetting without dereferencing. Useful for reaching a base address before chasing:
 
@@ -338,24 +339,22 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 
 ### Binary Read / Write
 
+The offset is specified via `operator[]`; read/write methods operate at the current address.
+
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read<T>(off)` | `binary_readable<T>` | Copy-based read with optional byte offset |
-| `read_p<T>(off)` | non-void | Read a pointer value at offset, returns `ptr<T, 1>` |
-| `read_le<T>(off)` | `std::integral<T>` | Little-endian read |
-| `read_be<T>(off)` | `std::integral<T>` | Big-endian read |
-| `write<T>(off, val)` | `binary_readable<T>` | Copy-based write with byte offset |
-| `write<T>(val)` | `binary_readable<T>` | Copy-based write at address |
-| `write_le<T>(off, val)` | `std::integral<T>` | Little-endian write |
-| `write_be<T>(off, val)` | `std::integral<T>` | Big-endian write |
+| `read<T>()` | `binary_readable<T>` | Copy-based read at current address |
+| `read_p<T>()` | non-void | Read a pointer value at current address, returns `ptr<T, 1>` |
+| `write<T>(val)` | `binary_readable<T>` | Copy-based write at current address |
+| `write_le<T>(val)` | `std::integral<T>` | Little-endian write |
+| `write_be<T>(val)` | `std::integral<T>` | Big-endian write |
 
 ### Unsafe (Direct Deref)
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read_raw<T>(off)` | `binary_readable<T>` | Direct deref at byte offset |
-| `write_raw(off, val)` | `binary_readable<T>` | Direct deref write |
-| `write_raw(val)` | `binary_readable<T>` | Direct deref write at address |
+| `read_raw<T>()` | `binary_readable<T>` | Direct deref at current address |
+| `write_raw(val)` | `binary_readable<T>` | Direct deref write at current address |
 
 ### Alignment
 
@@ -419,9 +418,9 @@ uptr target = (base[0x100] >> 0x10 >> 0x20).addr();
 // Walk (byte offset, no stride)
 uptr via_walk = (base.walk(off_s{8})).addr();
 
-// Safe read/write
-u32 val = base.read<u32>(off_s{0x200});
-base.write(off_s{8}, u16{0x1234});
+// Safe read/write — offset through operator[]
+u32 val = base[off_s{0x200}].read<u32>();
+base[off_s{8}].write(u16{0x1234});
 
 // Stride management
 auto with_stride = base.at<4>();          // ptr<void, 4>
@@ -482,11 +481,11 @@ u64 p = *(u64*)((char*)addr + 8);
 
 ---
 
-### `read<T>(off)` vs `memcpy`
+### `p[off].read<T>()` vs `memcpy`
 
 ```cpp
 // stx:  safe, typed, unaligned-friendly
-stx::u32 val = p.read<stx::u32>(off_s{0x200});
+stx::u32 val = p[off_s{0x200}].read<stx::u32>();
 ```
 
 ```c
@@ -501,7 +500,7 @@ u32 val;
 std::memcpy(&val, reinterpret_cast<const char*>(addr) + 0x200, sizeof(val));
 ```
 
-All three produce identical `memcpy` calls. `ptr::read` saves the boilerplate and enforces `binary_readable` at compile time.
+All three produce identical `memcpy` calls. `ptr::read` saves the boilerplate and enforces `binary_readable` at compile time. The offset is factored out into `operator[]`, keeping read/write focused on data access.
 
 ---
 
@@ -539,7 +538,7 @@ next = (char*)next + 8;
 next = (char*)next - 1;
 ```
 
-`ptr` arithmetic works at byte granularity — consistent with `read<T>(off)`, `walk()`, and `operator[]`. No implicit element-type scaling.
+`ptr` arithmetic works at byte granularity — consistent with `walk()` and `operator[]`. No implicit element-type scaling.
 
 ---
 
@@ -547,7 +546,7 @@ next = (char*)next - 1;
 
 ```cpp
 // stx:  read_p<T> returns ptr<T>, chainable
-auto chain = base.read_p<Entry>(off_s{0x10}) >> 4;
+auto chain = base[off_s{0x10}].read_p<Entry>() >> 4;
 ```
 
 ```c

@@ -99,6 +99,13 @@ namespace lbyte::stx
         write( base, off, value );
     }
 
+    template<byte_swappable Type, address_like Addr>
+    STX_FORCE_INLINE
+    void write_le( Addr base, Type value ) noexcept
+    {
+        write_le( base, off_s{}, value );
+    }
+
     template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
     STX_FORCE_INLINE
     void write_be( Addr base, OffT off, Type value ) noexcept
@@ -108,6 +115,13 @@ namespace lbyte::stx
             write( base, off, static_cast<Type>( std::byteswap( static_cast<Raw>( value ) ) ) );
         else
             write( base, off, value );
+    }
+
+    template<byte_swappable Type, address_like Addr>
+    STX_FORCE_INLINE
+    void write_be( Addr base, Type value ) noexcept
+    {
+        write_be( base, off_s{}, value );
     }
 
     // UNSAFE MEMORY ACCESS (direct deref, requires alignment, strict-aliasing) --
@@ -240,44 +254,32 @@ namespace lbyte::stx
 
         // ---- SAFE (memcpy) ---------------------------------------
 
-        template<typename U = T, byte_offset OffT = off_s>
+        template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read( OffT off = OffT{} ) const noexcept -> U
+        auto read() const noexcept -> U
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             U value;
             std::memcpy(
                 &value,
-                rcast<const std::byte*>(address) + off.get(),
+                rcast<const std::byte*>(address),
                 sizeof(U)
             );
             return value;
         }
 
-        template<typename U = T, byte_offset OffT = off_s>
+        template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_p( OffT off = OffT{} ) const noexcept -> ptr<U>
+        auto read_p() const noexcept -> ptr<U>
             requires ( not std::is_void_v<U> )
         {
             ::lbyte::stx::uptr value;
             std::memcpy(
                 &value,
-                rcast<const std::byte*>(address) + off.get(),
+                rcast<const std::byte*>(address),
                 sizeof(::lbyte::stx::uptr)
             );
             return ptr<U>( rcast<U*>( value ));
-        }
-
-        template<typename U = T, byte_offset OffT = off_s>
-        STX_FORCE_INLINE
-        void write( OffT off, U value ) const noexcept
-            requires ( not std::is_void_v<U> && binary_readable<U> )
-        {
-            std::memcpy(
-                rcast<std::byte*>(address) + off.get(),
-                &value,
-                sizeof(U)
-            );
         }
 
         template<typename U = T>
@@ -292,38 +294,30 @@ namespace lbyte::stx
             );
         }
 
-        template<std::integral U = T, byte_offset OffT = off_s>
+        template<std::integral U = T>
         STX_FORCE_INLINE
-        void write_le( OffT off, U value ) const noexcept
+        void write_le( U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
-            ::lbyte::stx::write_le<U>( address, off, value );
+            ::lbyte::stx::write_le<U>( address, value );
         }
 
-        template<std::integral U = T, byte_offset OffT = off_s>
+        template<std::integral U = T>
         STX_FORCE_INLINE
-        void write_be( OffT off, U value ) const noexcept
+        void write_be( U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
-            ::lbyte::stx::write_be<U>( address, off, value );
+            ::lbyte::stx::write_be<U>( address, value );
         }
 
         // ---- UNSAFE (direct deref) --------------------------------
 
-        template<typename U = T, byte_offset OffT = off_s>
+        template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_raw( OffT off = OffT{} ) const noexcept -> U
+        auto read_raw() const noexcept -> U
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
-            return *rcast<U*>( address + off.get() );
-        }
-
-        template<typename U = T, byte_offset OffT = off_s>
-        STX_FORCE_INLINE
-        void write_raw( OffT off, U value ) const noexcept
-            requires ( not std::is_void_v<U> && binary_readable<U> )
-        {
-            *rcast<U*>( address + off.get() ) = value;
+            return *rcast<U*>( address );
         }
 
         template<typename U = T>
