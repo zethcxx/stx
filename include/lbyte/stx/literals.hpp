@@ -1,6 +1,7 @@
 #pragma once
 #include "./mem.hpp"
 #include "./endian.hpp"
+#include "./str.hpp"
 
 namespace lbyte::stx::literals
 {

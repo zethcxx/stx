@@ -8,4 +8,5 @@
 #include "./stx/fs.hpp"     // IWYU pragma: export
 #include "./stx/bit.hpp" // IWYU pragma: export
 #include "./stx/endian.hpp" // IWYU pragma: export
+#include "./stx/str.hpp" // IWYU pragma: export
 #include "./stx/literals.hpp" // IWYU pragma: export
