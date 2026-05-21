@@ -459,12 +459,15 @@ namespace lbyte::stx
         // ---- CALL ------------------------------------------------
 
         template<class Sig, class... Args>
-        [[nodiscard]] decltype(auto) call(Args&&... args) const noexcept {
+        [[nodiscard]] inline constexpr decltype(auto) call(Args&&... args) const
+            noexcept(std::is_nothrow_invocable_v<typename stx::caller_t<Sig>::fn_t, Args...>)
+        {
             return stx::caller<Sig>(address)(std::forward<Args>(args)...);
         }
 
         template<class Sig>
-        [[nodiscard]] auto caller() const noexcept {
+        [[nodiscard]] inline constexpr auto caller() const noexcept
+        {
             return stx::caller<Sig>(address);
         }
 
