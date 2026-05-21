@@ -233,6 +233,11 @@ namespace lbyte::stx
             return ptr( address + static_cast<::lbyte::stx::uptr>( offset ));
         }
 
+        template<byte_offset OffT>
+        [[nodiscard]] constexpr ptr operator[]( OffT offset ) const noexcept {
+            return ptr( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
         // ---- SAFE (memcpy) ---------------------------------------
 
         template<typename U = T, byte_offset OffT = off_s>
