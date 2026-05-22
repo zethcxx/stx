@@ -136,6 +136,7 @@ Satisfied if:
 - `std::uintptr_t`
 - `std::intptr_t`
 - `va_s`
+- Any type with `.addr()` returning `uptr` (e.g. `ptr<T>`)
 
 ```cpp
 template<typename Type>
@@ -143,7 +144,8 @@ concept address_like =
        std::is_pointer_v<Type>
     or std::same_as<std::remove_cv_t<Type>, std::uintptr_t>
     or std::same_as<std::remove_cv_t<Type>, std::intptr_t>
-    or std::same_as<std::remove_cvref_t<Type>, va_s>;
+    or std::same_as<std::remove_cvref_t<Type>, va_s>
+    or requires(Type t) { { t.addr() } -> std::same_as<uptr>; };
 ```
 
 Purpose:

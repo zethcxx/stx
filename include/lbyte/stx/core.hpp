@@ -213,7 +213,8 @@ namespace lbyte::stx
         =  std::is_pointer_v<Type>
         or std::same_as<std::remove_cv_t   <Type>, std::uintptr_t>
         or std::same_as<std::remove_cv_t   <Type>, std::intptr_t >
-        or std::same_as<std::remove_cvref_t<Type>, va_s          >;
+        or std::same_as<std::remove_cvref_t<Type>, va_s          >
+        or requires(Type t) { { t.addr() } -> std::same_as<uptr>; };
 
     template<class Type>
     concept binary_readable
@@ -262,6 +263,8 @@ namespace lbyte::stx
             return reinterpret_cast<uptr>( base );
         else if constexpr ( std::same_as<std::remove_cvref_t<Addr>, va_s> )
             return static_cast<uptr>( base.get() );
+        else if constexpr ( requires { base.addr(); } )
+            return base.addr();
         else
             return static_cast<uptr>( base );
     }
