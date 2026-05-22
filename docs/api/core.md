@@ -385,6 +385,27 @@ friend constexpr auto operator<=>(const strong_type&, const strong_type&) = defa
 
 ---
 
+## Implementation: `nested_array`
+
+Located in `stx::details`.
+
+```cpp
+template<typename T, usize... Dims>
+struct nested_array;
+```
+
+A type alias that expands dimension packs into `std::array` nesting:
+
+| Dimensions | Result |
+|------------|--------|
+| `nested_array<u32, 3>` | `std::array<u32, 3>` |
+| `nested_array<u32, 2, 3>` | `std::array<std::array<u32, 3>, 2>` |
+| `nested_array<u32, 4, 5, 6>` | `std::array<std::array<std::array<u32, 6>, 5>, 4>` |
+
+Used internally by `ptr::pop<T, Dims...>()` and `ptr::read<T, Dims...>()` to produce correctly nested return types.
+
+---
+
 ## Literal Suffixes
 
 Defined in the separate `literals.hpp` header to avoid namespace pollution.

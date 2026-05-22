@@ -454,25 +454,20 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 | `skip(off_s)` | Advance relative to current (`seek(off, origin::current)`) |
 | `tell()` | Current sequential position |
 | `remaining()` | Remaining bytes |
-| `read<T>()` | Sequential read (advances position) |
-| `write<T>(const T&)` | Sequential write (advances position) |
 
-### Random-Access I/O
-
-| Member | Description |
-|--------|-------------|
-| `read<T>(off_s)` | Read at byte offset |
-| `write<T>(off_s, const T&)` | Write at byte offset |
-
-### Read / Write (Sequential)
+### Pop (read + advance cursor)
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `read<T>()` | `T` | Single value (advances cursor) |
-| `read<T>(count)` | `dirty_vector<T>` | Copy `count` elements into vector (advances cursor) |
-| `read<T, N>()` | `array<T, N>` | Copy `N` elements into fixed-size array (advances cursor) |
-| `write<T>(const T&)` | — | Write single value (advances cursor) |
-| `write<T>(span<const T>)` | — | Write span of values (advances cursor) |
+| `pop<T>()` | `T` | Single value (advances cursor) |
+| `pop<T, N, Rest...>()` | nested `array` | Multi-dimensional read, advances by total size |
+
+### Push (write + advance cursor)
+
+| Member | Description |
+|--------|-------------|
+| `push<T>(val)` | Write single value, advances cursor |
+| `push<T>(span)` | Write span elements, advances cursor |
 
 ### Zero-Copy Views
 
@@ -500,8 +495,8 @@ m.as_p<stx::u32>()[stx::off_s{0x104}].write(stx::u32{0xDEADBEEF});
 
 // Sequential
 m.seek(stx::off_s{0x100});
-stx::u32 a = m.read<stx::u32>();
-stx::u32 b = m.read<stx::u32>();
+stx::u32 a = m.pop<stx::u32>();
+stx::u32 b = m.pop<stx::u32>();
 
 // Skip bytes
 m.skip(stx::off_s{8});
@@ -563,30 +558,29 @@ class reader_view {
 | `tell()` | Current position |
 | `remaining()` | Remaining bytes |
 
-### Read
+### Pop (read + advance cursor)
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `read<T>()` | `T` | Single value (advances cursor) |
-| `read<T>(count)` | `dirty_vector<T>` | Copy `count` elements into new vector (advances cursor) |
-| `read<T, N>()` | `array<T, N>` | Copy `N` elements into fixed-size array (advances cursor) |
+| `pop<T>()` | `T` | Single value (advances cursor) |
+| `pop<T, N, Rest...>()` | nested `array` | Multi-dimensional read, advances by total size |
+
+### Push (write + advance cursor)
+
+| Member | Description |
+|--------|-------------|
+| `push<T>(val)` | Write single value (advances cursor) |
+| `push<T>(span)` | Write span of values (advances cursor) |
+
+### Read (zero-copy views, advances cursor)
+
+| Member | Returns | Description |
+|--------|---------|-------------|
 | `read_view<T>(count)` | `span<const T>` | Zero-copy view of `count` elements (advances cursor) |
 | `read_strvw()` | `string_view` | Scan for `\0` until end of buffer (zero-copy) |
 | `read_strvw(max)` | `string_view` | Scan for `\0` bounded by `max` bytes (zero-copy) |
 
-### Write
-
-| Member | Description |
-|--------|-------------|
-| `write<T>(const T&)` | Write single value (advances cursor) |
-| `write<T>(span<const T>)` | Write span of values (advances cursor) |
-
-### Random-Access I/O
-
-| Member | Description |
-|--------|-------------|
-| `read<T>(off_s)` | Positional read (no cursor change) |
-| `write<T>(off_s, const T&)` | Positional write (no cursor change) |
+> **Note:** The zero-copy `read_view` and `read_strvw` methods advance the cursor by the viewed region size.
 
 > **⚠️ Lifetime:** `read_view` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
 

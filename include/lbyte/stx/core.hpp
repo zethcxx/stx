@@ -6,6 +6,7 @@
     #define STX_FORCE_INLINE inline
 #endif
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -235,6 +236,24 @@ namespace lbyte::stx
     concept byte_offset
         =  std::same_as<std::remove_cvref_t<T>, off_s>
         or std::same_as<std::remove_cvref_t<T>, rva_s>;
+
+    namespace details {
+        template<typename T, usize... Dims>
+        struct nested_array;
+
+        template<typename T, usize N>
+        struct nested_array<T, N> {
+            using type = std::array<T, N>;
+        };
+
+        template<typename T, usize First, usize... Rest>
+        struct nested_array<T, First, Rest...> {
+            using type = std::array<typename nested_array<T, Rest...>::type, First>;
+        };
+
+        template<typename T, usize... Dims>
+        using nested_array_t = typename nested_array<T, Dims...>::type;
+    }
 
     template<address_like Addr> [[nodiscard]]
     constexpr uptr normalize_addr( Addr base ) noexcept

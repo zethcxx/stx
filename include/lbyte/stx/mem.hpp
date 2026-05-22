@@ -5,6 +5,7 @@
 #include <compare>
 #include <cstring>
 #include <functional>
+#include <span>
 
 #if defined(__GNUC__) || defined(__clang__)
     #define STX_FORCE_INLINE [[gnu::always_inline]] inline
@@ -282,6 +283,16 @@ namespace lbyte::stx
             return value;
         }
 
+        template<typename U = T, usize N, usize... Rest>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read() const noexcept -> details::nested_array_t<U, N, Rest...>
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            details::nested_array_t<U, N, Rest...> arr;
+            std::memcpy( &arr, rcast<const std::byte*>(address), sizeof(arr) );
+            return arr;
+        }
+
         template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
         auto read_p() const noexcept -> ptr<U>
@@ -296,16 +307,38 @@ namespace lbyte::stx
             return ptr<U>( rcast<U*>( value ));
         }
 
+        // ---- POP (read + advance) ---------------------------------
+
+        template<typename U = T>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto pop() noexcept -> U
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            U value;
+            std::memcpy( &value, rcast<const std::byte*>(address), sizeof(U) );
+            address += sizeof(U);
+            return value;
+        }
+
+        template<typename U = T, usize N, usize... Rest>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto pop() noexcept -> details::nested_array_t<U, N, Rest...>
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            details::nested_array_t<U, N, Rest...> arr;
+            std::memcpy( &arr, rcast<const std::byte*>(address), sizeof(arr) );
+            address += sizeof(arr);
+            return arr;
+        }
+
+        // ---- WRITE (no advance) -----------------------------------
+
         template<typename U = T>
         STX_FORCE_INLINE
         void write( U value ) const noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
-            std::memcpy(
-                rcast<std::byte*>(address),
-                &value,
-                sizeof(U)
-            );
+            std::memcpy( rcast<std::byte*>(address), &value, sizeof(U) );
         }
 
         template<std::integral U = T>
@@ -324,6 +357,29 @@ namespace lbyte::stx
             ::lbyte::stx::write_be<U>( address, value );
         }
 
+        // ---- PUSH (write + advance) -------------------------------
+
+        template<typename U = T>
+        STX_FORCE_INLINE
+        void push( const U& value ) noexcept
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            std::memcpy( rcast<std::byte*>(address), &value, sizeof(U) );
+            address += sizeof(U);
+        }
+
+        template<typename U = T>
+        STX_FORCE_INLINE
+        void push( std::span<const U> buf ) noexcept
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            auto bytes = buf.size_bytes();
+            std::memcpy( rcast<std::byte*>(address), buf.data(), bytes );
+            address += bytes;
+        }
+
+        // ---- READ (endian-aware, no advance) -----------------------
+
         template<std::integral U = T>
         [[nodiscard]] STX_FORCE_INLINE
         auto read_le() const noexcept -> U
@@ -338,6 +394,16 @@ namespace lbyte::stx
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             return ::lbyte::stx::read_be<U>( address );
+        }
+
+        // ---- ZERO-COPY VIEW (no advance) --------------------------
+
+        template<typename U = T, usize N>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_view() const noexcept -> std::span<const U, N>
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        {
+            return std::span<const U, N>( rcast<const U*>(address) );
         }
 
         // ---- UNSAFE (direct deref) --------------------------------

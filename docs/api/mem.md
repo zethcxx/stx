@@ -337,23 +337,40 @@ auto p3 = p.at<stx::u32>();       // ptr<int, 4> via sizeof(u32)
 p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 ```
 
-### Binary Read / Write
+### Read (no advance)
 
-The offset is specified via `operator[]`; read/write methods operate at the current address.
+| Member | Returns | Requirements | Description |
+|--------|---------|-------------|-------------|
+| `read<T>()` | `T` | `binary_readable<T>` | Copy-based read at current address |
+| `read<T, N, Rest...>()` | `array<array<…<T>…, Rest>, N>` | `binary_readable<T>` | Multi-dimensional read, returns nested `std::array` |
+| `read_p<T>()` | `ptr<T, 1>` | non-void | Read a pointer value, returns `ptr<T>` |
+| `read_le<T>()` | `T` | `std::integral<T>` | Little-endian read |
+| `read_be<T>()` | `T` | `std::integral<T>` | Big-endian read |
+| `read_view<T, N>()` | `span<const T, N>` | `binary_readable<T>` | Zero-copy fixed-extent view |
 
-> **Note:** `binary_readable` excludes pointer types — use `read_p<T>()` for pointer-sized reads.
+### Pop (read + advance cursor)
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `pop<T>()` | `T` | Copy-based read, `address += sizeof(T)` |
+| `pop<T, N, Rest...>()` | nested `array` | Multi-dimensional read, advances by total size |
+
+### Write (no advance)
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `read<T>()` | `binary_readable<T>` | Copy-based read at current address |
-| `read_p<T>()` | non-void | Read a pointer value at current address, returns `ptr<T, 1>` |
-| `read_le<T>()` | `std::integral<T>` | Little-endian read at current address |
-| `read_be<T>()` | `std::integral<T>` | Big-endian read at current address |
 | `write<T>(val)` | `binary_readable<T>` | Copy-based write at current address |
 | `write_le<T>(val)` | `std::integral<T>` | Little-endian write |
 | `write_be<T>(val)` | `std::integral<T>` | Big-endian write |
 
-### Unsafe (Direct Deref)
+### Push (write + advance cursor)
+
+| Member | Description |
+|--------|-------------|
+| `push<T>(val)` | Write single value, `address += sizeof(T)` |
+| `push<T>(span)` | Write span elements, `address += span.size_bytes()` |
+
+### Unsafe (Direct Deref, no advance)
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
