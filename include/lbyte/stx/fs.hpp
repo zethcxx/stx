@@ -362,17 +362,20 @@ namespace lbyte::stx
         // --- push (write + advance) ----------------------------------------
 
         template<binary_readable T>
-        void push(const T& value) noexcept {
+        auto& push(const T& value) noexcept {
             cur_.push(value);
+            return *this;
         }
 
         template<binary_readable T>
-        void push(std::span<const T> buf) noexcept {
+        auto& push(std::span<const T> buf) noexcept {
             cur_.push(buf);
+            return *this;
         }
 
-        void push(std::string_view sv) noexcept {
+        auto& push(std::string_view sv) noexcept {
             cur_.push(sv);
+            return *this;
         }
 
         // --- zero-copy views ------------------------------------------------
@@ -574,17 +577,20 @@ namespace lbyte::stx
         // --- push (write + advance) ----------------------------------------
 
         template<binary_readable T>
-        void push(const T& value) noexcept {
+        auto& push(const T& value) noexcept {
             cur_.push(value);
+            return *this;
         }
 
         template<binary_readable T>
-        void push(std::span<const T> buf) noexcept {
+        auto& push(std::span<const T> buf) noexcept {
             cur_.push(buf);
+            return *this;
         }
 
-        void push(std::string_view sv) noexcept {
+        auto& push(std::string_view sv) noexcept {
             cur_.push(sv);
+            return *this;
         }
 
         // --- zero-copy views -----------------------------------------------

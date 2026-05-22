@@ -365,11 +365,11 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 
 ### Push (write + advance cursor)
 
-| Member | Description |
-|--------|-------------|
-| `push<T>(val)` | Write single value, `address += sizeof(T)` |
-| `push<T>(span)` | Write span elements, `address += span.size_bytes()` |
-| `push(sv)` | `string_view` bytes, `address += sv.size()` |
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `push<T>(val)` | `ptr&` | Write single value, `address += sizeof(T)` |
+| `push<T>(span)` | `ptr&` | Write span elements, `address += span.size_bytes()` |
+| `push(sv)` | `ptr&` | Write `string_view` bytes, `address += sv.size()` |
 
 ### Unsafe (Direct Deref, no advance)
 

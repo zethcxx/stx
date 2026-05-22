@@ -466,9 +466,9 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 
 | Member | Description |
 |--------|-------------|
-| `push<T>(val)` | Write single value, advances cursor |
-| `push<T>(span)` | Write span elements, advances cursor |
-| `push(sv)` | Write `string_view` bytes, advances cursor |
+| `push<T>(val)` | `map_file&` | Write single value, advances cursor |
+| `push<T>(span)` | `map_file&` | Write span elements, advances cursor |
+| `push(sv)` | `map_file&` | Write `string_view` bytes, advances cursor |
 
 ### Zero-Copy Views
 
@@ -570,9 +570,9 @@ class reader_view {
 
 | Member | Description |
 |--------|-------------|
-| `push<T>(val)` | Write single value (advances cursor) |
-| `push<T>(span)` | Write span of values (advances cursor) |
-| `push(sv)` | Write `string_view` bytes (advances cursor) |
+| `push<T>(val)` | `reader_view&` | Write single value (advances cursor) |
+| `push<T>(span)` | `reader_view&` | Write span of values (advances cursor) |
+| `push(sv)` | `reader_view&` | Write `string_view` bytes (advances cursor) |
 
 ### Read (zero-copy views, advances cursor)
 

@@ -362,28 +362,31 @@ namespace lbyte::stx
 
         template<typename U = T>
         STX_FORCE_INLINE
-        void push( const U& value ) noexcept
+        ptr& push( const U& value ) noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             std::memcpy( rcast<std::byte*>(address), &value, sizeof(U) );
             address += sizeof(U);
+            return *this;
         }
 
         template<typename U = T>
         STX_FORCE_INLINE
-        void push( std::span<const U> buf ) noexcept
+        ptr& push( std::span<const U> buf ) noexcept
             requires ( not std::is_void_v<U> && binary_readable<U> )
         {
             auto bytes = buf.size_bytes();
             std::memcpy( rcast<std::byte*>(address), buf.data(), bytes );
             address += bytes;
+            return *this;
         }
 
         STX_FORCE_INLINE
-        void push( std::string_view sv ) noexcept
+        ptr& push( std::string_view sv ) noexcept
         {
             std::memcpy( rcast<std::byte*>(address), sv.data(), sv.size() );
             address += sv.size();
+            return *this;
         }
 
         // ---- READ (endian-aware, no advance) -----------------------
