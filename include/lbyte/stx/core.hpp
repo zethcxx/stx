@@ -218,7 +218,8 @@ namespace lbyte::stx
     concept binary_readable
         =       std::is_trivially_copyable_v<Type>
         and     std::is_standard_layout_v   <Type>
-        and not std::is_empty_v             <Type>;
+        and not std::is_empty_v             <Type>
+        and not std::is_pointer_v           <Type>;
 
     template<typename T>
     concept byte_swappable

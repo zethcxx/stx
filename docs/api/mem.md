@@ -341,6 +341,8 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 
 The offset is specified via `operator[]`; read/write methods operate at the current address.
 
+> **Note:** `binary_readable` excludes pointer types — use `read_p<T>()` for pointer-sized reads.
+
 | Member | Requirements | Description |
 |--------|-------------|-------------|
 | `read<T>()` | `binary_readable<T>` | Copy-based read at current address |

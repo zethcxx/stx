@@ -163,13 +163,15 @@ Constraints:
 | Trivially copyable              | `std::is_trivially_copyable_v<Type>`       |
 | Standard layout                 | `std::is_standard_layout_v<Type>`          |
 | Not empty                       | `!std::is_empty_v<Type>`                   |
+| Not a pointer                   | `!std::is_pointer_v<Type>`                 |
 
 ```cpp
 template<class Type>
 concept binary_readable =
        std::is_trivially_copyable_v<Type>
     and std::is_standard_layout_v<Type>
-    and not std::is_empty_v<Type>;
+    and not std::is_empty_v<Type>
+    and not std::is_pointer_v<Type>;
 ```
 
 Use case:
@@ -742,6 +744,7 @@ Defines a type safe for raw binary deserialization.
 | Trivially copyable     | `std::is_trivially_copyable_v`       |
 | Standard layout        | `std::is_standard_layout_v`          |
 | Not empty              | `!std::is_empty_v`                   |
+| Not a pointer          | `!std::is_pointer_v`                 |
 
 ---
 
