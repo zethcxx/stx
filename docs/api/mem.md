@@ -396,8 +396,7 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 | `p += off` | `ptr<T, Stride>&` | Advance in-place |
 | `p -= off` | `ptr<T, Stride>&` | Rewind in-place |
 | `p - q` | `off_s` | Signed distance |
-| `p.diff(q)` | `off_s` | Signed distance to another ptr |
-| `p.diff(addr)` | `off_s` | Signed distance to any `address_like` (raw ptr, `uptr`, `va_s`, `ptr<>`) |
+| `p.diff(addr)` | `off_s` | Signed distance to any `address_like` (ptr, raw ptr, `uptr`, `va_s`) |
 
 ### Increment / Decrement
 
