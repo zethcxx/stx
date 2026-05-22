@@ -268,6 +268,7 @@ constexpr uptr normalize_addr(Addr base) noexcept;
 |----------------------|-----------------------------------------------|
 | Pointer              | `reinterpret_cast<uptr>`                      |
 | `va_s`               | Extract via `.get()` then cast                |
+| Type with `.addr()`  | Returns `base.addr()` (e.g. `ptr<T>`)         |
 | Integer address type | `static_cast<uptr>`                           |
 
 Purpose:
@@ -740,6 +741,7 @@ Behavior:
 |-------------------|--------------------------------|
 | `T*`               | Reinterpreted to `uptr`        |
 | `va_s`             | Extracted underlying value     |
+| Type with `.addr()` | Returns `base.addr()` (e.g. `ptr<T>`) |
 | Integer type       | Static cast to `uptr`          |
 
 ### Example
@@ -750,6 +752,7 @@ int x = 0;
 stx::uptr a = stx::normalize_addr(&x);
 stx::uptr b = stx::normalize_addr(stx::va_s{0x1000});
 stx::uptr c = stx::normalize_addr(std::uintptr_t{0x2000});
+stx::uptr d = stx::normalize_addr(my_ptr);  // ptr<T> via .addr()
 ```
 
 This centralizes canonical conversion to a uniform pointer-sized integer domain.
