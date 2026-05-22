@@ -494,9 +494,9 @@ if (!mapped) return;
 
 auto& m = *mapped;
 
-// Random access
-stx::u32 val = m.read<stx::u32>(stx::off_s{0x100});
-m.write(stx::off_s{0x104}, 0xDEADBEEF);
+// Random access via ptr
+stx::u32 val = m.as_p<stx::u32>()[stx::off_s{0x100}].read<stx::u32>();
+m.as_p<stx::u32>()[stx::off_s{0x104}].write(stx::u32{0xDEADBEEF});
 
 // Sequential
 m.seek(stx::off_s{0x100});
@@ -623,7 +623,7 @@ auto mapped = stx::map_file::open("data.bin");
 if (!mapped) return;
 auto& m = *mapped;
 
-stx::u32 magic = m.read<stx::u32>(stx::off_s{0});
+stx::u32 magic = m.as_p<stx::u32>()[stx::off_s{0}].read<stx::u32>();
 m.seek(stx::off_s{8});
 auto entries = m.read_view<Entry>(count);
 auto name = m.read_strvw();

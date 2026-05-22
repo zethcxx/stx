@@ -338,7 +338,8 @@ namespace lbyte::stx
         template<binary_readable T>
         auto read() noexcept -> T
         {
-            T val = read<T>(tell());
+            T val;
+            std::memcpy(&val, static_cast<const std::byte*>(data_) + pos_, sizeof(T));
             pos_ += sizeof(T);
             return val;
         }
@@ -376,7 +377,7 @@ namespace lbyte::stx
         template<binary_readable T>
         auto write(const T& value) noexcept -> void
         {
-            write(tell(), value);
+            std::memcpy(static_cast<std::byte*>(data_) + pos_, &value, sizeof(T));
             pos_ += sizeof(T);
         }
 
@@ -416,20 +417,6 @@ namespace lbyte::stx
             auto len = strnlen(base, avail);
             pos_ += len < avail ? len + 1 : avail;
             return {base, len};
-        }
-
-        // --- random-access I/O ---------------------------------------------
-
-        template<binary_readable T>
-        [[nodiscard]] auto read(off_s off) const noexcept -> T
-        {
-            return lbyte::stx::read<T>(data_, off);
-        }
-
-        template<binary_readable T>
-        auto write(off_s off, const T& value) const noexcept -> void
-        {
-            lbyte::stx::write(data_, off, value);
         }
 
         // --- span / ptr ----------------------------------------------------
@@ -642,21 +629,6 @@ namespace lbyte::stx
             pos_ += bytes;
         }
 
-        // --- random-access I/O ---------------------------------------------
-
-        template<binary_readable T>
-        T read(off_s off) const noexcept
-        {
-            T val;
-            std::memcpy(&val, buf_.data() + off.get(), sizeof(T));
-            return val;
-        }
-
-        template<binary_readable T>
-        void write(off_s off, const T& value) const noexcept
-        {
-            std::memcpy(buf_.data() + off.get(), &value, sizeof(T));
-        }
     };
 
     // --- platform ------------------------------------------------------------
