@@ -502,7 +502,7 @@ namespace lbyte::stx
     class reader_view
     {
         ptr<std::byte>  base_;   // start of buffer
-        usize           size_;   // buffer size
+        usize           size_{}; // buffer size
         ptr<std::byte>  cur_;    // cursor
 
     public:

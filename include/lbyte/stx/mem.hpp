@@ -514,6 +514,11 @@ namespace lbyte::stx
             return off_s{ scast<off_s::value_type>( address - other.address ) };
         }
 
+        template<address_like Addr>
+        [[nodiscard]] constexpr off_s diff( Addr other ) const noexcept {
+            return off_s{ scast<off_s::value_type>( address - normalize_addr(other) ) };
+        }
+
         // ---- WALK (memcpy-safe pointer chasing) ------------------
 
         template<std::integral U>
