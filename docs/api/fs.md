@@ -468,6 +468,7 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 |--------|-------------|
 | `push<T>(val)` | Write single value, advances cursor |
 | `push<T>(span)` | Write span elements, advances cursor |
+| `push(sv)` | Write `string_view` bytes, advances cursor |
 
 ### Zero-Copy Views
 
@@ -571,6 +572,7 @@ class reader_view {
 |--------|-------------|
 | `push<T>(val)` | Write single value (advances cursor) |
 | `push<T>(span)` | Write span of values (advances cursor) |
+| `push(sv)` | Write `string_view` bytes (advances cursor) |
 
 ### Read (zero-copy views, advances cursor)
 
@@ -581,6 +583,25 @@ class reader_view {
 | `read_strvw(max)` | `string_view` | Scan for `\0` bounded by `max` bytes (zero-copy) |
 
 > **Note:** The zero-copy `read_view` and `read_strvw` methods advance the cursor by the viewed region size.
+
+### Example (reader_view)
+
+```cpp
+int data[] = {1, 2, 3, 4};
+stx::reader_view r(data, sizeof(data));
+
+// Sequential pop
+auto x = r.pop<int>();     // reads int, advances by 4
+
+// Random access via as_p
+auto val = r.as_p<int>()[off_s{8}].read<int>();
+
+// Zero-copy view
+auto span = r.read_view<int>(2);
+
+// String view from raw data
+auto sv = r.read_strvw();
+```
 
 > **⚠️ Lifetime:** `read_view` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
 

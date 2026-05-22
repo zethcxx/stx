@@ -371,6 +371,10 @@ namespace lbyte::stx
             cur_.push(buf);
         }
 
+        void push(std::string_view sv) noexcept {
+            cur_.push(sv);
+        }
+
         // --- zero-copy views ------------------------------------------------
 
         template<binary_readable T>
@@ -577,6 +581,10 @@ namespace lbyte::stx
         template<binary_readable T>
         void push(std::span<const T> buf) noexcept {
             cur_.push(buf);
+        }
+
+        void push(std::string_view sv) noexcept {
+            cur_.push(sv);
         }
 
         // --- zero-copy views -----------------------------------------------

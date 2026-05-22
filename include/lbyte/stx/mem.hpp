@@ -6,6 +6,7 @@
 #include <cstring>
 #include <functional>
 #include <span>
+#include <string_view>
 
 #if defined(__GNUC__) || defined(__clang__)
     #define STX_FORCE_INLINE [[gnu::always_inline]] inline
@@ -376,6 +377,13 @@ namespace lbyte::stx
             auto bytes = buf.size_bytes();
             std::memcpy( rcast<std::byte*>(address), buf.data(), bytes );
             address += bytes;
+        }
+
+        STX_FORCE_INLINE
+        void push( std::string_view sv ) noexcept
+        {
+            std::memcpy( rcast<std::byte*>(address), sv.data(), sv.size() );
+            address += sv.size();
         }
 
         // ---- READ (endian-aware, no advance) -----------------------

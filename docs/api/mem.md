@@ -369,6 +369,7 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 |--------|-------------|
 | `push<T>(val)` | Write single value, `address += sizeof(T)` |
 | `push<T>(span)` | Write span elements, `address += span.size_bytes()` |
+| `push(sv)` | `string_view` bytes, `address += sv.size()` |
 
 ### Unsafe (Direct Deref, no advance)
 
