@@ -275,15 +275,19 @@ if (p == stx::null) { /* empty */ }
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `p[n]` (integral) | `ptr<T, Stride>` | Offset address by `n` bytes, return new `ptr` (no memory access) |
-| `p[off]` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off_s`/`rva_s` offset |
+| `p[n]` (integral) | `ptr_light<T, Stride>` | Offset address by `n` bytes, return non-chainable proxy (no memory access) |
+| `p[off]` (`byte_offset`) | `ptr_light<T, Stride>` | Same, via `off_s`/`rva_s` offset |
 
-Address offsetting without dereferencing. Useful for reaching a base address before chasing:
+> `operator[]` is a **syntactic convenience** for `ptr + off` — it avoids extra parentheses: `ptr[off].method()` is visually cleaner than `(ptr + off).method()`. It does **not** dereference memory (unlike C arrays — no `*` is performed).
+
+The return type `ptr_light<T>` extends `ptr<T>` but has `operator[]` deleted, making `ptr[a][b]` a **compile error**. This prevents misinterpretation as a multi-dimensional array when the operation is purely address arithmetic:
 
 ```cpp
 ptr<void> base{address};
-auto p = base[0x100];   // ptr at address + 0x100
-p >> 0x20;               // chase from there
+base[0x100]        // OK:  ptr_light at address + 0x100
+base[0x100][0x20]  // ERROR: ptr_light::operator[] is deleted
+(base + 0x100)[0x20]  // OK: (base + 0x100) returns ptr, then operator[] returns ptr_light
+base[0x100].read<u32>() // OK: ptr_light inherits read/write/push/etc.
 ```
 
 ### Pointer Chase (`>>`)
@@ -420,6 +424,7 @@ Byte-level, consistent with `+`/`-` arithmetic. Advances the address, not a type
 |--------|-------------|
 | `swap(p)` | Exchange addresses |
 | `std::hash<ptr<T, Stride>>` | Hash by address, usable in `unordered_set`/`map` |
+| `ptr_light<T, Stride>` | Non-chainable proxy returned by `operator[]`; inherits all `ptr` methods except `[]` |
 
 ### Example
 
@@ -431,8 +436,8 @@ auto addr = base.addr();                  // uptr
 auto ptr  = base.raw();                   // void*
 
 // Offset navigation
-auto next = base[0x100];                  // ptr at offset 0x100 (no read)
-auto next2 = base + off_s{0x100};         // same, via operator+
+auto next = base[0x100];                  // ptr_light at offset 0x100 (no read, no chaining)
+auto next2 = base + off_s{0x100};         // same, via operator+ returns ptr
 
 // Pointer chase (directory traversal metaphor)
 uptr target = (base[0x100] >> 0x10 >> 0x20).addr();
@@ -443,6 +448,10 @@ uptr via_walk = (base.walk(off_s{8})).addr();
 // Safe read/write — offset through operator[]
 u32 val = base[off_s{0x200}].read<u32>();
 base[off_s{8}].write(u16{0x1234});
+
+// Chaining is prevented — use operator+ or compose in one statement
+// base[off1][off2]              // ERROR: ptr_light::operator[] is deleted
+// (base + off1)[off2]           // OK:   operator+ returns ptr, then []
 
 // Stride management
 auto with_stride = base.step<4>();          // ptr<void, 4>
@@ -460,6 +469,30 @@ p = q;  // address copied, p's stride stays 4
 ---
 
 ## C/C++ Comparison: `ptr` vs Raw Pointers
+
+### `p[off]` is Not C Array Subscript
+
+Unlike C, `ptr::operator[]` is pure address arithmetic — it never dereferences memory:
+
+```cpp
+// stx:  addr + off, no memory access
+auto p = base[0x100];               // ptr_light at base + 0x100 (no read)
+u32 val = base[0x100].read<u32>();  // then explicitly read
+```
+
+```c
+// C:  [] always dereferences
+void* p = (char*)addr + 0x100;      // C needs explicit cast + add
+uint32_t val = *(uint32_t*)((char*)addr + 0x100);  // offset + deref in one step
+```
+
+```cpp
+// C++ raw:  offset explicit, deref separate
+uint32_t val;
+std::memcpy(&val, (const char*)addr + 0x100, sizeof(val));
+```
+
+The return type `ptr_light` enforces this: `base[a][b]` is a compile error because `ptr_light::operator[]` is deleted. In C, `arr[a][b]` implies a 2D array with two dereferences — `ptr` avoids this semantic confusion entirely.
 
 ### Pointer Chase (`>>`)
 
