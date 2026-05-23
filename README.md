@@ -48,7 +48,7 @@ Provides safe, low-level memory access, alignment primitives, and typed pointer 
 | `write<Type>(addr, offset, value)` | Copy-based write |
 | `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
 | `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `uptr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator/`, `read/write<T>`, `at<Stride>()`, `align_up/down` |
+| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator/`, `read/write<T>`, `step<Stride>()`, `align_up/down` |
 | `align_up` / `align_down` | Aligns integral or strong types to power-of-two boundaries |
 
 Intended use:
