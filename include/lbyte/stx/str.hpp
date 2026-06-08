@@ -51,62 +51,83 @@ namespace lbyte::stx::details
 
         // --- transformaciones -------------------------------------------------
 
+    private:
         [[nodiscard]]
-        consteval auto trim() const noexcept -> basic_sl {
-            basic_sl r{};
-
+        consteval size_t trim_size() const noexcept {
             size_t src = 0;
             while ( src < N && data_[src] == CharT{'\n'} )
                 ++src;
+            size_t end = src;
+            while ( end < N && data_[end] != CharT{} )
+                ++end;
+            while ( end > src && data_[end - 1] == CharT{'\n'} )
+                --end;
+            return end - src;
+        }
 
-            size_t dst = 0;
-            while ( src < N && data_[src] != CharT{} )
-                r.data_[dst++] = data_[src++];
-
-            while ( dst > 0 && r.data_[dst - 1] == CharT{'\n'} )
-                r.data_[--dst] = CharT{};
-
-            return r;
+        template<size_t NewN>
+        [[nodiscard]]
+        consteval basic_sl<CharT, NewN> do_trim() const noexcept {
+            size_t start = 0;
+            while ( start < N && data_[start] == CharT{'\n'} )
+                ++start;
+            std::array<CharT, NewN> result{};
+            for ( size_t i = 0; i < NewN - 1; ++i )
+                result[i] = data_[start + i];
+            return { result };
         }
 
         [[nodiscard]]
-        consteval auto unindent() const noexcept -> basic_sl {
-            size_t indent     = 0;
-            size_t line_start = 0;
-            bool   searching  = true;
-
-            for ( size_t i = 0; i < N && searching && data_[i] != CharT{}; ++i ) {
-                auto c = data_[i];
-                if ( c == CharT{'\n'} ) {
-                    line_start = i + 1;
-                } else if ( c == CharT{' '} || c == CharT{'\t'} ) {
-                } else {
-                    indent    = i - line_start;
-                    searching = false;
-                }
-            }
-
-            if ( searching || indent == 0 )
-                return *this;
-
-            basic_sl r{};
-            size_t dst = 0;
-            size_t col = 0;
-
+        consteval size_t unindent_size() const noexcept {
+            size_t dst = 0, col = 0, indent = 0, line_start = 0;
+            bool searching = true;
             for ( size_t i = 0; i < N && data_[i] != CharT{}; ++i ) {
                 auto c = data_[i];
-                if ( c == CharT{'\n'} ) {
-                    r.data_[dst++] = c;
-                    col = 0;
-                } else if ( col < indent && (c == CharT{' '} || c == CharT{'\t'}) ) {
-                    ++col;
-                } else {
-                    r.data_[dst++] = c;
-                    ++col;
+                if ( searching ) {
+                    if ( c == CharT{'\n'} )       { line_start = i + 1; }
+                    else if ( c != CharT{' '} && c != CharT{'\t'} ) {
+                        indent = i - line_start;
+                        searching = false;
+                    }
                 }
+                if ( c == CharT{'\n'} )       { ++dst; col = 0; }
+                else if ( !searching && col < indent && (c == CharT{' '} || c == CharT{'\t'}) ) ++col;
+                else                          { ++dst; ++col; }
             }
+            return dst;
+        }
 
-            return r;
+        template<size_t NewN>
+        [[nodiscard]]
+        consteval basic_sl<CharT, NewN> do_unindent() const noexcept {
+            std::array<CharT, NewN> result{};
+            size_t dst = 0, col = 0, indent = 0, line_start = 0;
+            bool searching = true;
+            for ( size_t i = 0; i < N && data_[i] != CharT{}; ++i ) {
+                auto c = data_[i];
+                if ( searching ) {
+                    if ( c == CharT{'\n'} )       { line_start = i + 1; }
+                    else if ( c != CharT{' '} && c != CharT{'\t'} ) {
+                        indent = i - line_start;
+                        searching = false;
+                    }
+                }
+                if ( c == CharT{'\n'} )       { result[dst++] = c; col = 0; }
+                else if ( !searching && col < indent && (c == CharT{' '} || c == CharT{'\t'}) ) ++col;
+                else                          { result[dst++] = c; ++col; }
+            }
+            return { result };
+        }
+
+    public:
+        [[nodiscard]]
+        consteval auto trim() const noexcept {
+            return do_trim<trim_size() + 1>();
+        }
+
+        [[nodiscard]]
+        consteval auto unindent() const noexcept {
+            return do_unindent<unindent_size() + 1>();
         }
     };
 }
