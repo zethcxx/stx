@@ -174,6 +174,10 @@ namespace lbyte::stx
 
         constexpr ptr() noexcept = default;
 
+        constexpr ptr(T* raw_ptr) noexcept
+          : address { rcast<::lbyte::stx::uptr>(raw_ptr) }
+        {}
+
         constexpr explicit ptr(address_like auto addr) noexcept
           : address { normalize_addr( addr ) }
         {}
@@ -183,6 +187,11 @@ namespace lbyte::stx
         {}
 
         // ---- REBIND ADDRESS --------------------------------------
+
+        constexpr ptr& operator=(T* raw_ptr) noexcept {
+            address = rcast<::lbyte::stx::uptr>(raw_ptr);
+            return *this;
+        }
 
         constexpr ptr& operator=(address_like auto addr) noexcept {
             address = normalize_addr( addr );
