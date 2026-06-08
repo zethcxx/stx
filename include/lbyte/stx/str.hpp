@@ -27,17 +27,20 @@ namespace lbyte::stx::details
             : data_( arr )
         {}
 
-        // --- decaimiento natural (como un string literal crudo) --------------
+        // --- decay to C string ------------------------------------------------
 
         [[nodiscard]]
-        constexpr operator const CharT*() const noexcept {
+        constexpr operator const CharT*() const & noexcept {
             return data_.data();
         }
 
-        // --- acceso explícito -------------------------------------------------
+        [[nodiscard]]
+        constexpr operator const CharT*() const && noexcept = delete;
+
+        // --- explicit access --------------------------------------------------
 
         [[nodiscard]]
-        constexpr std::basic_string_view<CharT> sv() const noexcept {
+        constexpr std::basic_string_view<CharT> sv() const & noexcept {
             size_t len = 0;
             while ( len < N && data_[len] != CharT{} )
                 ++len;
@@ -45,11 +48,22 @@ namespace lbyte::stx::details
         }
 
         [[nodiscard]]
+        constexpr std::basic_string_view<CharT> sv() const && noexcept = delete;
+
+        [[nodiscard]]
+        constexpr const CharT* c_str() const & noexcept {
+            return data_.data();
+        }
+
+        [[nodiscard]]
+        constexpr const CharT* c_str() const && noexcept = delete;
+
+        [[nodiscard]]
         constexpr std::basic_string<CharT> str() const {
             return std::basic_string<CharT>{ sv() };
         }
 
-        // --- transformaciones -------------------------------------------------
+        // --- transformations --------------------------------------------------
 
     private:
         [[nodiscard]]
