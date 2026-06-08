@@ -350,7 +350,8 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 | `read_p<T>()` | `ptr<T, 1>` | non-void | Read a pointer value, returns `ptr<T>` |
 | `read_le<T>()` | `T` | `std::integral<T>` | Little-endian read |
 | `read_be<T>()` | `T` | `std::integral<T>` | Big-endian read |
-| `read_view<T, N>()` | `span<const T, N>` | `binary_readable<T>` | Zero-copy fixed-extent view |
+| `read_span<T, N>()` | `span<const T, N>` | `binary_readable<T>`, `N > 1` | Zero-copy fixed-extent span |
+| `read_span<T>(count)` | `span<const T>` | `binary_readable<T>` | Zero-copy dynamic-extent span |
 
 ### Pop (read + advance cursor)
 

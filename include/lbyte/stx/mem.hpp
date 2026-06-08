@@ -410,14 +410,22 @@ namespace lbyte::stx
             return ::lbyte::stx::read_be<U>( address );
         }
 
-        // ---- ZERO-COPY VIEW (no advance) --------------------------
+        // ---- ZERO-COPY SPAN (no advance) --------------------------
 
         template<typename U = T, usize N>
+            requires ( not std::is_void_v<U> && binary_readable<U> && N > 1 )
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_view() const noexcept -> std::span<const U, N>
-            requires ( not std::is_void_v<U> && binary_readable<U> )
+        auto read_span() const noexcept -> std::span<const U, N>
         {
             return std::span<const U, N>( rcast<const U*>(address) );
+        }
+
+        template<typename U = T>
+            requires ( not std::is_void_v<U> && binary_readable<U> )
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_span( usize count ) const noexcept -> std::span<const U>
+        {
+            return std::span<const U>( rcast<const U*>(address), count );
         }
 
         // ---- UNSAFE (direct deref) --------------------------------

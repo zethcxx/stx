@@ -476,11 +476,10 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 |--------|---------|-------------|
 | `bytes()` | `span<const byte>` / `span<byte>` | Full region as span |
 | `as_p<T>()` | `ptr<T>` | Typed pointer to base |
-| `read_view<T>(count)` | `span<const T>` | View of `count` elements at cursor (zero-copy, advances cursor) |
+| `read_span<T, N>()` | `span<const T, N>` | Zero-copy fixed-extent span at cursor, `N > 1` (advances cursor) |
+| `read_span<T>(count)` | `span<const T>` | Zero-copy dynamic-extent span at cursor (advances cursor) |
 | `read_strvw()` | `string_view` | Scans for `\0` until end of buffer (zero-copy, advances cursor) |
 | `read_strvw(max)` | `string_view` | Scans for `\0` bounded by `max` bytes (zero-copy, advances cursor) |
-
-> **Semantics:** scans forward from cursor for a null terminator (`\0`) within the available range. If found, cursor advances past the null and returns the string before it. If not found, cursor advances by the scanned amount and returns everything scanned. Valid while the `map_file` is alive — views become dangling on move/destroy.
 
 ### Example
 
@@ -502,9 +501,10 @@ stx::u32 b = m.pop<stx::u32>();
 // Skip bytes
 m.skip(stx::off_s{8});
 
-// Zero-copy view of structs
+// Zero-copy span of structs
 struct Entry { stx::u32 id; stx::u64 off; };
-auto entries = m.read_view<Entry>(4);
+auto entries = m.read_span<Entry>(4);        // dynamic extent
+auto fixed   = m.read_span<Entry, 4>();       // fixed extent, N > 1
 
 // Zero-copy string (bounded, null-terminated)
 auto name = m.read_strvw(32);
@@ -574,15 +574,16 @@ class reader_view {
 | `push<T>(span)` | `reader_view&` | Write span of values (advances cursor) |
 | `push(sv)` | `reader_view&` | Write `string_view` bytes (advances cursor) |
 
-### Read (zero-copy views, advances cursor)
+### Read (zero-copy span, advances cursor)
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `read_view<T>(count)` | `span<const T>` | Zero-copy view of `count` elements (advances cursor) |
+| `read_span<T, N>()` | `span<const T, N>` | Zero-copy fixed-extent span, `N > 1` (advances cursor) |
+| `read_span<T>(count)` | `span<const T>` | Zero-copy dynamic-extent span (advances cursor) |
 | `read_strvw()` | `string_view` | Scan for `\0` until end of buffer (zero-copy) |
 | `read_strvw(max)` | `string_view` | Scan for `\0` bounded by `max` bytes (zero-copy) |
 
-> **Note:** The zero-copy `read_view` and `read_strvw` methods advance the cursor by the viewed region size.
+> **Note:** The zero-copy `read_span` and `read_strvw` methods advance the cursor by the viewed region size.
 
 ### Example (reader_view)
 
@@ -596,14 +597,14 @@ auto x = r.pop<int>();     // reads int, advances by 4
 // Random access via as_p
 auto val = r.as_p<int>()[off_s{8}].read<int>();
 
-// Zero-copy view
-auto span = r.read_view<int>(2);
+// Zero-copy span
+auto span = r.read_span<int>(2);
 
 // String view from raw data
 auto sv = r.read_strvw();
 ```
 
-> **⚠️ Lifetime:** `read_view` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
+> **⚠️ Lifetime:** `read_span` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
 
 ### Example
 
@@ -615,8 +616,8 @@ stx::reader_view r{buf};
 auto magic = r.read<stx::le<stx::u32>>();
 auto count = r.read<stx::u16>();
 
-// Zero-copy view
-auto entries = r.read_view<Entry>(count);
+// Zero-copy span
+auto entries = r.read_span<Entry>(count);
 
 // Copy into vector
 auto names = r.read<char>(32);
@@ -640,7 +641,7 @@ auto& m = *mapped;
 
 stx::u32 magic = m.as_p<stx::u32>()[stx::off_s{0}].read<stx::u32>();
 m.seek(stx::off_s{8});
-auto entries = m.read_view<Entry>(count);
+auto entries = m.read_span<Entry>(count);
 auto name = m.read_strvw();
 // closes automatically — no cleanup
 ```

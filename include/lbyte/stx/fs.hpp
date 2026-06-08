@@ -378,10 +378,22 @@ namespace lbyte::stx
             return *this;
         }
 
-        // --- zero-copy views ------------------------------------------------
+        // --- zero-copy span ------------------------------------------------
+
+        template<binary_readable T, usize N>
+            requires ( N > 1 )
+        [[nodiscard]] auto read_span() noexcept -> std::span<const T, N>
+        {
+            auto rem = (base_.addr() + size_) - cur_.addr();
+            auto max = rem / sizeof(T);
+            if (N > max) return {};
+            auto* ptr = rcast<const T*>(cur_.addr());
+            cur_ = cur_ + off_s{scast<off_s::value_type>(N * sizeof(T))};
+            return {ptr, N};
+        }
 
         template<binary_readable T>
-        [[nodiscard]] auto read_view(usize count) noexcept -> std::span<const T>
+        [[nodiscard]] auto read_span(usize count) noexcept -> std::span<const T>
         {
             auto rem = (base_.addr() + size_) - cur_.addr();
             auto max = rem / sizeof(T);
@@ -593,10 +605,22 @@ namespace lbyte::stx
             return *this;
         }
 
-        // --- zero-copy views -----------------------------------------------
+        // --- zero-copy span -----------------------------------------------
+
+        template<binary_readable T, usize N>
+            requires ( N > 1 )
+        std::span<const T, N> read_span() noexcept
+        {
+            auto rem = (base_.addr() + size_) - cur_.addr();
+            auto max = rem / sizeof(T);
+            if (N > max) return {};
+            auto* ptr = rcast<const T*>(cur_.addr());
+            cur_ = cur_ + off_s{scast<off_s::value_type>(N * sizeof(T))};
+            return {ptr, N};
+        }
 
         template<binary_readable T>
-        std::span<const T> read_view(usize count) noexcept
+        std::span<const T> read_span(usize count) noexcept
         {
             auto rem = (base_.addr() + size_) - cur_.addr();
             auto max = rem / sizeof(T);
