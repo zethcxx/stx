@@ -11,7 +11,13 @@ namespace lbyte::stx
     struct caller_t<Ret CC(Args...)> \
     { \
         using fn_t = Ret (CC *)(Args...); \
-        fn_t fn; \
+        fn_t fn = nullptr; \
+        \
+        template<address_like Addr> \
+        inline constexpr caller_t(Addr addr) noexcept \
+            : fn(reinterpret_cast<fn_t>(normalize_addr(addr))) \
+        {} \
+        \
         inline constexpr operator fn_t      ()             const noexcept { return fn; }; \
         inline constexpr Ret      operator()(Args... args) const \
             noexcept(std::is_nothrow_invocable_v<fn_t, Args...>) \
@@ -40,10 +46,7 @@ namespace lbyte::stx
     template<class Sig> [[nodiscard]]
     inline constexpr auto caller( address_like auto addr ) noexcept
     {
-        using fn_t = typename caller_t<Sig>::fn_t;
-        return caller_t<Sig>{
-            reinterpret_cast<fn_t>(normalize_addr(addr))
-        };
+        return caller_t<Sig>( addr );
     }
 }
 

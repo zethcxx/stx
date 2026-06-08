@@ -526,6 +526,18 @@ namespace lbyte::stx
             , cur_(base_)
         {}
 
+        reader_view(std::span<const std::byte> buf) noexcept
+            : base_(ptr<std::byte>(rcast<uptr>(const_cast<std::byte*>(buf.data()))))
+            , size_(buf.size())
+            , cur_(base_)
+        {}
+
+        reader_view(ptr<std::byte> base, usize size) noexcept
+            : base_(base)
+            , size_(size)
+            , cur_(base)
+        {}
+
         reader_view(void* data, usize size) noexcept
             : base_(ptr<std::byte>(rcast<uptr>(data)))
             , size_(size)
