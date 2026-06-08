@@ -308,8 +308,8 @@ ptr<void> pe_base{0x140000000};
 // Navigate, then chase
 uptr target = (pe_base[0x100] >> 0x10 >> 0x20 >> 0x08).addr();
 
-// stride via at<N>
-uptr v2 = (pe_base.at<4>() >> 3 >> 5).addr();
+// stride via step<N>
+uptr v2 = (pe_base.step<4>() >> 3 >> 5).addr();
 // / 3 → reads uptr at addr + 3*4
 // / 5 → reads uptr at result + 5*4
 ```
@@ -327,13 +327,13 @@ Like `/` but ignores `Stride` — offset is an absolute byte offset, not multipl
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `at<NewStride>()` | `ptr<T, NewStride>` | New `ptr` with stride `N` at same address (does not modify `*this`) |
-| `at<U>()` | `ptr<T, sizeof(U)>` | New `ptr` with stride = `sizeof(U)` |
+| `step<NewStride>()` | `ptr<T, NewStride>` | New `ptr` with stride `N` at same address (does not modify `*this`) |
+| `step<U>()` | `ptr<T, sizeof(U)>` | New `ptr` with stride = `sizeof(U)` |
 
 ```cpp
 ptr<int, 2> p{addr};
-auto p2 = p.at<4>();              // ptr<int, 4> at same address
-auto p3 = p.at<stx::u32>();       // ptr<int, 4> via sizeof(u32)
+auto p2 = p.step<4>();              // ptr<int, 4> at same address
+auto p3 = p.step<stx::u32>();       // ptr<int, 4> via sizeof(u32)
 p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 ```
 
@@ -445,7 +445,7 @@ u32 val = base[off_s{0x200}].read<u32>();
 base[off_s{8}].write(u16{0x1234});
 
 // Stride management
-auto with_stride = base.at<4>();          // ptr<void, 4>
+auto with_stride = base.step<4>();          // ptr<void, 4>
 uptr chased = (with_stride >> 3 >> 5).addr();
 
 // Call as function
@@ -526,11 +526,11 @@ All three produce identical `memcpy` calls. `ptr::read` saves the boilerplate an
 
 ---
 
-### Stride Management (`at<N>`)
+### Stride Management (`step<N>`)
 
 ```cpp
 // stx:  stride is part of the type
-auto entry_table = base.at<4>();   // ptr<void, 4>
+auto entry_table = base.step<4>();   // ptr<void, 4>
 uptr entry = (entry_table >> 3 >> 5).addr();
 ```
 
@@ -540,7 +540,7 @@ u64 e1 = *(u64*)((char*)addr + 3 * 4);
 u64 e2 = *(u64*)((char*)e1 + 5 * 4);
 ```
 
-With `ptr`, the stride is set once via `at<N>()` and `>>` automatically scales — no mental recalculation of `sizeof` at each step.
+With `ptr`, the stride is set once via `step<N>()` and `>>` automatically scales — no mental recalculation of `sizeof` at each step.
 
 ---
 

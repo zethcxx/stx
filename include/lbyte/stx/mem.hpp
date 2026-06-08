@@ -552,12 +552,12 @@ namespace lbyte::stx
         // ---- STRIDE MANAGEMENT -----------------------------------
 
         template<::lbyte::stx::uptr NewStride>
-        [[nodiscard]] constexpr ptr<T, NewStride> at() const noexcept {
+        [[nodiscard]] constexpr ptr<T, NewStride> step() const noexcept {
             return ptr<T, NewStride>( address );
         }
 
         template<typename U>
-        [[nodiscard]] constexpr ptr<T, sizeof(U)> at() const noexcept {
+        [[nodiscard]] constexpr ptr<T, sizeof(U)> step() const noexcept {
             return ptr<T, sizeof(U)>( address );
         }
 

@@ -34,7 +34,7 @@
 | Type | Description |
 |------|-------------|
 | `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `addr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator>>`, `read/write<T>`, `at<Stride>()`, `align_up/down` |
+| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator>>`, `read/write<T>`, `step<Stride>()`, `align_up/down` |
 
 ### Fundamental Aliases
 
