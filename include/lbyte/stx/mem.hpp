@@ -162,6 +162,9 @@ namespace lbyte::stx
     // --- ptr<T, Stride> ---------------------------------------------------------
 
     template<typename T, uptr Stride = 1>
+    struct ptr_light;
+
+    template<typename T, uptr Stride = 1>
     class ptr
     {
         ::lbyte::stx::uptr address = 0;
@@ -259,13 +262,13 @@ namespace lbyte::stx
         // ---- NAVIGATION -------------------------------------------
 
         template<std::integral U>
-        [[nodiscard]] constexpr ptr operator[]( U offset ) const noexcept {
-            return ptr( address + static_cast<::lbyte::stx::uptr>( offset ));
+        [[nodiscard]] constexpr ptr_light<T, Stride> operator[]( U offset ) const noexcept {
+            return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset ));
         }
 
         template<byte_offset OffT>
-        [[nodiscard]] constexpr ptr operator[]( OffT offset ) const noexcept {
-            return ptr( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
+        [[nodiscard]] constexpr ptr_light<T, Stride> operator[]( OffT offset ) const noexcept {
+            return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
         }
 
         // ---- SAFE (memcpy) ---------------------------------------
@@ -600,6 +603,17 @@ namespace lbyte::stx
             a.swap( b );
         }
     };
+
+    // --- ptr_light<T, Stride> (non-chainable proxy from operator[]) -------------
+
+    template<typename T, uptr Stride>
+    struct ptr_light : ptr<T, Stride>
+    {
+        using ptr<T, Stride>::ptr;
+
+        template<typename U>
+        ptr_light operator[]( U ) const = delete;
+    };
 }
 
 #ifndef LBYTE_STX_MODULE
@@ -607,6 +621,14 @@ template<typename T, lbyte::stx::uptr Stride>
 struct std::hash<lbyte::stx::ptr<T, Stride>>
 {
     [[nodiscard]] auto operator()( const lbyte::stx::ptr<T, Stride>& p ) const noexcept {
+        return std::hash<lbyte::stx::uptr>{}( p.addr() );
+    }
+};
+
+template<typename T, lbyte::stx::uptr Stride>
+struct std::hash<lbyte::stx::ptr_light<T, Stride>>
+{
+    [[nodiscard]] auto operator()( const lbyte::stx::ptr_light<T, Stride>& p ) const noexcept {
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
