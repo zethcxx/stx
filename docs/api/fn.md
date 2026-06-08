@@ -32,16 +32,13 @@ template<class Ret, class... Args>
 struct caller_t<Ret(Args...)>
 {
     using fn_t = Ret (*)(Args...);
-    fn_t fn;
+    fn_t fn = nullptr;
 
-    inline constexpr Ret operator()(Args... args) const noexcept
-    {
-        return fn(args...);
-    }
+    template<address_like Addr>
+    inline constexpr caller_t(Addr addr) noexcept;
 
-    [[nodiscard]] constexpr explicit operator bool() const noexcept {
-        return fn != nullptr;
-    }
+    inline constexpr Ret operator()(Args... args) const noexcept;
+    [[nodiscard]] constexpr explicit operator bool() const noexcept;
 };
 ```
 
@@ -105,6 +102,16 @@ if (!c) {
 
 ---
 
+## Direct Construction
+
+`caller_t<Sig>` can be constructed directly from any `address_like` value:
+
+```cpp
+stx::caller_t<int(int)> c{some_addr};
+```
+
+The constructor normalizes the address via `normalize_addr` and reinterpret-casts to the function pointer type. Default member initializer sets `fn = nullptr`, so default-constructed `caller_t` is safe to check via `operator bool`.
+
 ## Factory Function: `caller<Sig>`
 
 ```cpp
@@ -112,21 +119,12 @@ template<class Sig>
 inline constexpr auto caller(address_like auto addr) noexcept;
 ```
 
-Creates a `caller_t<Sig>` from any `address_like` value.
-
-### Steps Performed
-
-1. Normalize address to `uptr` via `normalize_addr`.
-2. Reinterpret as `Ret (*)(Args...)`.
-3. Store inside `caller_t<Sig>`.
+Convenience factory — equivalent to `caller_t<Sig>(addr)`. Creates a `caller_t<Sig>` from any `address_like` value without naming the template parameter twice.
 
 Implementation:
 
 ```cpp
-using fn_t = typename caller_t<Sig>::fn_t;
-return caller_t<Sig>{
-    reinterpret_cast<fn_t>(normalize_addr(addr))
-};
+return caller_t<Sig>( addr );
 ```
 
 ---
