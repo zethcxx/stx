@@ -41,8 +41,8 @@ auto str = sl.str();           // explicit: std::string (always safe)
 | `sv()` | `std::basic_string_view<CharT>` | View into internal buffer; `const &` only — `&&` deleted |
 | `c_str()` | `const CharT*` | Explicit C string pointer; `const &` only — `&&` deleted |
 | `str()` | `std::basic_string<CharT>` | Owned copy — always safe on any ref-qualifier |
-| `trim()` | `basic_sl<CharT, NewN>` | Remove leading + trailing `\n`, returns exact compiled size |
-| `unindent()` | `basic_sl<CharT, NewN>` | Remove common leading whitespace based on first text line, returns exact compiled size |
+| `trim()` | `basic_sl<CharT, N>` | Remove leading + trailing `\n` only (internal newlines preserved) |
+| `unindent()` | `basic_sl<CharT, N>` | Remove common leading whitespace based on first text line's indentation |
 
 ## Lifetime
 
@@ -75,20 +75,27 @@ puts(out.c_str());
 
 ## trim()
 
-Removes all leading and trailing newline characters (`\n`).
+Removes all leading and trailing newline characters (`\n`). Internal newlines
+are preserved. Only `\n` is stripped — other whitespace characters (` `, `\t`,
+`\r`) are left untouched. The result is null-terminated within the same-size
+internal buffer; use `.sv()` to read the trimmed content.
 
 ```cpp
-constexpr auto t1 = "\nhello\n"_sl.trim();     t1.sv()   // "hello"
-constexpr auto t2 = "\n\nhello"_sl.trim();     t2.sv()   // "hello"
-constexpr auto t3 = "hello\n\n"_sl.trim();     t3.sv()   // "hello"
-constexpr auto t4 = "\nhello\nworld\n"_sl.trim(); t4.sv() // "hello\nworld"
+constexpr auto t1 = "\nhello\n"_sl.trim();       t1.sv()   // "hello"
+constexpr auto t2 = "\n\nhello"_sl.trim();       t2.sv()   // "hello"
+constexpr auto t3 = "hello\n\n"_sl.trim();       t3.sv()   // "hello"
+constexpr auto t4 = "\nhello\nworld\n"_sl.trim(); t4.sv()  // "hello\nworld"
 ```
 
 ## unindent()
 
-Detects the indentation of the first non-empty line (a line with at least one
-non-whitespace character: spaces and tabs are whitespace, `\n` is line
-separator). Removes that many leading whitespace characters from every line.
+Walks every line and removes the first *N* whitespace characters (` ` and `\t`),
+where *N* is the indentation of the **first non-empty line** — the first line
+that contains at least one non-whitespace character. Lines consisting entirely
+of whitespace are skipped when determining *N* but are preserved in the output.
+
+Blank lines (containing only `\n`) keep their `\n` and do not reset the
+indentation search.
 
 ```cpp
 constexpr auto u1 = "  hello"_sl.unindent();             u1.sv()  // "hello"
@@ -117,8 +124,7 @@ constexpr auto s = "\n  hello\n  world\n"_sl.trim().unindent();
 ## Module
 
 ```cpp
-import lbyte.stx.str;   // basic_sl, but mainly for module internal use
-import lbyte.stx;        // all modules including str
+import lbyte.stx;   // all modules including str
 ```
 
 The `_sl` literal is available through `import lbyte.stx.literals`.
