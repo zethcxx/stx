@@ -65,7 +65,7 @@ auto main() -> int
 {
     off_s offset{128};
 
-    for (auto i : range(10, range_dir::Forward))
+    for (auto i : range<int>(10))
     {
         // iteration
     }

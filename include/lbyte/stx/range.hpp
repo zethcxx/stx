@@ -45,214 +45,87 @@ namespace lbyte::stx
     }
 
     // ENUMS ---------------------------------------------------------------------
-    enum class range_dir: u8 {
-        Forward,
-        Backward
-    };
-
     enum class range_mode : u8
     {
         Inclusive,
         Exclusive,
     };
 
-    // FACTORY FUNCTIONS ----------------------------------------------------------
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range( Type _to ) noexcept {
-        return range( _to, range_dir::Forward, range_mode::Exclusive );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range(
-        Type _from,
-        Type _to
-    ) noexcept {
-        return range( _from, _to, range_dir::Forward, range_mode::Exclusive );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range(
-        Type _to,
-        range_dir  dir,
-        range_mode flag = range_mode::Exclusive
-    ) noexcept {
-        using ValueT = details::base_type_t<Type>;
-        const ValueT to { details::unwrap( _to )};
-
-        if (dir == range_dir::Backward) {
-            return details::range_view<Type> {
-                to,
-                ValueT{ 0 },
-                ValueT{ 1 },
-                dir,
-                flag
-            };
-        }
-
-        return details::range_view<Type> {
-            ValueT{ 0 },
-            to         ,
-            ValueT{ 1 },
-            dir,
-            flag
+    namespace details {
+        enum class dir : u8 {
+            fwd,
+            bwd,
         };
     }
 
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range(
-        Type      _from,
-        Type      _to  ,
-        details::base_type_t<Type> step,
-        range_dir dir  ,
-        range_mode flag = range_mode::Exclusive
-    ) noexcept {
-        using ValueT = details::base_type_t<Type>;
-
-        const ValueT from { details::unwrap( _from ) };
-        const ValueT to   { details::unwrap( _to   ) };
-
-        return details::range_view<Type> {
-            from,
-            to  ,
-            step,
-            dir,
-            flag
-        };
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range(
-        Type      from,
-        Type      to  ,
-        range_dir dir ,
-        range_mode flag = range_mode::Exclusive
-    ) noexcept {
-        return range( from, to, details::base_type_t<Type>{ 1 }, dir, flag );
-    }
-
-    // --- ORIGINAL irange OVERLOADS (deduced Type from Type args) ---------------
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( Type from, Type to, details::base_type_t<Type> step, range_dir dir ) noexcept
-    {
-        return range( from, to, step, dir, range_mode::Inclusive );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( Type to ) noexcept
-    {
-        return range( to, range_dir::Forward, range_mode::Inclusive );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( Type to, range_dir dir ) noexcept
-    {
-        return range( to, dir, range_mode::Inclusive );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( Type from, Type to, range_dir dir ) noexcept
-    {
-        return range( from, to, details::base_type_t<Type>{ 1 }, dir, range_mode::Inclusive );
-    }
-
-    // --- CONVENIENCE OVERLOADS (explicit Type, auto-converting args) ------------
-    // Enable ergonomic range<off_s>(0, count, 16) instead of
-    // range(off_s{0}, off_s{count}, off_s{16}).  Only enabled when Type is a
-    // strong type or enum (i.e. Type != base_type_t<Type>) so there is no
-    // ambiguity with plain integral ranges.  The original Type-param overloads
-    // are more specialised and win when both match.
+    // FACTORY FUNCTIONS (explicit Type only, auto-converting args) ---------------
+    // Direction is inferred: 1-arg/2-arg from to>=from, 3-arg from step sign.
 
     template<details::rangeable Type> [[nodiscard]]
     constexpr auto range( auto _to ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
     {
-        return range( Type{ _to } );
+        using ValueT = details::base_type_t<Type>;
+        using SignedT = std::make_signed_t<ValueT>;
+        ValueT from{};
+        ValueT to = details::unwrap( Type{ _to } );
+        auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
+        return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Exclusive };
     }
 
     template<details::rangeable Type> [[nodiscard]]
     constexpr auto range( auto _from, auto _to ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
     {
-        return range( Type{ _from }, Type{ _to } );
+        using ValueT = details::base_type_t<Type>;
+        ValueT from = details::unwrap( Type{ _from } );
+        ValueT to   = details::unwrap( Type{ _to   } );
+        auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
+        return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Exclusive };
     }
 
     template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range( auto _from, auto _to, auto step ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    constexpr auto range( auto _from, auto _to, auto _step ) noexcept
     {
-        return range(
-            Type{ _from }, Type{ _to },
-            static_cast<details::base_type_t<Type>>( step ),
-            range_dir::Forward, range_mode::Exclusive
-        );
+        using ValueT = details::base_type_t<Type>;
+        using SignedT = std::make_signed_t<ValueT>;
+        ValueT from = details::unwrap( Type{ _from } );
+        ValueT to   = details::unwrap( Type{ _to   } );
+        SignedT step = static_cast<SignedT>( _step );
+        auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
+        ValueT mag = static_cast<ValueT>( step >= 0 ? step : -step );
+        return details::range_view<Type>{ from, to, mag, d, range_mode::Exclusive };
     }
 
     template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range(
-        auto      _from,
-        auto      _to  ,
-        auto      step ,
-        range_dir dir  ,
-        range_mode flag = range_mode::Exclusive
-    ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    constexpr auto irange( auto _to ) noexcept
     {
-        return range( Type{ _from }, Type{ _to },
-            static_cast<details::base_type_t<Type>>( step ), dir, flag );
+        using ValueT = details::base_type_t<Type>;
+        ValueT from{};
+        ValueT to = details::unwrap( Type{ _to } );
+        auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
+        return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Inclusive };
     }
 
     template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range(
-        auto      from,
-        auto      to  ,
-        range_dir dir ,
-        range_mode flag = range_mode::Exclusive
-    ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    constexpr auto irange( auto _from, auto _to ) noexcept
     {
-        return range( Type{ from }, Type{ to },
-            details::base_type_t<Type>{ 1 }, dir, flag );
+        using ValueT = details::base_type_t<Type>;
+        ValueT from = details::unwrap( Type{ _from } );
+        ValueT to   = details::unwrap( Type{ _to   } );
+        auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
+        return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Inclusive };
     }
 
     template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range(
-        auto      _to,
-        range_dir dir,
-        range_mode flag = range_mode::Exclusive
-    ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
+    constexpr auto irange( auto _from, auto _to, auto _step ) noexcept
     {
-        return range( Type{ _to }, dir, flag );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( auto to ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
-    {
-        return irange( Type{ to } );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( auto to, range_dir dir ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
-    {
-        return irange( Type{ to }, dir );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( auto from, auto to, range_dir dir ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
-    {
-        return irange( Type{ from }, Type{ to }, dir );
-    }
-
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( auto from, auto to, auto step, range_dir dir ) noexcept
-        requires (not std::same_as<details::base_type_t<Type>, Type>)
-    {
-        return irange( Type{ from }, Type{ to },
-            static_cast<details::base_type_t<Type>>( step ), dir );
+        using ValueT = details::base_type_t<Type>;
+        using SignedT = std::make_signed_t<ValueT>;
+        ValueT from = details::unwrap( Type{ _from } );
+        ValueT to   = details::unwrap( Type{ _to   } );
+        SignedT step = static_cast<SignedT>( _step );
+        auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
+        ValueT mag = static_cast<ValueT>( step >= 0 ? step : -step );
+        return details::range_view<Type>{ from, to, mag, d, range_mode::Inclusive };
     }
 }
 
@@ -267,7 +140,7 @@ struct lbyte::stx::details::range_iter
 
     ::lbyte::stx::usize remaining;
 
-    range_dir dir ;
+    dir dir_ ;
 
     constexpr Type operator*() const noexcept
     {
@@ -281,7 +154,7 @@ struct lbyte::stx::details::range_iter
     {
         if ( remaining > 0 )
         {
-            if ( dir == range_dir::Forward )
+            if ( dir_ == dir::fwd )
                 cur += step;
             else
                 cur -= step;
@@ -309,7 +182,7 @@ struct lbyte::stx::details::range_view
     ValueT to  ;
     ValueT step;
 
-    range_dir  dir ;
+    dir       dir_ ;
     range_mode mode;
 
     constexpr auto begin() const noexcept
@@ -318,7 +191,7 @@ struct lbyte::stx::details::range_view
 
         assert( step != 0 && "range: step must be non-zero" );
 
-        if ( dir == range_dir::Forward )
+        if ( dir_ == dir::fwd )
         {
             if ( from <= to )
             {
@@ -331,7 +204,7 @@ struct lbyte::stx::details::range_view
                     remaining = dist / step_u + 1;
             }
         }
-        else // Backward
+        else // bwd
         {
             if ( from >= to )
             {
@@ -345,7 +218,7 @@ struct lbyte::stx::details::range_view
             }
         }
 
-        auto it = iter_t { from, step, remaining, dir };
+        auto it = iter_t { from, step, remaining, dir_ };
 
         return it;
     }

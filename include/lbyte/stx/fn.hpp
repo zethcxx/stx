@@ -18,6 +18,10 @@ namespace lbyte::stx
             : fn(reinterpret_cast<fn_t>(normalize_addr(addr))) \
         {} \
         \
+        inline constexpr caller_t(std::nullptr_t) noexcept \
+            : fn(nullptr) \
+        {} \
+        \
         inline constexpr operator fn_t      ()             const noexcept { return fn; }; \
         inline constexpr Ret      operator()(Args... args) const \
             noexcept(std::is_nothrow_invocable_v<fn_t, Args...>) \

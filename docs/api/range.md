@@ -17,6 +17,7 @@ The design enables domain-safe iteration over:
 
 - Raw integral values
 - `stx::strong_type` wrappers (e.g., `off_s`, `rva_s`)
+- Enum types
 
 ---
 
@@ -70,6 +71,7 @@ For example:
 | Type         | `base_type_t<Type>` |
 |--------------|---------------------|
 | `u32`        | `u32`               |
+| `i64`        | `i64`               |
 | `off_s`      | `ptrdiff_t`         |
 | `rva_s`      | `u32`               |
 | `enum class Opcode : u32` | `u32` |
@@ -77,24 +79,6 @@ For example:
 ---
 
 ## Enumerations
-
-### `range_dir`
-
-Direction of iteration.
-
-| Enumerator | Meaning |
-|------------|----------|
-| `Forward`  | Increasing values |
-| `Backward` | Decreasing values |
-
-```cpp
-enum class range_dir : u8 {
-    Forward,
-    Backward
-};
-```
-
----
 
 ### `range_mode`
 
@@ -114,173 +98,124 @@ enum class range_mode : u8 {
 
 ---
 
-# Public API
+# Public API (Explicit Type Only, Auto-Converting Args)
 
-## 1. Single-Parameter Range
+All functions require an explicit `Type` template argument. The direction of iteration is **never** a parameter — it is inferred automatically:
 
-```cpp
-template<rangeable Type>
-constexpr auto range(
-    Type to,
-    range_dir dir,
-    range_mode flag = range_mode::Exclusive
-) noexcept;
-```
+- **1-arg / 2-arg overloads:** direction = `fwd` if `to >= from`, else `bwd`
+- **3-arg overloads:** direction = `fwd` if `step >= 0`, else `bwd`
+- Step is stored as an absolute magnitude; the sign only selects direction.
 
-Produces range from `0` to `to`.
+| Example | Direction | Values |
+|---------|-----------|--------|
+| `range<int>(5)` | fwd | `0, 1, 2, 3, 4` |
+| `range<int>(5, 0)` | bwd | `5, 4, 3, 2, 1` |
+| `range<int>(0, 10, 2)` | fwd | `0, 2, 4, 6, 8` |
+| `range<int>(10, 0, -2)` | bwd | `10, 8, 6, 4, 2` |
+| `irange<int>(0, 5)` | fwd | `0, 1, 2, 3, 4, 5` |
+| `irange<int>(5, 0)` | bwd | `5, 4, 3, 2, 1, 0` |
 
-Default step = `1`.
-
----
-
-## 2. Full Parameter Range
+## `range` (Exclusive)
 
 ```cpp
-template<rangeable Type>
-constexpr auto range(
-    Type from,
-    Type to,
-    base_type_t<Type> step,
-    range_dir dir,
-    range_mode flag = range_mode::Exclusive
-) noexcept;
-```
-
-Full control over:
-
-- Start
-- End
-- Step
-- Direction
-- Inclusion policy
-
----
-
-## 3. Simplified Overload
-
-```cpp
-template<rangeable Type>
-constexpr auto range(
-    Type from,
-    Type to,
-    range_dir dir,
-    range_mode flag = range_mode::Exclusive
-) noexcept;
-```
-
-Defaults step to `1`.
-
----
-
-## 4. Inclusive Variants (`irange`)
-
-Inclusive convenience wrappers.
-
-```cpp
-template<rangeable Type>
-constexpr auto irange(
-    Type from,
-    Type to,
-    base_type_t<Type> step,
-    range_dir dir
-) noexcept;
-
-template<rangeable Type>
-constexpr auto irange(
-    Type to,
-    range_dir dir
-) noexcept;
-```
-
-Equivalent to `range(..., range_mode::Inclusive)`.
-
----
-
-## 5. Convenience Overloads (Explicit Type, Auto-Converting Args)
-
-```cpp
-// range:
 template<rangeable Type> constexpr auto range( auto to ) noexcept;
 template<rangeable Type> constexpr auto range( auto from, auto to ) noexcept;
 template<rangeable Type> constexpr auto range( auto from, auto to, auto step ) noexcept;
-template<rangeable Type> constexpr auto range( auto from, auto to, auto step, range_dir dir, range_mode flag = Exclusive ) noexcept;
-template<rangeable Type> constexpr auto range( auto from, auto to, range_dir dir, range_mode flag = Exclusive ) noexcept;
-template<rangeable Type> constexpr auto range( auto to, range_dir dir, range_mode flag = Exclusive ) noexcept;
+```
 
-// irange:
+Step defaults to `+1` in the 1-arg and 2-arg overloads.
+
+The 3-arg overload accepts a **signed** step. A negative step selects backward iteration; the step magnitude is used as the increment.
+
+```cpp
+range<int>(0, 10, 2)     // forward, step=2  → 0, 2, 4, 6, 8
+range<int>(10, 0, -2)    // backward, step=2 → 10, 8, 6, 4, 2
+```
+
+## `irange` (Inclusive)
+
+```cpp
 template<rangeable Type> constexpr auto irange( auto to ) noexcept;
-template<rangeable Type> constexpr auto irange( auto to, range_dir dir ) noexcept;
-template<rangeable Type> constexpr auto irange( auto from, auto to, range_dir dir ) noexcept;
-template<rangeable Type> constexpr auto irange( auto from, auto to, auto step, range_dir dir ) noexcept;
+template<rangeable Type> constexpr auto irange( auto from, auto to ) noexcept;
+template<rangeable Type> constexpr auto irange( auto from, auto to, auto step ) noexcept;
 ```
 
-These overloads accept **raw integral** arguments and construct `Type` from them via `Type{value}`.
-They only participate when `Type` is a **strong type** or **enum** (`base_type_t<Type> != Type`);
-for plain integral `Type` the originals are used instead.
+Identical to `range` but includes the `to` endpoint:
 
 ```cpp
-// Verbose (original):
-for (auto off : range(off_s{0}, off_s{64}, off_s{8}))
-    ...
-
-// Ergonomic (convenience):
-for (auto off : range<off_s>(0, 64, 8))
-    ...
+irange<int>(5)           // 0, 1, 2, 3, 4, 5
+irange<int>(5, 0)        // 5, 4, 3, 2, 1, 0
+irange<int>(0, 10, 3)    // 0, 3, 6, 9
 ```
 
-### ⚠️ Safety Warning
+---
 
-The call `range<T>(args...)` is equivalent to `range(T{arg1}, T{arg2}, ...)`.
-When `T` is an **unsigned** strong type (e.g. `rva_s`, whose base is `u32`),
-a negative literal wraps silently:
+## Safety: Narrowing Check
+
+Because the overloads accept `auto` arguments and construct `Type{value}`, values that do not fit in the target type are rejected at compile time:
 
 ```cpp
-// rva_s is based on u32 (unsigned 32-bit)
-range<rva_s>(0, -1, 16)
-//  →  range(rva_s{u32{0}}, rva_s{u32{-1}}, 16)
-//  →  range(rva_s{0}, rva_s{4294967295}, 16)
+range<u8>(255)       // ✅ fits
+range<u8>(256)       // ❌ narrowing error at compile time
+range<u8>(0, -1)     // ❌ u8{-1} is narrowing
 ```
 
-The `-1` becomes `MAX_U32` — the range spans from `0` to `4 GiB`,
-which is almost certainly unintended.
+This provides a safety net against accidental truncation.
 
-For **signed** strong types (e.g. `off_s`, base `ptrdiff_t`) negative values are safe:
+---
+
+## Direction Rules Summary
+
+| Overload | Step | Direction Source |
+|----------|------|------------------|
+| `range<T>(to)` | `+1` | `to >= 0` → fwd |
+| `range<T>(from, to)` | `+1` | `to >= from` → fwd |
+| `range<T>(from, to, step)` | user-provided | `step >= 0` → fwd |
+| `irange<T>(to)` | `+1` | `to >= 0` → fwd |
+| `irange<T>(from, to)` | `+1` | `to >= from` → fwd |
+| `irange<T>(from, to, step)` | user-provided | `step >= 0` → fwd |
+
+When direction is `bwd`, the iteration starts at `from` and counts **down** toward `to`.
+
+---
+
+## Enum Iteration
+
+Enums are `rangeable` — iterate over enum values without casting:
 
 ```cpp
-range<off_s>(0, -1, 16)   // off_s is signed → -1 stays -1, empty range
+enum class Perms : u32 { Read = 1, Write = 2, Exec = 4, All = 7 };
+
+for (auto p : stx::irange<Perms>(Perms{0}, Perms{7}))
+    test_protection(p);              // p is Perms
 ```
 
-For **plain integral** `T` (e.g. `u32`), these convenience overloads are
-**disabled** (`base_type_t<u32> == u32`). The original `range(Type, Type)`
-overloads still apply, with standard C++ implicit narrowing:
+---
+
+## Strong Type Iteration
+
+Domain separation is preserved — the iteration variable retains the strong type:
 
 ```cpp
-range<u32>(0, -1)      // compiles (original), -1 wraps to MAX_U32
-range<u32>(0, -1, 16)  // does NOT compile — no 3-arg original overload
+for (auto off : stx::range<off_s>(0, 0x200, 0x28))
+    scan_section(data, off);          // off is off_s
 ```
-
-### Available Variants
-
-The convenience family mirrors the original API, supporting all combinations of from/to/step/dir/mode.
-
-| Example | Equivalent |
-|---------|-----------|
-| `range<off_s>(10)` | `range(off_s{10})` |
-| `range<off_s>(0, 64)` | `range(off_s{0}, off_s{64})` |
-| `range<off_s>(0, 64, 8)` | `range(off_s{0}, off_s{64}, ptrdiff_t{8}, Forward, Exclusive)` |
-| `range<off_s>(0, 64, 8, Backward, Exclusive)` | `range(off_s{0}, off_s{64}, ptrdiff_t{8}, Backward, Exclusive)` |
-| `range<off_s>(0, 64, Forward)` | `range(off_s{0}, off_s{64}, ptrdiff_t{1}, Forward, Exclusive)` |
-| `range<off_s>(10, Backward)` | `range(off_s{10}, Backward, Exclusive)` |
-| `irange<off_s>(10)` | `irange(off_s{10})` |
-| `irange<off_s>(0, 64, 8, Forward)` | `irange(off_s{0}, off_s{64}, ptrdiff_t{8}, Forward)` |
 
 ---
 
 # Internal Design
 
-## `range_view`
+## `details::dir`
 
-Acts as iterable view.
+```cpp
+namespace details {
+    enum class dir : u8 { fwd, bwd };
+}
+```
+
+Used internally by `range_view` and `range_iter`. Never exposed in the public API.
+
+## `details::range_view`
 
 ```cpp
 template<rangeable T>
@@ -290,7 +225,7 @@ struct range_view
     ValueT to;
     ValueT step;
 
-    range_dir  dir;
+    dir       dir_;
     range_mode mode;
 
     constexpr auto begin() const noexcept;
@@ -302,9 +237,7 @@ struct range_view
 - Produces `range_iter`.
 - Uses sentinel termination.
 
----
-
-## `range_iter`
+## `details::range_iter`
 
 Iterator implementation using a count-based approach (avoids underflow with unsigned types).
 
@@ -316,7 +249,7 @@ struct range_iter
     ValueT step;
     usize  remaining;
 
-    range_dir dir;
+    dir dir_;
 
     constexpr Type operator*() const noexcept;
     constexpr range_iter& operator++() noexcept;
@@ -326,76 +259,43 @@ struct range_iter
 
 ### Behavior
 
-`range` always represents the progression from `from` down/up to `to` by `step`, with one endpoint excluded in exclusive mode. The interval is **always** `[from, to)` for `range` and `[from, to]` for `irange`, regardless of direction — direction only affects traversal order.
+The interval is always `[from, to)` for `range` and `[from, to]` for `irange`.
 
-| Direction | Mode       | Interval | First Value | Last Value | Example (`from=5, to=0, step=1`) |
-|-----------|------------|----------|-------------|------------|----------------------------------|
-| Forward   | Exclusive  | `[from, to)` | `from`       | `to - step` | `range(0, 5)` → `{0,1,2,3,4}`   |
-| Forward   | Inclusive  | `[from, to]` | `from`       | `to`        | `irange(0, 5)` → `{0,1,2,3,4,5}`|
-| Backward  | Exclusive  | `[from, to)` | `from`       | `to + step` | `range(5, 0, Backward)` → `{5,4,3,2,1}` |
-| Backward  | Inclusive  | `[from, to]` | `from`       | `to`        | `irange(5, 0, Backward)` → `{5,4,3,2,1,0}`|
-
-Forward and backward exclusive both exclude `to` — the same interval `[from, to)`, just traversed in opposite directions.
+| Direction | Mode       | Interval | First Value | Last Value | Example |
+|-----------|------------|----------|-------------|------------|---------|
+| fwd       | Exclusive  | `[from, to)` | `from`       | `to - step` | `range<int>(0, 5)` → `{0,1,2,3,4}` |
+| fwd       | Inclusive  | `[from, to]` | `from`       | `to`        | `irange<int>(0, 5)` → `{0,1,2,3,4,5}` |
+| bwd       | Exclusive  | `[from, to)` | `from`       | `to + step` | `range<int>(5, 0)` → `{5,4,3,2,1}` |
+| bwd       | Inclusive  | `[from, to]` | `from`       | `to`        | `irange<int>(5, 0)` → `{5,4,3,2,1,0}` |
 
 #### With `step > 1`
 
 | Example | Full Progression | Exclusive Result |
 |---------|-----------------|------------------|
-| `range(0, 10, 3, Forward)` | `0, 3, 6, 9` | `{0, 3, 6, 9}` *(to=10 not in progression)* |
-| `range(10, 0, 3, Backward)` | `10, 7, 4, 1` | `{10, 7, 4, 1}` *(to=0 not in progression)* |
-| `range(30, 0, 3, Backward)` | `30, 27, 24, ..., 3, 0` | `{30, 27, ..., 3}` *(to=0 excluded)* |
+| `range<int>(0, 10, 3)` | `0, 3, 6, 9` | `{0, 3, 6, 9}` |
+| `range<int>(10, 0, -3)` | `10, 7, 4, 1` | `{10, 7, 4, 1}` |
+| `range<int>(30, 0, -3)` | `30, 27, 24, ..., 3, 0` | `{30, 27, ..., 3}` |
 
-#### Internals
-
-| Direction | Step Operation | Termination |
-|-----------|---------------|-------------|
-| Forward   | `cur += step` | `remaining == 0` |
-| Backward  | `cur -= step` | `remaining == 0` |
-
-`remaining` is computed at `begin()`:
+#### `remaining` computation at `begin()`:
 
 | Direction | Mode       | Remaining Count |
 |-----------|------------|-----------------|
-| Forward   | Exclusive  | `(dist + step - 1) / step` (ceiling division) |
-| Forward   | Inclusive  | `dist / step + 1` |
-| Backward  | Exclusive  | `(dist + step - 1) / step` (ceiling division) |
-| Backward  | Inclusive  | `dist / step + 1` |
+| fwd       | Exclusive  | `(dist + step - 1) / step` (ceiling) |
+| fwd       | Inclusive  | `dist / step + 1` |
+| bwd       | Exclusive  | `(dist + step - 1) / step` (ceiling) |
+| bwd       | Inclusive  | `dist / step + 1` |
 
-Where `dist = to - from` (forward) or `dist = from - to` (backward).
+Where `dist = to - from` (fwd) or `dist = from - to` (bwd).
 
 A `step == 0` triggers an assertion failure.
 
 ---
 
-# Strong Type & Enum Compatibility
-
-When iterating over strong types:
-
-- Internal arithmetic uses underlying integral.
-- Dereference reconstructs strong type.
-
-```cpp
-constexpr Type operator*() const noexcept
-{
-    if constexpr (std::integral<Type>)
-        return cur;
-    else
-        return Type{cur};
-}
-```
-
-This preserves domain separation and supports enum iteration — `Type{cur}` is valid for both strong types and scoped enums in C++23.
-
----
-
 # Example Usage
 
-## 1. Scanning Memory Regions (Reverse Engineering)
-
-Iterate over offset ranges while preserving domain types — no accidental mixing of offsets, RVAs, or virtual addresses:
+## 1. Scanning Memory Regions
 
 ```cpp
-// Walk PE section headers at `off_s` granularity
 for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
 {
     auto name = reader.read<stx::u64>(off);
@@ -404,21 +304,40 @@ for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
 }
 ```
 
-## 2. Iterating Virtual Addresses
-
-Convenience overloads avoid repetitive `Type{value}` construction:
+## 2. Backward Traversal
 
 ```cpp
-for (auto va : stx::range<stx::va_s>(0x1000, 0x2000, 0x100))
-{
-    // va is va_s — iteration over virtual address space
-    walk_page_table(va);
-}
+// Walk backwards using negative step
+for (auto off : stx::range<stx::off_s>(1024, 0, -16))
+    process(off);   // 1024, 1008, ..., 16
+
+// Or use from>to with implicit step=+1
+for (auto off : stx::range<stx::off_s>(1024, 0))
+    process(off);   // 1024, 1023, ..., 1
 ```
 
-## 3. Permission Flags Enumeration
+## 3. Chunk Processing
 
-Iterate over all possible permission combinations for fuzzing or analysis:
+```cpp
+for (auto off : stx::range<stx::off_s>(1024, 0, 16, /* implicitly exclusive */))
+    // Wait — no 4-arg overload. Use:
+    //   range<off_s>(1024, 0)  → step=+1, backward
+    //   range<off_s>(1024, 0, -16)  → step=16, backward (exclusive of 0)
+```
+
+## 4. Compile-Time Sequence Generation
+
+```cpp
+constexpr auto sum = [] {
+    auto s = 0;
+    for (auto i : stx::irange<int>(0, 100))
+        s += i;
+    return s;
+}();
+static_assert(sum == 5050);
+```
+
+## 5. Enum Iteration
 
 ```cpp
 enum class Perms : stx::u32 {
@@ -428,139 +347,19 @@ enum class Perms : stx::u32 {
     All     = 7,
 };
 
-for (auto p : stx::irange(Perms{0}, Perms{7}))
-{
-    // p is Perms: 0, 1, 2, 3, 4, 5, 6, 7
+for (auto p : stx::irange<Perms>(Perms{0}, Perms{7}))
     test_protection(p);
-}
 ```
 
-## 4. Processing Data in Chunks
-
-Walk a buffer backwards in aligned blocks — useful for stack unwinding or walking unwind tables:
-
-```cpp
-// Walk backwards from end, 16 bytes at a time
-for (auto off : stx::range<stx::off_s>(1024, 0, 16, stx::range_dir::Backward))
-{
-    auto block = reader.read<Block>(off);
-    // off: 1024, 1008, 992, ..., 16, 0
-}
-```
-
-## 5. Bidirectional RVA Traversal
-
-Non-trivial binary parsers need both directions — `range` handles both with the same API:
-
-```cpp
-// Forward: walk import descriptors
-auto idesc = map.at<stx::off_s>(import_dir);
-for (auto off : stx::range<stx::off_s>(idesc, idesc + 0x100, 0x14))
-    parse_import_desc(data, stx::rva_s{off});
-
-// Backward: walk unwind info from end to start
-for (auto off : stx::range<stx::off_s>(0x2000, 0, 8, stx::range_dir::Backward))
-    parse_unwind_entry(data, off);
-```
-
-## 6. Compile-Time Sequence Generation
-
-All range functions are `constexpr` — usable in template metaprogramming and `static_assert`:
-
-```cpp
-// Sum of first 100 numbers at compile time
-constexpr auto sum = [] {
-    auto s = 0;
-    for (auto i : stx::irange(0, 100))
-        s += i;
-    return s;
-}();
-static_assert(sum == 5050);
-```
-
-## 7. Safety Against Domain Confusion
-
-Strong types prevent passing an RVA where an offset is expected:
+## 6. Safety Against Domain Confusion
 
 ```cpp
 stx::off_s file_off{0x400};
 stx::rva_s image_rva{0x1000};
 
-for (auto off : stx::range(file_off, file_off + 0x200, 8, stx::range_dir::Forward))
+for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
     scan_section(data, off);          // ✅ off is off_s
-
-// for (auto off : stx::range(image_rva, file_off, ...))  // ❌ won't compile — type mismatch
 ```
-
----
-
-## C++ Comparison: `range` vs Raw Loop
-
-### Strong-Typed Iteration
-
-```cpp
-// stx:  preserves off_s type, no accidental domain mixing
-for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
-    scan_section(data, off);          // off is off_s
-```
-
-```cpp
-// C++ raw:  raw integer, easy to pass to wrong API
-for (ptrdiff_t off = 0; off < 0x200; off += 0x28)
-    scan_section(data, off_s{off});   // extra wrapping every iteration
-```
-
-With `range<off_s>`, `off` is already `off_s` — no manual wrapping, no risk of passing an untyped integer where a domain type is expected.
-
----
-
-### Backward Iteration
-
-```cpp
-// stx:  same API, just change direction
-for (auto off : stx::range<stx::off_s>(1024, 0, 16, stx::range_dir::Backward))
-    process(off);
-```
-
-```cpp
-// C++ raw:  manual decrement, easy to underflow unsigned
-for (ptrdiff_t off = 1024; off >= 0; off -= 16)
-    process(stx::off_s{off});
-```
-
-`range` with `Backward` handles the loop bounds and direction internally — no risk of infinite loops from unsigned underflow or off-by-one errors.
-
----
-
-### Enum Iteration
-
-```cpp
-// stx:  domain-preserving
-enum class Perms : u32 { Read = 1, Write = 2, Exec = 4, All = 7 };
-for (auto p : stx::irange(Perms{0}, Perms{7}))
-    test_protection(p);              // p is Perms
-```
-
-```cpp
-// C++ raw:  must cast at every use
-for (u32 i = 0; i <= 7; ++i)
-    test_protection(static_cast<Perms>(i));  // explicit cast each loop
-```
-
----
-
-### Bounds Safety
-
-```cpp
-// C++ raw:  easy to write wrong signedness
-for (auto i = 0u; i < 10u; ++i) { /* i is unsigned, fine */ }
-
-// stx:  direction and mode are explicit, no signedness surprises
-for (auto i : stx::range(0, 10))
-    /* i is int, correct direction and exclusive end */
-```
-
-The raw loop requires the author to manually track direction, step, and signedness — `range` encodes them in the call.
 
 ---
 
@@ -570,20 +369,7 @@ The raw loop requires the author to manually track direction, step, and signedne
 - No dynamic allocation
 - Sentinel-based iteration
 - Strong type safe
-- Direction-aware
-- Compile-time constrained via concepts
+- Direction inferred (no `dir` parameter in public API)
+- Compile-time narrowing check on `auto` → `Type` conversion
 - Header-only
 - Zero abstraction overhead
-
----
-
-# Intended Usage
-
-- Iterating offsets in memory
-- Traversing RVA ranges
-- Generating aligned index sequences
-- Binary structure walking
-- Systems-level tooling loops
-
-`range.hpp` provides a domain-safe alternative to ad-hoc integer loops while remaining minimal and constexpr-compatible.
-

@@ -67,7 +67,7 @@ namespace lbyte::stx::details
 
     private:
         [[nodiscard]]
-        consteval size_t trim_size() const noexcept {
+        consteval basic_sl<CharT, N> do_trim() const noexcept {
             size_t src = 0;
             while ( src < N && data_[src] == CharT{'\n'} )
                 ++src;
@@ -76,72 +76,56 @@ namespace lbyte::stx::details
                 ++end;
             while ( end > src && data_[end - 1] == CharT{'\n'} )
                 --end;
-            return end - src;
-        }
-
-        template<size_t NewN>
-        [[nodiscard]]
-        consteval basic_sl<CharT, NewN> do_trim() const noexcept {
-            size_t start = 0;
-            while ( start < N && data_[start] == CharT{'\n'} )
-                ++start;
-            std::array<CharT, NewN> result{};
-            for ( size_t i = 0; i < NewN - 1; ++i )
-                result[i] = data_[start + i];
+            std::array<CharT, N> result{};
+            for ( size_t i = 0; i < end - src; ++i )
+                result[i] = data_[src + i];
             return { result };
         }
 
         [[nodiscard]]
-        consteval size_t unindent_size() const noexcept {
-            size_t dst = 0, col = 0, indent = 0, line_start = 0;
+        consteval basic_sl<CharT, N> do_unindent() const noexcept {
+            size_t indent = 0, line_start = 0;
             bool searching = true;
             for ( size_t i = 0; i < N && data_[i] != CharT{}; ++i ) {
                 auto c = data_[i];
                 if ( searching ) {
-                    if ( c == CharT{'\n'} )       { line_start = i + 1; }
+                    if ( c == CharT{'\n'} ) { line_start = i + 1; }
                     else if ( c != CharT{' '} && c != CharT{'\t'} ) {
                         indent = i - line_start;
-                        searching = false;
+                        break;
                     }
                 }
-                if ( c == CharT{'\n'} )       { ++dst; col = 0; }
-                else if ( !searching && col < indent && (c == CharT{' '} || c == CharT{'\t'}) ) ++col;
-                else                          { ++dst; ++col; }
             }
-            return dst;
-        }
-
-        template<size_t NewN>
-        [[nodiscard]]
-        consteval basic_sl<CharT, NewN> do_unindent() const noexcept {
-            std::array<CharT, NewN> result{};
-            size_t dst = 0, col = 0, indent = 0, line_start = 0;
-            bool searching = true;
+            std::array<CharT, N> result{};
+            size_t dst = 0, col = 0;
+            searching = true;
             for ( size_t i = 0; i < N && data_[i] != CharT{}; ++i ) {
                 auto c = data_[i];
                 if ( searching ) {
-                    if ( c == CharT{'\n'} )       { line_start = i + 1; }
+                    if ( c == CharT{'\n'} ) { result[dst++] = c; col = 0; }
                     else if ( c != CharT{' '} && c != CharT{'\t'} ) {
-                        indent = i - line_start;
+                        result[dst++] = c; ++col;
                         searching = false;
                     }
+                    else if ( col < indent ) { ++col; }
+                    else { result[dst++] = c; ++col; }
+                } else {
+                    if ( c == CharT{'\n'} ) { result[dst++] = c; col = 0; searching = true; }
+                    else { result[dst++] = c; ++col; }
                 }
-                if ( c == CharT{'\n'} )       { result[dst++] = c; col = 0; }
-                else if ( !searching && col < indent && (c == CharT{' '} || c == CharT{'\t'}) ) ++col;
-                else                          { result[dst++] = c; ++col; }
             }
             return { result };
         }
 
     public:
         [[nodiscard]]
-        consteval auto trim() const noexcept {
-            return do_trim<trim_size() + 1>();
+        constexpr auto trim() const noexcept {
+            return do_trim();
         }
 
         [[nodiscard]]
-        consteval auto unindent() const noexcept {
-            return do_unindent<unindent_size() + 1>();
+        constexpr auto unindent() const noexcept {
+            return do_unindent();
         }
     };
 }

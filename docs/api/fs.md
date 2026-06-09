@@ -536,7 +536,6 @@ Cursor-based binary reader over an existing buffer with known size. Zero-copy â€
 class reader_view {
     reader_view() noexcept;
     reader_view(std::span<std::byte> buf) noexcept;
-    reader_view(std::span<const std::byte> buf) noexcept;
     reader_view(ptr<std::byte> base, usize size) noexcept;
     reader_view(void* data, usize size) noexcept;
     reader_view(const void* data, usize size) noexcept;
