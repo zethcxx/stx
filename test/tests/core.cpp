@@ -168,10 +168,10 @@ TEST_CASE("Core: Compile-Time Gap Calculators")
 {
     SECTION("gap_v computes total size")
     {
-        constexpr auto size1 = stx::gap_v<stx::u32, stx::u64, stx::u16>;
+        constexpr auto size1 = stx::mem::gap_v<stx::u32, stx::u64, stx::u16>;
         static_assert(size1.get() == 14);
 
-        constexpr auto size2 = stx::gap_v<stx::u8>;
+        constexpr auto size2 = stx::mem::gap_v<stx::u8>;
         static_assert(size2.get() == 1);
     }
 

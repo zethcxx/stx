@@ -33,7 +33,7 @@ Foundation for the entire library.
 | `va_s` | Strong virtual address |
 | `address_like` | Concept for address types |
 | `binary_readable` | Concept for binary-safe types |
-| `gap_v` / `gap_align_v` | Compile-time size calculators |
+| `mem::gap_v` / `mem::gap_align_v` | Compile-time size calculators |
 
 ---
 

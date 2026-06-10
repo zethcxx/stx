@@ -158,9 +158,6 @@ namespace lbyte::stx
     using rva_s = details::strong_type<u32  , details::rva_tag   >;
     using va_s  = details::strong_type<uptr , details::va_tag    >;
 
-    template<typename... Args>
-    inline constexpr off_s gap_v = off_s{( sizeof(Args) + ... )};
-
     template<typename Type>
     concept address_like
         =  std::is_pointer_v<Type>

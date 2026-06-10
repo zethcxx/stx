@@ -164,6 +164,9 @@ namespace lbyte::stx
             };
         }
 
+        template<typename... Args>
+        inline constexpr off_s gap_v = off_s{( sizeof(Args) + ... )};
+
         template<usize Align, typename... Args>
         inline constexpr off_s gap_align_v = [] {
             usize total = 0;

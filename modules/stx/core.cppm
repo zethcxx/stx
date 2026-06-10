@@ -55,7 +55,6 @@ export namespace lbyte::stx
     using ::lbyte::stx::bounded_array;
     using ::lbyte::stx::buffer_type;
 
-    using ::lbyte::stx::gap_v;
 
     using ::lbyte::stx::defer;
     using ::lbyte::stx::null_t;

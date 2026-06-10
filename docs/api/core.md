@@ -188,21 +188,6 @@ auto arr = p.pop<stx::u32[4]>();  // std::array<u32, 4>
 
 ---
 
-## `gap_v`
-
-Sum of `sizeof` each type in the pack.
-
-```cpp
-template<typename... Args>
-inline constexpr off_s gap_v;
-```
-
-```cpp
-constexpr auto sz = stx::gap_v<stx::u32, stx::u64, stx::u16>;  // off_s{14}
-```
-
----
-
 ## `normalize_addr`
 
 Converts any `address_like` to `uptr`.

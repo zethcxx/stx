@@ -483,6 +483,21 @@ auto off = stx::mem::align_up(stx::off_s{123}, 16u);  // off_s{128}
 
 ---
 
+## `mem::gap_v`
+
+Sum of `sizeof` each type in the pack.
+
+```cpp
+template<typename... Args>
+inline constexpr off_s gap_v;
+```
+
+```cpp
+constexpr auto sz = stx::mem::gap_v<stx::u32, stx::u64, stx::u16>;  // off_s{14}
+```
+
+---
+
 ## `mem::gap_align_v`
 
 Aligned compile-time gap: accumulates `sizeof` with natural-alignment

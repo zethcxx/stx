@@ -27,5 +27,6 @@ export namespace lbyte::stx::mem
     using ::lbyte::stx::mem::align_up;
     using ::lbyte::stx::mem::align_down;
     using ::lbyte::stx::mem::gap_align_v;
+    using ::lbyte::stx::mem::gap_v;
 }
 
