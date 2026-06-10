@@ -9,6 +9,7 @@
 #include <iterator>
 #include <span>
 #include <string_view>
+#include <memory>
 
 #if defined(__GNUC__) || defined(__clang__)
     #define STX_FORCE_INLINE [[gnu::always_inline]] inline
@@ -23,7 +24,7 @@ namespace lbyte::stx
         // SAFE MEMORY ACCESS (memcpy, well-defined, unaligned-safe) -----------------
         template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
         [[nodiscard]] STX_FORCE_INLINE
-        Type read( Addr base, OffT off = OffT{} ) noexcept
+        constexpr Type read( Addr base, OffT off = OffT{} ) noexcept
         {
             Type value;
 
@@ -52,14 +53,13 @@ namespace lbyte::stx
         }
 
         template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE
-        Type read_be( Addr base, OffT off ) noexcept
+        [[nodiscard]] STX_FORCE_INLINE constexpr Type read_be( Addr base, OffT off ) noexcept
         {
             using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
+            auto raw = read<Raw>(base, off);
             if constexpr ( std::endian::native == std::endian::little )
-                return static_cast<Type>( std::byteswap( static_cast<Raw>( read<Raw>( base, off ) ) ) );
-            else
-                return read<Type>( base, off );
+                raw = std::byteswap(raw);
+            return static_cast<Type>(raw);
         }
 
         template<byte_swappable Type, address_like Addr>
@@ -100,13 +100,10 @@ namespace lbyte::stx
         void write_be( Addr base, OffT off, Type value ) noexcept
         {
             using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
-
-            if constexpr ( std::endian::native == std::endian::little ) {
-                auto swapped = std::byteswap( static_cast<Raw>( value ) );
-                write<Raw>( base, off, swapped );
-            } else {
-                write<Type>( base, off, value );
-            }
+            auto raw = static_cast<Raw>(value);
+            if constexpr ( std::endian::native == std::endian::little )
+                raw = std::byteswap(raw);
+            write<Raw>(base, off, raw);
         }
 
         template<byte_swappable Type, address_like Addr>
@@ -118,12 +115,15 @@ namespace lbyte::stx
 
         // UNSAFE MEMORY ACCESS (direct deref, requires alignment, strict-aliasing) --
         template<binary_readable Type, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE
-        Type read_raw( address_like auto base, OffT off = OffT{} ) noexcept
+        [[nodiscard]] STX_FORCE_INLINE Type read_raw(address_like auto base, OffT off = OffT{}) noexcept
         {
-            return *rcast<Type*>(
-                rcast<std::byte*>(normalize_addr(base)) + off.get()
-            );
+            auto* target_ptr = rcast<std::byte*>(normalize_addr(base)) + off.get();
+
+            #if defined(__cpp_lib_start_lifetime_as)
+                return *std::start_lifetime_as<Type>(target_ptr);
+            #else
+                return *reinterpret_cast<const Type*>(target_ptr);
+            #endif
         }
 
         template<binary_readable Type, byte_offset OffT = off_s>
@@ -251,7 +251,10 @@ namespace lbyte::stx
 
         template<std::integral U>
         [[nodiscard]] constexpr ptr_light<T, Stride> operator[]( U offset ) const noexcept {
-            return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset ));
+            if constexpr ( std::is_void_v<T> )
+                return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset ) * Stride );
+            else
+                return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset ) * sizeof(T) * Stride );
         }
 
         template<byte_offset OffT>
@@ -600,7 +603,7 @@ namespace lbyte::stx
         auto operator>>( OffT offset ) const noexcept -> ptr<T, Stride>
             requires ( not std::is_void_v<T> )
         {
-            ::lbyte::stx::uptr target = address + ( static_cast<::lbyte::stx::uptr>( offset.get() ) * Stride );
+            ::lbyte::stx::uptr target = address + ( static_cast<::lbyte::stx::uptr>( offset.get() ) * sizeof(T) * Stride );
             T value;
             std::memcpy( &value, rcast<const std::byte*>( target ), sizeof( T ));
             return ptr<T, Stride>( rcast<T*>( value ) );
@@ -687,7 +690,9 @@ namespace lbyte::stx
     };
 }
 
-#ifndef LBYTE_STX_MODULE
+#include <format>
+#include <functional>
+
 template<typename T, lbyte::stx::uptr Stride>
 struct std::hash<lbyte::stx::ptr<T, Stride>>
 {
@@ -703,7 +708,13 @@ struct std::hash<lbyte::stx::ptr_light<T, Stride>>
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
-#endif
+
+template<typename T, lbyte::stx::uptr Stride>
+struct std::formatter<lbyte::stx::ptr<T, Stride>> : std::formatter<void*> {
+    auto format(const lbyte::stx::ptr<T, Stride>& p, format_context& ctx) const {
+        return std::formatter<void*>::format(reinterpret_cast<void*>(p.addr()), ctx);
+    }
+};
 
 #undef STX_FORCE_INLINE
 
