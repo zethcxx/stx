@@ -2,19 +2,55 @@
 
 ## Overview
 
-`fs.hpp` provides binary-oriented utilities over `std::istream`, designed for structured file parsing under C++23. It builds on:
+`fs.hpp` provides binary-oriented utilities over `std::istream` and memory-mapped files, designed for structured file parsing under C++23. It builds on:
 
 - `binary_readable`
 - `off_s`
 - `origin`
 - Strong typing from `core.hpp`
 
-The API focuses on:
+The API is organized into two namespaces:
+
+| Namespace | Contents |
+|-----------|----------|
+| `stx::fs` | Stream-based utilities (`setposfs`, `readfs`, `writefs`, `skipfs`, `skipos`), `origin` enum |
+| `stx` | Memory-mapped file and cursor abstractions (`map_file`, `memcur<ByteType>`) |
+
+Design focus:
 
 - Strongly-typed file offsets
 - Safe binary reads
 - Minimal abstraction overhead
 - Explicit positioning semantics
+
+---
+
+## Enum: `fs::origin`
+
+Alternative to `SEEK_SET`, `SEEK_CUR`, `SEEK_END`.
+
+| Enumerator | Meaning             |
+|------------|--------------------|
+| `begin`    | From beginning     |
+| `current`  | From current pos   |
+| `end`      | From end           |
+
+```cpp
+enum class origin : u8
+{
+    begin,
+    current,
+    end,
+};
+```
+
+The `origin` enum is defined in `namespace stx::fs`:
+
+```cpp
+stx::fs::origin dir = stx::fs::origin::begin;
+```
+
+Available as `stx::origin` via a using-declaration in the enclosing namespace for convenience.
 
 ---
 
@@ -82,7 +118,7 @@ stx::dirty_vector<stx::u32> buffer(100);
 ## `setposfs`
 
 ```cpp
-void setposfs(
+void fs::setposfs(
     std::istream& file,
     const off_s offset,
     const origin dir = origin::begin
@@ -116,11 +152,11 @@ stx::setposfs(file, stx::off_s{32}, stx::origin::current);
 
 # Reading Single Object
 
-## `readfs<Type>(istream&, off_s, origin)`
+## `fs::readfs<Type>(istream&, off_s, origin)`
 
 ```cpp
 template<binary_readable Type>
-std::expected<Type, std::errc> readfs(
+std::expected<Type, std::errc> fs::readfs(
     std::istream& file,
     const off_s offset = off_s{},
     const origin dir = origin::begin
@@ -144,7 +180,7 @@ struct header {
 
 static_assert(stx::binary_readable<header>);
 
-auto h = stx::readfs<header>(file, stx::off_s{0});
+auto h = stx::fs::readfs<header>(file, stx::off_s{0});
 if (!h) return;
 ```
 
@@ -152,11 +188,11 @@ if (!h) return;
 
 # Reading Into Span
 
-## `readfs<Type>(istream&, std::span<Type>)`
+## `fs::readfs<Type>(istream&, std::span<Type>)`
 
 ```cpp
 template<binary_readable Type>
-std::expected<void, std::errc> readfs(
+std::expected<void, std::errc> fs::readfs(
     std::istream& file,
     std::span<Type> out_buffer
 );
@@ -171,18 +207,18 @@ Reads directly into existing buffer.
 ```cpp
 std::array<stx::u32, 16> arr;
 
-stx::readfs(file, std::span{arr});
+stx::fs::readfs(file, std::span{arr});
 ```
 
 ---
 
 # Reading Into `dirty_vector`
 
-## `readfs<Type>(istream&, off_s, usize, origin)`
+## `fs::readfs<Type>(istream&, off_s, usize, origin)`
 
 ```cpp
 template<binary_readable Type = u8>
-std::expected<dirty_vector<Type>, std::errc> readfs(
+std::expected<dirty_vector<Type>, std::errc> fs::readfs(
     std::istream& file,
     const off_s offset,
     const usize count,
@@ -200,10 +236,10 @@ std::expected<dirty_vector<Type>, std::errc> readfs(
 ### Example
 
 ```cpp
-auto bytes = stx::readfs<>(file, stx::off_s{0}, 256);
+auto bytes = stx::fs::readfs<>(file, stx::off_s{0}, 256);
 if (!bytes) return;
 
-auto words = stx::readfs<stx::u16>(file, stx::off_s{128}, 64);
+auto words = stx::fs::readfs<stx::u16>(file, stx::off_s{128}, 64);
 if (!words) return;
 ```
 
@@ -211,11 +247,11 @@ if (!words) return;
 
 # Reading Fixed-Size Array
 
-## `readfs<Type, Size>(istream&, off_s, origin)`
+## `fs::readfs<Type, Size>(istream&, off_s, origin)`
 
 ```cpp
 template<binary_readable Type, usize Size>
-std::expected<std::array<Type, Size>, std::errc> readfs(
+std::expected<std::array<Type, Size>, std::errc> fs::readfs(
     std::istream& file,
     const off_s offset,
     const origin dir = origin::begin
@@ -229,7 +265,7 @@ Constraint:
 ### Example
 
 ```cpp
-auto block = stx::readfs<stx::u8, 64>(file, stx::off_s{0});
+auto block = stx::fs::readfs<stx::u8, 64>(file, stx::off_s{0});
 if (!block) return;
 ```
 
@@ -240,7 +276,7 @@ if (!block) return;
 ## `skipfs`
 
 ```cpp
-void skipfs(
+void fs::skipfs(
     std::istream& file,
     const off_s offset
 );
@@ -259,7 +295,7 @@ seekg(offset, std::ios::cur)
 ### Example
 
 ```cpp
-stx::skipfs(file, stx::off_s{32});
+stx::fs::skipfs(file, stx::off_s{32});
 ```
 
 ---
@@ -271,7 +307,7 @@ stx::skipfs(file, stx::off_s{32});
 ## `setposos`
 
 ```cpp
-void setposos(
+void fs::setposos(
     std::ostream& file,
     const off_s offset,
     const origin dir = origin::begin
@@ -292,18 +328,18 @@ Internally converts:
 ```cpp
 std::ofstream file("out.bin", std::ios::binary);
 
-stx::setposos(file, stx::off_s{128});
+stx::fs::setposos(file, stx::off_s{128});
 ```
 
 ---
 
 # Writing Single Object
 
-## `writefs<Type>(ostream&, off_s, const Type&)`
+## `fs::writefs<Type>(ostream&, off_s, const Type&)`
 
 ```cpp
 template<binary_readable Type>
-std::expected<void, std::errc> writefs(
+std::expected<void, std::errc> fs::writefs(
     std::ostream& file,
     const off_s offset,
     const Type& value
@@ -319,18 +355,18 @@ std::expected<void, std::errc> writefs(
 
 ```cpp
 stx::u32 magic = 0xDEADBEEF;
-auto result = stx::writefs(file, stx::off_s{0}, magic);
+auto result = stx::fs::writefs(file, stx::off_s{0}, magic);
 ```
 
 ---
 
 # Writing Span
 
-## `writefs<Type>(ostream&, off_s, span<const Type>)`
+## `fs::writefs<Type>(ostream&, off_s, span<const Type>)`
 
 ```cpp
 template<binary_readable Type>
-std::expected<void, std::errc> writefs(
+std::expected<void, std::errc> fs::writefs(
     std::ostream& file,
     const off_s offset,
     std::span<const Type> buffer
@@ -346,17 +382,17 @@ std::expected<void, std::errc> writefs(
 
 ```cpp
 std::array<stx::u32, 4> data{1, 2, 3, 4};
-auto result = stx::writefs(file, stx::off_s{0}, std::span{data});
+auto result = stx::fs::writefs(file, stx::off_s{0}, std::span{data});
 ```
 
 ---
 
 # Skipping Bytes (Write)
 
-## `skipos`
+## `fs::skipos`
 
 ```cpp
-void skipos(
+void fs::skipos(
     std::ostream& file,
     const off_s offset
 );
@@ -375,7 +411,7 @@ seekp(offset, std::ios::cur)
 ### Example
 
 ```cpp
-stx::skipos(file, stx::off_s{32});
+stx::fs::skipos(file, stx::off_s{32});
 ```
 
 ---
@@ -421,10 +457,12 @@ if (m.flags() & stx::map_flag::write) { ... }
 ## `map_file`
 
 ```cpp
-class map_file
+class map_file : private memcur<std::byte>
 ```
 
 RAII memory-mapped file wrapper. Uses `mmap` on POSIX, `CreateFileMapping`/`MapViewOfFile` on Windows.
+
+Inherits privately from `memcur<std::byte>` and re-exports its cursor/pop/push/view/read interface via `using` declarations.
 
 ### Factory
 
@@ -440,46 +478,25 @@ static auto open(const std::filesystem::path& path, off_s offset, usize size, ma
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `operator bool` | `bool` | Non-null check |
-| `is_alive()` | `bool` | `data_ != nullptr` (same as `operator bool`) |
-| `size()` | `usize` | Mapped region size |
-| `base()` | `uptr` | Base address |
+| `operator bool` | `bool` | Non-null check (inherited) |
+| `is_alive()` | `bool` | Same as `operator bool` |
+| `size()` | `usize` | Mapped region size (inherited) |
+| `base()` | `uptr` | Base address (inherited) |
 | `flags()` | `map_flag` | Access flags |
 
-### Sequential I/O
+### Cursor / I/O Interface
 
-| Member | Description |
-|--------|-------------|
-| `seek(off_s, origin)` | Set sequential position |
-| `skip(off_s)` | Advance relative to current (`seek(off, origin::current)`) |
-| `tell()` | Current sequential position |
-| `remaining()` | Remaining bytes |
+All cursor, pop, push, view, read-into, and pop-into members are inherited from `memcur<std::byte>`:
 
-### Pop (read + advance cursor)
-
-| Member | Returns | Description |
-|--------|---------|-------------|
-| `pop<T>()` | `T` | Single value (advances cursor) |
-| `pop<T, N, Rest...>()` | nested `array` | Multi-dimensional read, advances by total size |
-
-### Push (write + advance cursor)
-
-| Member | Description |
-|--------|-------------|
-| `push<T>(val)` | `map_file&` | Write single value, advances cursor |
-| `push<T>(span)` | `map_file&` | Write span elements, advances cursor |
-| `push(sv)` | `map_file&` | Write `string_view` bytes, advances cursor |
-
-### Zero-Copy Views
-
-| Member | Returns | Description |
-|--------|---------|-------------|
-| `bytes()` | `span<const byte>` / `span<byte>` | Full region as span |
-| `as_p<T>()` | `ptr<T>` | Typed pointer to base |
-| `read_span<T, N>()` | `span<const T, N>` | Zero-copy fixed-extent span at cursor, `N > 1` (advances cursor) |
-| `read_span<T>(count)` | `span<const T>` | Zero-copy dynamic-extent span at cursor (advances cursor) |
-| `read_strvw()` | `string_view` | Scans for `\0` until end of buffer (zero-copy, advances cursor) |
-| `read_strvw(max)` | `string_view` | Scans for `\0` bounded by `max` bytes (zero-copy, advances cursor) |
+| Members | Description |
+|---------|-------------|
+| `seek`, `skip`, `tell`, `remaining` | Sequential cursor |
+| `pop<T>`, `pop<U>` | Read + advance |
+| `push<T>`, `push(buf)` | Write + advance |
+| `as_view<U>`, `as_view<T>` | Zero-copy view at cursor |
+| `read_into`, `pop_into` | Copy into buffer |
+| `read_strvw`, `read_strvw(max)` | Zero-copy null-terminated string |
+| `bytes`, `as_p<T>` | Base buffer access |
 
 ### Example
 
@@ -501,46 +518,59 @@ stx::u32 b = m.pop<stx::u32>();
 // Skip bytes
 m.skip(stx::off_s{8});
 
-// Zero-copy span of structs
+// Zero-copy view of structs
 struct Entry { stx::u32 id; stx::u64 off; };
-auto entries = m.read_span<Entry>(4);        // dynamic extent
-auto fixed   = m.read_span<Entry, 4>();       // fixed extent, N > 1
+auto entries = m.as_view<Entry>(4);            // dynamic extent
+Entry arr[4];
+auto fixed   = m.as_view<decltype(arr)>();     // fixed extent via bounded array
+
+// Copy into existing buffer
+Entry buf[4];
+m.read_into(buf);                               // no advance
+m.pop_into(buf);                                // with advance
 
 // Zero-copy string (bounded, null-terminated)
 auto name = m.read_strvw(32);
 
 // Copy into vector
-auto buf = m.read<stx::u8>(256);
+auto buf_vec = m.read<stx::u8>(256);
 
 // As typed pointer
 auto p = m.as_p<stx::u32>();
 ```
 
-### `readfs` / `writefs` Overloads for `map_file`
+### `fs::readfs` / `fs::writefs` Overloads for `map_file`
 
 ```cpp
 template<binary_readable Type>
-std::expected<Type, std::errc> readfs(const map_file& m, const off_s offset);
+std::expected<Type, std::errc> fs::readfs(const map_file& m, const off_s offset);
 
 template<binary_readable Type>
-std::expected<void, std::errc> writefs(map_file& m, const off_s offset, const Type& value);
+std::expected<void, std::errc> fs::writefs(map_file& m, const off_s offset, const Type& value);
 ```
 
 ---
 
-## `reader_view` (Bounded)
+## `memcur<ByteType>` (Bounded Cursor)
 
-Cursor-based binary reader over an existing buffer with known size. Zero-copy — views point directly into the buffer.
+Cursor-based binary reader/writer over an existing buffer with known size. Zero-copy — views point directly into the buffer.
 
 ```cpp
-class reader_view {
-    reader_view() noexcept;
-    reader_view(std::span<std::byte> buf) noexcept;
-    reader_view(ptr<std::byte> base, usize size) noexcept;
-    reader_view(void* data, usize size) noexcept;
-    reader_view(const void* data, usize size) noexcept;
+template<buffer_type ByteType = std::byte>
+class memcur {
+    memcur() noexcept;
+    memcur(std::span<ByteType> buf) noexcept;
+    memcur(ptr<ByteType> base, usize size) noexcept;
+    memcur(ByteType* data, usize size) noexcept;      // deduces cv-qualified ByteType
+    memcur(void* data, usize size) noexcept;           // ByteType = std::byte
+    memcur(const void* data, usize size) noexcept;     // ByteType = std::byte
 };
 ```
+
+`ByteType` is constrained by `buffer_type` (byte-like: `std::byte`, `char`, `unsigned char`, `signed char`, `u8`, `i8`), including cv-qualified variants.
+Internal storage always uses `ptr<std::byte>`; no `const_cast` is used — pointer-to-integer conversion (`rcast<uptr>`) provides the address safely.
+
+**const propagation:** Passing a `const` pointer (e.g. `const char*`) deduces `ByteType = const char`, which disables write operations (`push`, mutable `bytes()`) at compile time via `requires (!std::is_const_v<ByteType>)`. Read operations (`pop`, `seek`, `tell`, `as_view`, `read_strvw`) remain available.
 
 ### State
 
@@ -548,7 +578,8 @@ class reader_view {
 |--------|---------|-------------|
 | `operator bool` | `bool` | Buffer non-empty |
 | `size()` | `usize` | Buffer size |
-| `bytes()` | `span<const byte>` | Full buffer as span |
+| `base()` | `uptr` | Base address |
+| `bytes()` | `span<const byte>` / `span<byte>` | Full buffer as span |
 | `as_p<T>()` | `ptr<T>` | Typed pointer to buffer base |
 
 ### Cursor
@@ -565,32 +596,38 @@ class reader_view {
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `pop<T>()` | `T` | Single value (advances cursor) |
-| `pop<T, N, Rest...>()` | nested `array` | Multi-dimensional read, advances by total size |
+| `pop<U>()` (bounded array) | `bounded_array_t<U>` | Bounded C array read, advances by total size |
 
 ### Push (write + advance cursor)
 
 | Member | Description |
 |--------|-------------|
-| `push<T>(val)` | `reader_view&` | Write single value (advances cursor) |
-| `push<T>(span)` | `reader_view&` | Write span of values (advances cursor) |
-| `push(sv)` | `reader_view&` | Write `string_view` bytes (advances cursor) |
+| `push<T>(val)` | `memcur&` | Write single scalar value (advances cursor) |
+| `push(buf)` | `memcur&` | Write bytes from any `contiguous_buffer` (span, vector, string_view), advances cursor |
 
-### Read (zero-copy span, advances cursor)
+### Read Into / Pop Into
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `read_span<T, N>()` | `span<const T, N>` | Zero-copy fixed-extent span, `N > 1` (advances cursor) |
-| `read_span<T>(count)` | `span<const T>` | Zero-copy dynamic-extent span (advances cursor) |
-| `read_strvw()` | `string_view` | Scan for `\0` until end of buffer (zero-copy) |
-| `read_strvw(max)` | `string_view` | Scan for `\0` bounded by `max` bytes (zero-copy) |
+| `read_into(buf)` | `void` | Copy bytes into writable buffer (no advance) |
+| `pop_into(buf)` | `memcur&` | Copy bytes into writable buffer, advances cursor |
 
-> **Note:** The zero-copy `read_span` and `read_strvw` methods advance the cursor by the viewed region size.
+### Zero-Copy Views (no advance)
 
-### Example (reader_view)
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `as_view<U>()` (bounded array) | `span<const element_type>` | Zero-copy view of bounded C array at cursor |
+| `as_view<T>(count)` | `span<const T>` | Zero-copy dynamic-extent view at cursor |
+| `read_strvw()` | `string_view` | Scan for `\0` until end of buffer (zero-copy, advances cursor) |
+| `read_strvw(max)` | `string_view` | Scan for `\0` bounded by `max` bytes (zero-copy, advances cursor) |
+
+> **⚠️ Lifetime:** Zero-copy views (`as_view`, `read_strvw`) are valid only while the source buffer outlives the view.
+
+### Example (memcur)
 
 ```cpp
 int data[] = {1, 2, 3, 4};
-stx::reader_view r(data, sizeof(data));
+stx::memcur<int> r(data, sizeof(data));
 
 // Sequential pop
 auto x = r.pop<int>();     // reads int, advances by 4
@@ -598,36 +635,36 @@ auto x = r.pop<int>();     // reads int, advances by 4
 // Random access via as_p
 auto val = r.as_p<int>()[off_s{8}].read<int>();
 
-// Zero-copy span
-auto span = r.read_span<int>(2);
+// Zero-copy view
+auto view = r.as_view<int>(2);
 
 // String view from raw data
 auto sv = r.read_strvw();
 ```
 
-> **⚠️ Lifetime:** `read_span` and `read_strvw` return non-owning views valid only while the source buffer outlives the view.
-
 ### Example
 
 ```cpp
 std::vector<std::byte> buf = /* ... */;
-stx::reader_view r{buf};
+stx::memcur r{buf};                     // default ByteType = std::byte
 
 // Single reads
-auto magic = r.read<stx::le<stx::u32>>();
-auto count = r.read<stx::u16>();
+auto magic = r.pop<stx::le<stx::u32>>();
+auto count = r.pop<stx::u16>();
 
-// Zero-copy span
-auto entries = r.read_span<Entry>(count);
+// Zero-copy view
+auto entries = r.as_view<Entry>(count);
 
-// Copy into vector
-auto names = r.read<char>(32);
+// Copy into existing buffer
+Entry entry_buf[4];
+r.read_into(entry_buf);                  // no advance
+r.pop_into(entry_buf);                   // with advance
 
 // String
 auto name = r.read_strvw();
 
 // Write
-r.write<stx::u32>(0xDEADBEEF);
+r.push(stx::u32{0xDEADBEEF});
 ```
 
 ---
@@ -642,7 +679,7 @@ auto& m = *mapped;
 
 stx::u32 magic = m.as_p<stx::u32>()[stx::off_s{0}].read<stx::u32>();
 m.seek(stx::off_s{8});
-auto entries = m.read_span<Entry>(count);
+auto entries = m.as_view<Entry>(count);
 auto name = m.read_strvw();
 // closes automatically — no cleanup
 ```
@@ -674,7 +711,7 @@ munmap(data, st.st_size);
 
 ```cpp
 // stx:  one call, bounds-checked
-auto h = stx::readfs<header>(file, stx::off_s{0});
+auto h = stx::fs::readfs<header>(file, stx::off_s{0});
 if (!h) return;
 ```
 
@@ -698,7 +735,7 @@ if (!file.read(reinterpret_cast<char*>(&h), sizeof(h)))
     return;
 ```
 
-`readfs` returns `std::expected` — no streams to fail/clear, no casts, no manual size calculation.
+`fs::readfs` returns `std::expected` — no streams to fail/clear, no casts, no manual size calculation.
 
 ---
 
@@ -706,7 +743,7 @@ if (!file.read(reinterpret_cast<char*>(&h), sizeof(h)))
 
 ```cpp
 // stx:  bounds-checked, typed, zero-overhead
-auto val = stx::readfs<u32>(buf, stx::off_s{0x100});
+auto val = stx::fs::readfs<u32>(buf, stx::off_s{0x100});
 if (!val) return;
 ```
 
@@ -724,7 +761,7 @@ u32 val;
 std::memcpy(&val, buf.data() + 0x100, sizeof(u32));
 ```
 
-`readfs<Type>(span, off)` performs the same bounds check and `memcpy` — but the caller writes one line instead of four.
+`fs::readfs<Type>(span, off)` performs the same bounds check and `memcpy` — but the caller writes one line instead of four.
 
 ---
 

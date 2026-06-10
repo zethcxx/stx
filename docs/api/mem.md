@@ -2,14 +2,14 @@
 
 ## Overview
 
-`mem.hpp` provides low-level memory access primitives and bit/align utilities for the `stx` namespace under C++23.
+`mem.hpp` provides low-level memory access primitives and bit/align utilities under `namespace mem` within `namespace lbyte::stx` for C++23.
 
 It defines:
 
-- Copy-based typed memory reads and writes (well-defined behavior).
-- Raw pointer-based reads and writes (direct dereference).
-- Casting helpers (`rcast`, `scast`, `bcast`).
+- Copy-based typed memory reads and writes (well-defined behavior), under `mem::read`, `mem::write`, etc.
+- Raw pointer-based reads and writes (direct dereference), under `mem::read_raw`, `mem::write_raw`.
 - Alignment utilities for integral and strong types.
+- The `ptr<T, Stride>` typed address wrapper class (stays in `namespace stx`).
 
 The module is intended for controlled low-level environments such as:
 
@@ -127,61 +127,6 @@ void write_raw(address_like auto base,
 
 ---
 
-# Casting Utilities
-
-## reinterpret_cast Wrapper
-
-```cpp
-template<class Type>
-STX_FORCE_INLINE
-Type rcast(auto value) noexcept;
-```
-
-Thin wrapper over `reinterpret_cast`.
-
-Used to centralize casting style and improve readability in low-level code.
-
----
-
-## static_cast Wrapper
-
-```cpp
-template<class Type>
-STX_FORCE_INLINE
-constexpr Type scast(auto value) noexcept;
-```
-
-Thin wrapper over `static_cast`.
-
-Primarily used for:
-
-- Narrowing control
-- Integral conversions
-- Enum conversions
-
----
-
-## Bit Cast
-
-```cpp
-template<typename To, typename From>
-[[nodiscard]] STX_FORCE_INLINE
-constexpr To bcast(const From& from) noexcept;
-```
-
-Wrapper over `std::bit_cast`.
-
-### Requirements
-
-| Constraint | Description |
-|------------|-------------|
-| `sizeof(To) == sizeof(From)` | Required by `std::bit_cast` |
-| Trivially copyable types | Required |
-
-Used for safe reinterpretation of object representation.
-
----
-
 # Alignment Utilities
 
 ## Strong Type Alignment
@@ -226,6 +171,7 @@ public:
 
     constexpr ptr() noexcept = default;
     constexpr explicit ptr(address_like auto addr) noexcept;
+    ptr(T* raw_ptr) noexcept;   // non-constexpr, from raw pointer
 };
 ```
 
@@ -260,6 +206,7 @@ if (p == stx::null) { /* empty */ }
 | Member | Description |
 |--------|-------------|
 | `operator=(address_like)` | Rebind from address-like value |
+| `operator=(T*)` | Rebind from raw pointer (non-constexpr) |
 | `operator=(const ptr<T, OtherStride>&)` | Cross-stride copy — address only, stride type unchanged |
 | `as_p<U>()` | Rebind to `ptr<U, 1>` |
 | `as<U>()` | Cast address to `U` (e.g. `as<off_s>()`, `as<va_s>()`) |
@@ -294,15 +241,17 @@ base[0x100].read<u32>() // OK: ptr_light inherits read/write/push/etc.
 
 | Expression | Returns | Description |
 |-----------|---------|-------------|
-| `p >> i` (integral) | `ptr<T, Stride>` | Enter `p` at offset `i × Stride`, read `uptr`, return new `ptr` wrapping the result |
+| `p >> i` (integral) | `ptr<T, Stride>` | Enter `p` at offset `i × Stride`, read the value as `T` if non-void (else `uptr`), return new `ptr` wrapping the result |
 | `p >> off` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off.get()` |
 
-Analogous to directory traversal: `ptr >> 0x10 >> 0x20` reads as *"enter ptr, walk 0x10 Stride entries, read the pointer there, enter the result, walk 0x20 Stride entries, read again"*.
+Analogous to directory traversal: `ptr >> 0x10 >> 0x20` reads as *"enter ptr, walk 0x10 Stride entries, read the pointer-sized value there, enter the result, walk 0x20 Stride entries, read again"*.
 
-Semantics:
+Semantics (`void` case):
 1. Target = `addr() + i*Stride`
 2. `memcpy` a `uptr` from Target
-3. Return `ptr<T, Stride>` wrapping the read value (preserves `T` and `Stride`)
+3. Return `ptr<void, Stride>` wrapping the read value
+
+For non-void `T`, reads `T` instead of `uptr` and returns `ptr<T, Stride>`.
 
 Does **not** modify `*this`. All temporaries have the same `T` and `Stride` as the original.
 
@@ -322,8 +271,11 @@ uptr v2 = (pe_base.step<4>() >> 3 >> 5).addr();
 
 | Expression | Returns | Description |
 |-----------|---------|-------------|
-| `p.walk(n)` (integral) | `ptr<T, Stride>` | Read `uptr` at `addr + n` (no stride scaling), return new `ptr` |
-| `p.walk(off)` (`byte_offset`) | `ptr<T, Stride>` | Same, via `off.get()` |
+| `p.walk<Return>(off)` (`byte_offset`) | `ptr<Return, Stride>` | Read `Return` at `addr + off` (no stride scaling), return new `ptr` |
+| `p.walk<Return>(n)` (integral) | `ptr<Return, Stride>` | Same, via implicit `off_s{n}` |
+| `p.walk(off)` (`byte_offset`, default) | `ptr<void, Stride>` | Read `uptr`, return `ptr<void, Stride>` |
+
+Templated return type: defaults to `ptr<void, Stride>` (reading `uptr`). Specify `Return` explicitly for typed reads.
 
 Like `/` but ignores `Stride` — offset is an absolute byte offset, not multiplied.
 
@@ -346,35 +298,37 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 | Member | Returns | Requirements | Description |
 |--------|---------|-------------|-------------|
 | `read<T>()` | `T` | `binary_readable<T>` | Copy-based read at current address |
-| `read<T, N, Rest...>()` | `array<array<…<T>…, Rest>, N>` | `binary_readable<T>` | Multi-dimensional read, returns nested `std::array` |
+| `read<U>()` (bounded array) | `bounded_array_t<U>` | `bounded_array<U>` | Copy-based read of a bounded C array, returns `std::array` |
 | `read_p<T>()` | `ptr<T, 1>` | non-void | Read a pointer value, returns `ptr<T>` |
-| `read_le<T>()` | `T` | `std::integral<T>` | Little-endian read |
-| `read_be<T>()` | `T` | `std::integral<T>` | Big-endian read |
-| `read_span<T, N>()` | `span<const T, N>` | `binary_readable<T>`, `N > 1` | Zero-copy fixed-extent span |
-| `read_span<T>(count)` | `span<const T>` | `binary_readable<T>` | Zero-copy dynamic-extent span |
+| `read_le<T>()` | `T` | `byte_swappable<T>` | Little-endian read |
+| `read_be<T>()` | `T` | `byte_swappable<T>` | Big-endian read |
+| `as_view<U>()` (bounded array) | `span<const element_type>` | `bounded_array<U>` | Zero-copy view of a bounded C array at current address |
+| `as_view<T>(count)` | `span<const T>` | `binary_readable<T>` | Zero-copy dynamic-extent view |
+| `read_into(buf)` | `void` | `writable_buffer<R>` | Copy array/size bytes into writable buffer (no advance) |
 
 ### Pop (read + advance cursor)
 
 | Member | Returns | Description |
 |--------|---------|-------------|
 | `pop<T>()` | `T` | Copy-based read, `address += sizeof(T)` |
-| `pop<T, N, Rest...>()` | nested `array` | Multi-dimensional read, advances by total size |
+| `pop<U>()` (bounded array) | `bounded_array_t<U>` | Copy-based read of a bounded C array, `address += sizeof(array)` |
+| `pop_into(buf)` | `ptr&` | Copy bytes into writable buffer, `address += bytes` |
 
 ### Write (no advance)
 
 | Member | Requirements | Description |
 |--------|-------------|-------------|
-| `write<T>(val)` | `binary_readable<T>` | Copy-based write at current address |
-| `write_le<T>(val)` | `std::integral<T>` | Little-endian write |
-| `write_be<T>(val)` | `std::integral<T>` | Big-endian write |
+| `write<T>(val)` | `binary_readable<T>`, not `contiguous_buffer` | Copy-based write of a scalar value at current address |
+| `write(buf)` | `contiguous_buffer<R>` | Copy bytes from any contiguous range (span, vector, string_view) at current address |
+| `write_le<T>(val)` | `byte_swappable<T>` | Little-endian write |
+| `write_be<T>(val)` | `byte_swappable<T>` | Big-endian write |
 
 ### Push (write + advance cursor)
 
 | Member | Returns | Description |
 |--------|---------|-------------|
-| `push<T>(val)` | `ptr&` | Write single value, `address += sizeof(T)` |
-| `push<T>(span)` | `ptr&` | Write span elements, `address += span.size_bytes()` |
-| `push(sv)` | `ptr&` | Write `string_view` bytes, `address += sv.size()` |
+| `push<T>(val)` | `ptr&` | Write single scalar value, `address += sizeof(T)` |
+| `push(buf)` | `ptr&` | Write bytes from any `contiguous_buffer`, `address += bytes` (unifies span, vector, string_view) |
 
 ### Unsafe (Direct Deref, no advance)
 
@@ -407,10 +361,10 @@ p = ptr<int, 4>{ p.addr() };      // cross-stride rebind in-place
 
 | Expression | Advance by |
 |-----------|-----------|
-| `++p` / `p++` | 1 byte |
-| `--p` / `p--` | 1 byte |
+| `++p` / `p++` | `sizeof(T) * Stride` (or `Stride` if `T` is `void`) |
+| `--p` / `p--` | `sizeof(T) * Stride` (or `Stride` if `T` is `void`) |
 
-Byte-level, consistent with `+`/`-` arithmetic. Advances the address, not a typed element.
+Scales by both `sizeof(T)` and `Stride`. For `ptr<void, 1>`, advances by 1 byte (equivalent to old behavior).
 
 ### Call
 

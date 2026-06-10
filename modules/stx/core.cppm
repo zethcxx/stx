@@ -33,7 +33,6 @@ export namespace lbyte::stx
 
     using ::lbyte::stx::version_info;
     using ::lbyte::stx::version;
-    using ::lbyte::stx::origin;
     using ::lbyte::stx::off_s;
     using ::lbyte::stx::rva_s;
     using ::lbyte::stx::va_s;
@@ -44,6 +43,17 @@ export namespace lbyte::stx
     using ::lbyte::stx::byte_offset;
 
     using ::lbyte::stx::normalize_addr;
+
+    using ::lbyte::stx::rcast;
+    using ::lbyte::stx::scast;
+    using ::lbyte::stx::bcast;
+    using ::lbyte::stx::ccast;
+    using ::lbyte::stx::dcast;
+
+    using ::lbyte::stx::contiguous_buffer;
+    using ::lbyte::stx::writable_buffer;
+    using ::lbyte::stx::bounded_array;
+    using ::lbyte::stx::buffer_type;
 
     using ::lbyte::stx::gap_v;
     using ::lbyte::stx::gap_align_v;

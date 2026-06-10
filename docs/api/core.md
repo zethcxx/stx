@@ -103,27 +103,6 @@ Each instantiation is type-distinct at compile time.
 
 ---
 
-## Enum: `origin`
-
-Alternative to `SEEK_SET`, `SEEK_CUR`, `SEEK_END`.
-
-| Enumerator | Meaning             |
-|------------|--------------------|
-| `begin`    | From beginning     |
-| `current`  | From current pos   |
-| `end`      | From end           |
-
-```cpp
-enum class origin : u8
-{
-    begin,
-    current,
-    end,
-};
-```
-
----
-
 ## Concepts
 
 ### `address_like`
@@ -278,6 +257,144 @@ Purpose:
 
 ---
 
+## Casting Helpers
+
+Thin wrappers over the standard C++ casts for readability and grep-ability in low-level code.
+
+### `rcast` — `reinterpret_cast`
+
+```cpp
+template<class Type>
+STX_FORCE_INLINE
+Type rcast(auto value) noexcept;
+```
+
+### `scast` — `static_cast`
+
+```cpp
+template<class Type>
+STX_FORCE_INLINE
+constexpr Type scast(auto value) noexcept;
+```
+
+### `bcast` — `std::bit_cast`
+
+```cpp
+template<typename To, typename From>
+[[nodiscard]] STX_FORCE_INLINE
+constexpr To bcast(const From& from) noexcept;
+```
+
+Requires `sizeof(To) == sizeof(From)` and trivially copyable types.
+
+### `ccast` — `const_cast`
+
+```cpp
+template<class Type>
+STX_FORCE_INLINE
+Type ccast(auto value) noexcept;
+```
+
+### `dcast` — `dynamic_cast`
+
+```cpp
+template<class Type>
+STX_FORCE_INLINE
+Type dcast(auto value) noexcept;
+```
+
+All helpers let the caller omit template qualification on the argument (`auto` deduces it), so `rcast<char*>(ptr)` works without specifying the argument type separately.
+
+---
+
+## Concepts: `contiguous_buffer` / `writable_buffer`
+
+Unified concepts for writing ranges that expose `std::data` and `std::size` with trivially copyable element types.
+
+| Concept | Data access | Example types |
+|---------|------------|--------------|
+| `contiguous_buffer` | `data()` → `const void*` | `std::span<const T>`, `std::string_view`, `std::vector<T>` |
+| `writable_buffer` | `data()` → `void*` | `std::span<T>`, `std::vector<T>`, raw array |
+
+```cpp
+template<typename R>
+concept contiguous_buffer
+    =  requires (R& r) {
+           { std::data(r) } -> std::convertible_to<const void*>;
+           { std::size(r) } -> std::convertible_to<usize>;
+       }
+    && std::is_trivially_copyable_v<
+           std::remove_pointer_t<decltype(std::data(std::declval<R&>()))>>;
+
+template<typename R>
+concept writable_buffer
+    =  requires (R& r) {
+           { std::data(r) } -> std::convertible_to<void*>;
+           { std::size(r) } -> std::convertible_to<usize>;
+       }
+    && std::is_trivially_copyable_v<
+           std::remove_pointer_t<decltype(std::data(std::declval<R&>()))>>;
+```
+
+Used to unify `push()` / `write()` / `read_into()` / `pop_into()` across `ptr`, `map_file`, and `memcur` — replacing separate overloads for `std::span`, `std::string_view`, and raw arrays with a single generic overload.
+
+---
+
+## Concept: `buffer_type`
+
+Restricts a type to byte-like buffer element types — rejects `bool`, `void`, pointers, and non-byte-wide types.
+
+```cpp
+template<typename T>
+concept buffer_type
+    =  sizeof(T) == 1
+    && std::is_trivially_copyable_v<T>
+    && not std::is_pointer_v<T>
+    && not std::same_as<std::remove_cv_t<T>, bool>
+    && not std::same_as<std::remove_cv_t<T>, void>;
+```
+
+Accepts both cv-qualified and unqualified byte-like types (`std::byte`, `char`, `unsigned char`, `signed char`, `u8`, `i8`). The `remove_cv_t` on the `bool`/`void` exclusions ensures `const char`, `volatile unsigned char`, etc. are accepted.
+
+Used as the template parameter constraint for `memcur<ByteType>` to prevent accidental instantiation with non-byte types like `int` or pointers.
+
+---
+
+## Concept: `bounded_array` / Trait: `bounded_array_t`
+
+A concept and transformation trait for C-style bounded arrays of `binary_readable` elements.
+
+```cpp
+template<typename T>
+concept bounded_array
+    =  std::is_bounded_array_v<T>
+    && binary_readable<std::remove_all_extents_t<T>>;
+```
+
+```cpp
+namespace details {
+    template<typename T> struct bounded_array_impl { using type = T; };
+    template<typename T, usize N> struct bounded_array_impl<T[N]> {
+        using type = std::array<typename bounded_array_impl<T>::type, N>;
+    };
+    template<typename T>
+    using bounded_array_t = typename bounded_array_impl<T>::type;
+}
+```
+
+`bounded_array_t<T[N]>` yields `std::array<T, N>`. For non-array `T`, it yields `T`.
+
+Used in `ptr::pop<U>()`, `ptr::read<U>()`, and `as_view<U>()` where `U` is a bounded array type:
+
+```cpp
+int arr[4];
+auto result = p.pop<decltype(arr)>();  // returns std::array<int, 4>
+```
+
+This is the simpler single-dimension counterpart of `details::nested_array` (multi-dim).
+
+---
+
 ## Implementation: `strong_type`
 
 Located in `stx::details`.
@@ -405,7 +522,7 @@ A type alias that expands dimension packs into `std::array` nesting:
 | `nested_array<u32, 2, 3>` | `std::array<std::array<u32, 3>, 2>` |
 | `nested_array<u32, 4, 5, 6>` | `std::array<std::array<std::array<u32, 6>, 5>, 4>` |
 
-Used internally by `ptr::pop<T, Dims...>()` and `ptr::read<T, Dims...>()` to produce correctly nested return types.
+Used internally by the old `ptr::pop<T, N, Rest...>()` and `ptr::read<T, N, Rest...>()` signatures (now replaced by `bounded_array`-based overloads for single-dimension arrays).
 
 ---
 
@@ -593,22 +710,6 @@ stx::rva_s b{200};
 
 if (a < b) {}
 auto cmp = (a <=> b);
-```
-
----
-
-## Enum: `origin`
-
-Replacement for traditional seek direction constants.
-
-```cpp
-stx::origin o = stx::origin::begin;
-```
-
-Example usage in a file abstraction:
-
-```cpp
-void seek(stx::off_s offset, stx::origin where);
 ```
 
 ---
@@ -892,28 +993,6 @@ int b = a;                      // silent truncation on 64-bit
 ```
 
 Strong types require explicit construction and don't implicitly narrow — the cost is zero at runtime.
-
----
-
-### Origin Enum vs Seek Constants
-
-```cpp
-// stx:  scoped, typed
-void seek(stx::off_s offset, stx::origin where = stx::origin::begin);
-seek(stx::off_s{128}, stx::origin::current);
-```
-
-```cpp
-// C++ raw:  magic constants
-file.seekg(128, std::ios::cur);
-```
-
-```c
-// C:  macros
-fseek(file, 128, SEEK_CUR);
-```
-
-`origin::current` is self-documenting and scoped — no confusion between `SEEK_CUR`, `SEEK_SET`, `std::ios::cur`, or numeric `0`, `1`, `2`.
 
 ---
 

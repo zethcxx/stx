@@ -7,6 +7,7 @@
 #endif
 
 #include <array>
+#include <bit>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -157,13 +158,6 @@ namespace lbyte::stx
     using rva_s = details::strong_type<u32  , details::rva_tag   >;
     using va_s  = details::strong_type<uptr , details::va_tag    >;
 
-    enum class origin : u8
-    {
-        begin  ,
-        current,
-        end    ,
-    };
-
     // ALIGNMENT -------------------------------------------------------------
     template<std::unsigned_integral T>
     [[nodiscard]] constexpr T align_up( T value, T alignment ) noexcept {
@@ -233,6 +227,46 @@ namespace lbyte::stx
         and not std::same_as<std::remove_cvref_t<T>, char16_t>
         and not std::same_as<std::remove_cvref_t<T>, char32_t>;
 
+    template<typename R>
+    concept contiguous_buffer
+        =  requires (R& r) {
+            { std::data(r) } -> std::convertible_to<const void*>;
+            { std::size(r) } -> std::convertible_to<usize>;
+           }
+        && std::is_trivially_copyable_v<
+               std::remove_pointer_t<decltype(std::data(std::declval<R&>()))>>;
+
+    template<typename R>
+    concept writable_buffer
+        =  requires (R& r) {
+            { std::data(r) } -> std::convertible_to<void*>;
+            { std::size(r) } -> std::convertible_to<usize>;
+           }
+        && std::is_trivially_copyable_v<
+               std::remove_pointer_t<decltype(std::data(std::declval<R&>()))>>;
+
+    template<typename T>
+    concept bounded_array
+        =  std::is_bounded_array_v<T>
+        && binary_readable<std::remove_all_extents_t<T>>;
+
+    template<typename T>
+    concept buffer_type
+        =  sizeof(T) == 1
+        && std::is_trivially_copyable_v<T>
+        && not std::is_pointer_v<T>
+        && not std::same_as<std::remove_cv_t<T>, bool>
+        && not std::same_as<std::remove_cv_t<T>, void>;
+
+    namespace details {
+        template<typename T> struct bounded_array_impl { using type = T; };
+        template<typename T, usize N> struct bounded_array_impl<T[N]> {
+            using type = std::array<typename bounded_array_impl<T>::type, N>;
+        };
+        template<typename T>
+        using bounded_array_t = typename bounded_array_impl<T>::type;
+    }
+
     template<typename T>
     concept byte_offset
         =  std::same_as<std::remove_cvref_t<T>, off_s>
@@ -267,6 +301,37 @@ namespace lbyte::stx
             return base.addr();
         else
             return static_cast<uptr>( base );
+    }
+
+    // CASTING -------------------------------------------------------------------
+    template<class Type>
+    STX_FORCE_INLINE
+    Type rcast( auto value ) noexcept {
+        return reinterpret_cast<Type>( value );
+    }
+
+    template<class Type>
+    STX_FORCE_INLINE
+    constexpr Type scast( auto value ) noexcept {
+        return static_cast<Type>( value );
+    }
+
+    template<typename To, typename From>
+    [[nodiscard]] STX_FORCE_INLINE
+    constexpr To bcast( const From& from ) noexcept {
+        return std::bit_cast<To>( from );
+    }
+
+    template<class Type>
+    STX_FORCE_INLINE
+    Type ccast( auto value ) noexcept {
+        return const_cast<Type>( value );
+    }
+
+    template<class Type>
+    STX_FORCE_INLINE
+    Type dcast( auto value ) noexcept {
+        return dynamic_cast<Type>( value );
     }
 
     template<std::invocable<> F>
