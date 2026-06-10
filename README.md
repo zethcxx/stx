@@ -33,7 +33,6 @@ Foundation for the entire library.
 | `va_s` | Strong virtual address |
 | `address_like` | Concept for address types |
 | `binary_readable` | Concept for binary-safe types |
-| `mem::gap_v` / `mem::gap_align_v` | Compile-time size calculators |
 
 ---
 
@@ -48,8 +47,9 @@ Provides safe, low-level memory access, alignment primitives, and typed pointer 
 | `write<Type>(addr, offset, value)` | Copy-based write |
 | `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
 | `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `uptr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator/`, `read/write<T>`, `step<Stride>()`, `align_up/down` |
+| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator>>`, `read/write<T>`, `align_up/down` |
 | `mem::align_up` / `mem::align_down` | Aligns integral or strong types to power-of-two boundaries |
+| `mem::gap_v` / `mem::gap_align_v` | Compile-time size calculators |
 
 Intended use:
 
