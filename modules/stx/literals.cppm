@@ -36,4 +36,7 @@ export namespace lbyte::stx::literals
     using ::lbyte::stx::literals::operator""_gb;
 
     using ::lbyte::stx::literals::operator""_sl;
+
+    using ::lbyte::stx::literals::operator""_le;
+    using ::lbyte::stx::literals::operator""_be;
 }
