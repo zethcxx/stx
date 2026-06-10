@@ -532,9 +532,11 @@ namespace lbyte::stx
             const off_s offset
         ) noexcept
         {
-            if (offset.get() + static_cast<off_s::value_type>(sizeof(Type)) > static_cast<off_s::value_type>(m.size()))
+            auto const byte_off = offset.get();
+            if (byte_off + static_cast<off_s::value_type>(sizeof(Type)) > static_cast<off_s::value_type>(m.size()))
                 return std::unexpected(std::errc::argument_out_of_domain);
-            return m.as_p<Type>()[offset].template read<Type>();
+            auto target = m.base() + static_cast<uptr>(byte_off);
+            return ptr<Type>(target).template read<Type>();
         }
 
         template<binary_readable Type>
@@ -546,9 +548,11 @@ namespace lbyte::stx
         {
             if (!(m.flags() & map_flag::write))
                 return std::unexpected(std::errc::permission_denied);
-            if (offset.get() + static_cast<off_s::value_type>(sizeof(Type)) > static_cast<off_s::value_type>(m.size()))
+            auto const byte_off = offset.get();
+            if (byte_off + static_cast<off_s::value_type>(sizeof(Type)) > static_cast<off_s::value_type>(m.size()))
                 return std::unexpected(std::errc::argument_out_of_domain);
-            m.as_p<Type>()[offset].write(value);
+            auto target = m.base() + static_cast<uptr>(byte_off);
+            ptr<Type>(target).write(value);
             return {};
         }
 
