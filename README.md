@@ -1,7 +1,7 @@
 # STX - Systems Toolbelt for C++23
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 3.0.0
+**Version:** 1.0.0
 
 STX is a header-only C++23 library providing a rich set of low-level abstractions and utilities for systems programming, binary analysis, runtime instrumentation, and scripting at the OS/hardware interface. It emphasizes type safety, zero-overhead abstractions, and modern C++ idioms to enhance productivity in reverse engineering, red teaming, and tooling for binary formats.
 
@@ -157,7 +157,7 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v3.0.0
+    GIT_TAG        v1.0.0
 )
 
 # To use modules with FetchContent:
@@ -178,11 +178,7 @@ package("zethcxx.stx")
     set_urls("https://github.com/zethcxx/stx.git")
 
     add_versions( "v1.0.0", "v1.0.0" ) -- Or hash
-    add_versions( "v2.0.0", "v2.0.0" )
-    add_versions( "v2.1.0", "v2.1.0" )
-    add_versions( "v2.2.0", "v2.2.0" )
-    add_versions( "v3.0.0", "v3.0.0" )
- 
+
     add_configs( "use_modules", {
         builtin = false,
         default = false,
@@ -213,7 +209,7 @@ package("zethcxx.stx")
     end)
 package_end()
 
-add_requires( "zethcxx.stx v3.0.0" -- or other version
+add_requires( "zethcxx.stx v1.0.0" -- or other version
     -- , { configs = { use_modules = true }} -- if modules is required
 )
 

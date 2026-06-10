@@ -1,6 +1,5 @@
 module;
 
-// Global module fragment
 #include "lbyte/stx/fs.hpp"
 
 export module lbyte.stx.fs;
@@ -29,3 +28,4 @@ export namespace lbyte::stx::fs
     using ::lbyte::stx::fs::writefs;
     using ::lbyte::stx::fs::skipos;
 }
+

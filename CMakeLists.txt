@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project( stx
-    VERSION 3.0.0
+    VERSION 1.0.0
     LANGUAGES CXX
     DESCRIPTION "Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research."
 )
@@ -55,3 +55,4 @@ install(EXPORT stxTargets
     NAMESPACE lbyte::
     DESTINATION lib/cmake/lbyte-stx
 )
+

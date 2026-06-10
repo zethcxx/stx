@@ -32,14 +32,16 @@ namespace lbyte::stx
     // ALLOCATOR ----------------------------------------------------------------
     namespace details
     {
-        template<typename T, typename Allocator = std::allocator<T>>
-        class vec_init_allocator : public Allocator
+        template<typename T>
+        class vec_init_allocator
         {
-            using traits = std::allocator_traits<Allocator>;
         public:
-            template<typename U> struct rebind { using other = vec_init_allocator<U, typename traits::template rebind_alloc<U>>; };
+            using value_type = T;
 
-            using Allocator::Allocator;
+            vec_init_allocator() noexcept = default;
+
+            template<typename U>
+            vec_init_allocator(const vec_init_allocator<U>&) noexcept {}
 
             template<typename U>
             void construct(U* ptr) noexcept(std::is_nothrow_default_constructible_v<U>) {
@@ -50,10 +52,17 @@ namespace lbyte::stx
 
             template<typename U, typename... Args>
             void construct(U* ptr, Args&&... args) {
-                traits::construct(static_cast<Allocator&>(*this), ptr, std::forward<Args>(args)...);
+                ::new(static_cast<void*>(ptr)) U(std::forward<Args>(args)...);
+            }
+
+            [[nodiscard]] T* allocate(std::size_t n) {
+                return static_cast<T*>(::operator new(n * sizeof(T)));
+            }
+
+            void deallocate(T* p, std::size_t n) noexcept {
+                ::operator delete(p);
             }
         };
-
     }
 
     // DIRTY VECTOR --------------------------------------------------------------
@@ -65,10 +74,20 @@ namespace lbyte::stx
 
         enum class origin : u8
         {
-            begin  ,
+            begin  = 0,
             current,
             end    ,
         };
+
+        [[nodiscard]] constexpr std::ios_base::seekdir to_stl_seekdir(const origin dir) noexcept {
+            switch (dir) {
+                case origin::begin:   return std::ios_base::beg;
+                case origin::current: return std::ios_base::cur;
+                case origin::end:     return std::ios_base::end;
+            }
+
+            return std::ios_base::beg;
+        }
 
         inline void setposfs(
             std::istream& file,
@@ -77,7 +96,7 @@ namespace lbyte::stx
         ) noexcept {
             file.seekg(
                 scast<std::streamoff>( offset.get() ),
-                static_cast<std::ios_base::seekdir>( dir )
+                to_stl_seekdir( dir )
             );
         }
 
@@ -90,8 +109,10 @@ namespace lbyte::stx
             Type value;
             setposfs(file, offset, dir);
             file.read(rcast<char*>(&value), sizeof(Type));
+
             if (file.fail()) [[unlikely]]
                 return std::unexpected(std::errc::io_error);
+
             return value;
         }
 
@@ -99,7 +120,7 @@ namespace lbyte::stx
         template<binary_readable Type>
         std::expected<void, std::errc> readfs(
             std::istream& file,
-            std::span<std::type_identity_t<Type>> out_buffer,
+            std::span<Type> out_buffer,
             const off_s offset,
             const origin dir = origin::begin
         ) noexcept {
@@ -108,8 +129,10 @@ namespace lbyte::stx
                 rcast<char*>(std::data(out_buffer)),
                 scast<std::streamsize>(sizeof(Type) * out_buffer.size())
             );
+
             if (file.fail()) [[unlikely]]
                 return std::unexpected(std::errc::io_error);
+
             return {};
         }
 
@@ -117,7 +140,7 @@ namespace lbyte::stx
         template<binary_readable Type = u8> [[nodiscard]]
         std::expected<dirty_vector<Type>, std::errc> readfs(
             std::istream&  file  ,
-            const off_s offset,
+            const off_s    offset,
             const usize    count ,
             const origin   dir   = origin::begin
         ) {
@@ -133,13 +156,15 @@ namespace lbyte::stx
         requires ( Size > 0 ) [[nodiscard]]
         std::expected<std::array<Type, Size>, std::errc> readfs(
             std::istream& file  ,
-            const off_s offset = off_s{0},
-            const origin dir = origin::begin
+            const off_s   offset = off_s{0},
+            const origin  dir = origin::begin
         ) noexcept {
             std::array<Type, Size> arr;
             auto result = readfs<Type>(file, std::span<std::type_identity_t<Type>>{arr}, offset, dir);
+
             if (!result) [[unlikely]]
                 return std::unexpected(result.error());
+
             return arr;
         }
 
@@ -159,7 +184,7 @@ namespace lbyte::stx
         ) noexcept {
             file.seekp(
                 scast<std::streamoff>( offset.get() ),
-                static_cast<std::ios_base::seekdir>( dir )
+                to_stl_seekdir( dir )
             );
         }
 
@@ -217,11 +242,11 @@ namespace lbyte::stx
         populate = 1 << 4,
     };
 
-    constexpr map_flag operator|(map_flag a, map_flag b) noexcept {
+    inline constexpr map_flag operator|(map_flag a, map_flag b) noexcept {
         return static_cast<map_flag>(static_cast<u8>(a) | static_cast<u8>(b));
     }
 
-    constexpr bool operator&(map_flag a, map_flag b) noexcept {
+    inline constexpr bool operator&(map_flag a, map_flag b) noexcept {
         return (static_cast<u8>(a) & static_cast<u8>(b)) != 0;
     }
 
@@ -282,8 +307,13 @@ namespace lbyte::stx
             , size_(size)
             , cur_(base + off_s{scast<off_s::value_type>(pos.get() < 0 ? 0 : pos.get())})
         {
-            if (cur_.addr() < base_.addr()) cur_ = base_;
-            if (cur_.addr() > base_.addr() + size_) cur_ = base_ + off_s{scast<off_s::value_type>(size_)};
+            const auto position = pos.get();
+            auto target_offset = position < 0 ? 0 : position;
+
+            if (target_offset > scast<off_s::value_type>(size_))
+                target_offset = scast<off_s::value_type>(size_);
+
+            cur_ = base_ + off_s{target_offset};
         }
 
     public:
@@ -293,32 +323,28 @@ namespace lbyte::stx
         usize size() const noexcept { return size_; }
         uptr  base() const noexcept { return base_.addr(); }
 
-        [[nodiscard]] std::span<const std::byte> bytes() const noexcept {
-            return { rcast<const std::byte*>(base_.addr()), size_ };
-        }
-
-        [[nodiscard]] std::span<std::byte> bytes() noexcept
-            requires (!std::is_const_v<ByteType>)
-        {
-            return { rcast<std::byte*>(base_.addr()), size_ };
-        }
-
-        template<typename T = ByteType>
-        [[nodiscard]] constexpr ptr<T> as_p() const noexcept {
-            return ptr<T>(base_.addr());
-        }
-
-        // --- cursor --------------------------------------------------------
-
         void seek(off_s off, origin dir = origin::begin) noexcept {
             auto const o = off.get();
+            off_s::value_type target_offset = 0;
+
             switch (dir) {
-                case origin::begin:   cur_ = base_ + off_s{o < 0 ? off_s::value_type{0} : o}; break;
-                case origin::current: cur_ = cur_ + off; break;
-                case origin::end:     cur_ = base_ + off_s{scast<off_s::value_type>(size_) + o}; break;
+                case origin::begin:
+                    target_offset = o;
+                    break;
+                case origin::current:
+                    target_offset = tell().get() + o;
+                    break;
+                case origin::end:
+                    target_offset = scast<off_s::value_type>( size_ ) + o;
+                    break;
             }
-            if (cur_.addr() < base_.addr()) cur_ = base_;
-            if (cur_.addr() > base_.addr() + size_) cur_ = base_ + off_s{scast<off_s::value_type>(size_)};
+
+            if ( target_offset < 0 )
+                target_offset = 0;
+            else if ( target_offset > scast<off_s::value_type>( size_ ))
+                target_offset = scast<off_s::value_type>(size_);
+
+            cur_ = base_ + off_s{target_offset};
         }
 
         void skip(const off_s offset) noexcept { seek(offset, origin::current); }
@@ -417,6 +443,24 @@ namespace lbyte::stx
             auto len = strnlen(base, avail);
             cur_ = cur_ + off_s{scast<off_s::value_type>(len < avail ? len + 1 : avail)};
             return {base, len};
+        }
+
+        template<typename T = ByteType>
+        [[nodiscard]] constexpr ptr<T> as_p() const noexcept
+        {
+            return ptr<T>(cur_.addr());
+        }
+
+        [[nodiscard]] constexpr std::span<ByteType> bytes() noexcept
+        {
+            auto const rem = remaining().get();
+            return std::span<ByteType>(rcast<ByteType*>(cur_.addr()), scast<usize>(rem < 0 ? 0 : rem));
+        }
+
+        [[nodiscard]] constexpr std::span<const ByteType> bytes() const noexcept
+        {
+            auto const rem = remaining().get();
+            return std::span<const ByteType>(rcast<const ByteType*>(cur_.addr()), scast<usize>(rem < 0 ? 0 : rem));
         }
     };
 
@@ -519,6 +563,24 @@ namespace lbyte::stx
             swap(raw_, other.raw_);
             swap(raw_sz_, other.raw_sz_);
             swap(flags_, other.flags_);
+        }
+
+        auto flush() noexcept -> std::expected<void, std::errc>
+        {
+            if (!raw_ || !(flags_ & map_flag::write))
+                return {};
+
+            #if defined(_WIN32)
+                if (FlushViewOfFile(raw_, raw_sz_) == 0) [[unlikely]] {
+                    return std::unexpected(std::errc::io_error);
+                }
+            #else // Linux / POSIX
+                if (::msync(raw_, raw_sz_, MS_SYNC) < 0) [[unlikely]] {
+                    return std::unexpected(std::errc::io_error);
+                }
+            #endif
+
+            return {};
         }
     };
 
@@ -653,12 +715,20 @@ namespace lbyte::stx
             }
 
             usize file_size = static_cast<usize>(fileSize.QuadPart);
+            if ( file_size == 0 ) {
+                CloseHandle(hFile);
+                return map_file(sys_ctor_tag{}, nullptr, 0, ptr<std::byte>{}, 0, off_s{0}, flags);
+            }
+
             if (offset > file_size) {
                 CloseHandle(hFile);
                 return std::unexpected(std::errc::argument_out_of_domain);
             }
-            if (size == 0) size = file_size - offset;
-            if (size > file_size - offset) {
+
+            if ( size == 0 )
+                size = file_size - offset;
+
+            if ( size > file_size - offset ) {
                 CloseHandle(hFile);
                 return std::unexpected(std::errc::argument_out_of_domain);
             }
@@ -754,10 +824,16 @@ namespace lbyte::stx
             }
 
             usize file_size = static_cast<usize>(st.st_size);
+            if (file_size == 0) {
+                ::close(fd);
+                return map_file(sys_ctor_tag{}, nullptr, 0, ptr<std::byte>{}, 0, off_s{0}, flags);
+            }
+
             if (offset > file_size) {
                 ::close(fd);
                 return std::unexpected(std::errc::argument_out_of_domain);
             }
+
             if (size == 0) size = file_size - offset;
             if (size > file_size - offset) {
                 ::close(fd);

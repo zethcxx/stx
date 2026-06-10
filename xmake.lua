@@ -1,5 +1,5 @@
 set_project( "stx"   )
-set_version( "3.0.0" )
+set_version( "1.0.0" )
 set_license( "MIT"   )
 
 set_description("Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research.")
@@ -24,3 +24,4 @@ target("stx")
         set_kind("headeronly")
 
     end
+
