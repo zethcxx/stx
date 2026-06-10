@@ -1,14 +1,13 @@
 # mem.hpp
 
-## `ptr<T, Stride>`
+## `ptr<T>`
 
-A non-owning pointer wrapper whose arithmetic operates in byte units.
-Internally stores a `uptr` — `p + n` moves `n * sizeof(T) * Stride` bytes.
+A non-owning pointer wrapper for typed memory access.
+Internally stores a `uptr` for arithmetic and dereference.
 
 | Parameter | Constraint | Default | Description |
 |-----------|------------|---------|-------------|
 | `T` | Any (including `void`) | — | Referenced type |
-| `Stride` | `uptr` | `1` | Element stride multiplier |
 
 ### Construction
 
@@ -20,12 +19,11 @@ ptr(null_t) noexcept;                        // null
 ```
 
 ```cpp
-stx::ptr<int> p1;                  // null
-stx::ptr<int> p2{buf};             // from T*
-stx::ptr      p3{buf};             // CTAD -> ptr<element_type>
-stx::ptr<int, 2> p4{buf};          // stride 2: p+1 advances 8 bytes
-stx::ptr<int> p5{stx::null};       // null
-stx::ptr<int> p6{stx::uptr(0x1000)};  // from address
+stx::ptr<int> p1;            // null
+stx::ptr<int> p2{buf};       // from T*
+stx::ptr      p3{buf};       // CTAD -> ptr<element_type>
+stx::ptr<int> p5{stx::null}; // null
+stx::ptr<int> p6{stx::uptr(0x1000)}; // from address
 ```
 
 ### Assignment
@@ -33,13 +31,11 @@ stx::ptr<int> p6{stx::uptr(0x1000)};  // from address
 ```cpp
 ptr& operator=(T* raw_ptr) noexcept;
 ptr& operator=(address_like auto addr) noexcept;
-template<uptr OtherStride> ptr& operator=(const ptr<T, OtherStride>&) noexcept;
 ```
 
 ```cpp
 p = buf;          // raw pointer
 p = stx::null;    // null
-p = other_ptr;    // cross-stride copy
 ```
 
 ### Accessors
@@ -78,8 +74,8 @@ if (p == stx::null) {}
 ```cpp
 T& operator*() noexcept            requires (!std::is_void_v<T>);
 const T& operator*() const noexcept requires (!std::is_void_v<T>);
-T* operator->() noexcept           requires (!std::is_void_v<T>);
-const T* operator->() const noexcept requires (!std::is_void_v<T>);
+T* operator->() noexcept            requires (!std::is_void_v<T>);
+const T* operator->() const noexcept  requires (!std::is_void_v<T>);
 ```
 
 ```cpp
@@ -92,40 +88,33 @@ Disabled for `ptr<void>`.
 
 ### Operator[] — Displacement (returns `ptr_light`)
 
-Returns a `ptr_light<T, Stride>` at the calculated address — this is a
-displacement, NOT a dereference. `ptr_light` inherits `ptr` but has
+Returns a `ptr_light<T>` at the calculated address — this is a
+**displacement**, NOT a dereference. `ptr_light` inherits `ptr` but has
 `operator[]` deleted (no chaining).
 
+Three overloads control the addressing mode:
+
+| Expression | Step | Formula |
+|------------|------|---------|
+| `p[n]` — single integral | `sizeof(T)` (element-level) | `addr + n * sizeof(T)` |
+| `p[n, s]` — two integrals | `s` (custom byte step) | `addr + n * s` |
+| `p[off_s{n}]` — byte_offset | 1 (byte-level) | `addr + n` |
+
 ```cpp
-template<std::integral U> constexpr ptr_light<T, Stride> operator[](U offset) const noexcept;
-template<byte_offset OffT> constexpr ptr_light<T, Stride> operator[](OffT offset) const noexcept;
-```
+stx::ptr<stx::u32> p{buf};
 
-Raw integral → element-level: `address + offset * sizeof(T) * Stride`.
-`off_s`/`rva_s` → byte-level: `address + offset.get()` (no stride, no sizeof).
-
-```cpp
-stx::ptr<stx::u32> p{buf};            // Stride = 1
-
-auto el = p[2];              // ptr_light<u32> at address + 2 * sizeof(u32) * 1
+auto el = p[2];              // ptr_light<u32> at address + 2 * sizeof(u32)
+auto cs = p[2, 1];           // ptr_light<u32> at address + 2 * 1 (byte-level)
 auto by = p[stx::off_s{4}];  // ptr_light<u32> at address + 4
 
-// Stride changes the displacement:
-stx::ptr<stx::u32, 2> p2{buf};
-auto el2 = p2[2];            // ptr_light<u32> at address + 2 * sizeof(u32) * 2
-
-// step<> changes Stride at runtime:
-auto stepped = p.step<2>();
-auto el3 = stepped[2];       // ptr_light<u32> at address + 2 * sizeof(u32) * 2
+// void pointers: no sizeof multiplier, single integral = byte-level
+stx::ptr<void> pv{buf};
+auto el4 = pv[2];            // ptr_light<void> at address + 2
 
 // ptr_light usage:
 el.write<stx::u32>(42);
 auto v = el.read<stx::u32>();
 // el[0];  // error: operator[] deleted on ptr_light
-
-// void pointers: no sizeof multiplier
-stx::ptr<void> pv{buf};
-auto el4 = pv[2];            // ptr_light<void> at address + 2 * 1 (no sizeof)
 ```
 
 ### Arithmetic
@@ -151,8 +140,10 @@ stx::off_s d2 = p.diff(&x);        // difference from raw pointer
 
 ### Increment / Decrement
 
+Element-level: advances by `sizeof(T)` (or 1 for `void`).
+
 ```cpp
-ptr& operator++() noexcept;    // advance by sizeof(T) * Stride
+ptr& operator++() noexcept;    // advance by sizeof(T) (or 1 if void)
 ptr  operator++(int) noexcept;
 ptr& operator--() noexcept;
 ptr  operator--(int) noexcept;
@@ -212,12 +203,11 @@ auto child = (p + stx::off_s{8}).read_p<int>();  // at offset 8
 
 ### Pointer Chase (memcpy-safe)
 
-Reads `sizeof(ReturnType)` bytes from `address + offset` (byte-level,
-no stride multiplier — offset is always `off_s` or convertible to it),
-then wraps the value in a new `ptr<ReturnType, Stride>`.
+Reads `sizeof(ReturnType)` bytes from `address + offset` (byte-level),
+then wraps the value in a new `ptr<ReturnType>`.
 
 ```cpp
-template<typename ReturnType = T, byte_offset OffT> ptr<ReturnType, Stride> walk(OffT offset) const noexcept;
+template<typename ReturnType = T, byte_offset OffT> ptr<ReturnType> walk(OffT offset) const noexcept;
 template<typename ReturnType = T, std::integral U> auto walk(U offset) const noexcept;
 ```
 
@@ -231,27 +221,23 @@ auto next2 = p.walk<int>(8);             // same as above
 
 ### Operator>> — Chain / Pointer Chase
 
-Reads a `uptr` from `address + offset` (computed with stride), then
-wraps it in a new `ptr`.
+Reads a `uptr` from `address + offset` (byte-level, always), then wraps
+the value in a new `ptr<T>`. Integral offsets are converted to `off_s`.
 
 ```cpp
-template<byte_offset OffT> ptr<T, Stride> operator>>(OffT offset) const noexcept;
+template<byte_offset OffT> ptr<T> operator>>(OffT offset) const noexcept;
 template<std::integral U>  auto operator>>(U offset) const noexcept;
 ```
-
-`byte_offset` → byte-level: reads from `address + offset.get()`.
-Integral → element-level: reads from `address + offset * sizeof(T) * Stride`.
 
 ```cpp
 // Follow a pointer stored at byte offset 8 from p
 auto child = p >> stx::off_s{8};
 
-// Element-level: chase using stride
-auto child2 = p >> 2;   // reads uptr at address + 2 * sizeof(T) * Stride
+// Integral offset is byte-level (wraps to off_s internally)
+auto child2 = p >> 8;   // reads uptr at address + 8 (same as off_s{8})
 
-// void: no sizeof multiplier
-stx::ptr<void> pv{buf};
-auto child3 = pv >> 2;  // reads uptr at address + 2 * Stride
+// Chaining
+auto val = (p >> 8 >> 4).read<stx::u32>();  // follow ptr at +8, then ptr at +4
 ```
 
 ### Read Into / Pop Into
@@ -348,18 +334,6 @@ bool ok = p.is_aligned<stx::u32>();   // check alignment for u32
 bool ok = p.is_aligned<16>();         // check 16-byte alignment
 ```
 
-### Stride Management
-
-```cpp
-template<uptr NewStride> constexpr ptr<T, NewStride> step() const noexcept;
-template<typename U> constexpr ptr<T, sizeof(U)> step() const noexcept;
-```
-
-```cpp
-auto p2 = p.step<2>();          // ptr<T, 2> same address
-auto p3 = p.step<stx::u32>();  // ptr<T, sizeof(u32)> = ptr<T, 4>
-```
-
 ### Function Call
 
 ```cpp
@@ -384,16 +358,16 @@ friend void swap(ptr& a, ptr& b) noexcept;
 
 ---
 
-## `ptr_light<T, Stride>`
+## `ptr_light<T>`
 
 A lightweight proxy returned by `ptr::operator[]`. Inherits `ptr` but
 deletes `operator[]` to prevent double-indexing.
 
 ```cpp
-template<typename T, uptr Stride>
-struct ptr_light : ptr<T, Stride>
+template<typename T>
+struct ptr_light : ptr<T>
 {
-    using ptr<T, Stride>::ptr;
+    using ptr<T>::ptr;
     template<typename U> ptr_light operator[](U) const = delete;
 };
 ```

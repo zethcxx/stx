@@ -96,7 +96,7 @@ differently for `off_s` (byte-level) vs raw integral (element-level).
 
 ```cpp
 stx::ptr<int> p{buf};
-p[2];                // element index 2 (stride-aware)
+p[2];                // element index 2 (element-level)
 p[stx::off_s{8}];    // byte offset 8
 ```
 

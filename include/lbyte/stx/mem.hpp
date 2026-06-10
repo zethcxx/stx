@@ -179,10 +179,10 @@ namespace lbyte::stx
     } // namespace mem
 
 
-    template<typename T, uptr Stride = 1>
+    template<typename T>
     struct ptr_light;
 
-    template<typename T, uptr Stride = 1>
+    template<typename T>
     class ptr
     {
         ::lbyte::stx::uptr address = 0;
@@ -213,14 +213,6 @@ namespace lbyte::stx
 
         constexpr ptr& operator=(address_like auto addr) noexcept {
             address = normalize_addr( addr );
-            return *this;
-        }
-
-        // ---- CROSS-STRIDE ASSIGNMENT -----------------------------
-
-        template<uptr OtherStride>
-        constexpr ptr& operator=( const ptr<T, OtherStride>& other ) noexcept {
-            address = other.addr();
             return *this;
         }
 
@@ -289,18 +281,26 @@ namespace lbyte::stx
         }
 
         // ---- NAVIGATION -------------------------------------------
+        // Single integral: element-level,  ptr[n] = addr + n * sizeof(T)
+        // Two integrals:    custom step,    ptr[n, s] = addr + n * s
+        // byte_offset:      byte-level,     ptr[off_s{n}] = addr + n
 
         template<std::integral U>
-        [[nodiscard]] constexpr ptr_light<T, Stride> operator[]( U offset ) const noexcept {
+        [[nodiscard]] constexpr ptr_light<T> operator[]( U offset ) const noexcept {
             if constexpr ( std::is_void_v<T> )
-                return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset ) * Stride );
+                return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset ));
             else
-                return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset ) * sizeof(T) * Stride );
+                return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset ) * sizeof(T) );
+        }
+
+        template<std::integral U, std::integral V>
+        [[nodiscard]] constexpr ptr_light<T> operator[]( U offset, V step ) const noexcept {
+            return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset ) * static_cast<::lbyte::stx::uptr>( step ));
         }
 
         template<byte_offset OffT>
-        [[nodiscard]] constexpr ptr_light<T, Stride> operator[]( OffT offset ) const noexcept {
-            return ptr_light<T, Stride>( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
+        [[nodiscard]] constexpr ptr_light<T> operator[]( OffT offset ) const noexcept {
+            return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
         }
 
         // ---- SAFE (memcpy) ---------------------------------------
@@ -541,12 +541,13 @@ namespace lbyte::stx
         }
 
         // ---- INCREMENT / DECREMENT --------------------------------
+        // Element-level: advances by sizeof(T) (or 1 if void).
 
         constexpr ptr& operator++() noexcept {
             if constexpr ( std::is_void_v<T> )
-                address += Stride;
+                address += 1;
             else
-                address += ( sizeof(T) * Stride );
+                address += sizeof(T);
 
             return *this;
         }
@@ -559,9 +560,9 @@ namespace lbyte::stx
 
         constexpr ptr& operator--() noexcept {
             if constexpr ( std::is_void_v<T> )
-                address -= Stride;
+                address -= 1;
             else
-                address -= ( sizeof(T) * Stride );
+                address -= sizeof(T);
 
             return *this;
         }
@@ -573,6 +574,7 @@ namespace lbyte::stx
         }
 
         // ---- ARITHMETIC -------------------------------------------
+        // Only byte_offset types (off_s / rva_s) — no raw integral arithmetic.
 
         template<byte_offset OffT>
         [[nodiscard]] constexpr ptr operator+( OffT offset ) const noexcept {
@@ -608,27 +610,28 @@ namespace lbyte::stx
         }
 
         // ---- WALK (memcpy-safe pointer chasing) ------------------
+        // Byte-level (off_s or off_s-convertible). No stride involved.
 
         template<typename ReturnType = T, byte_offset OffT>
         [[nodiscard]] STX_FORCE_INLINE
-        auto walk( OffT offset ) const noexcept -> ptr<ReturnType, Stride>
+        auto walk( OffT offset ) const noexcept -> ptr<ReturnType>
             requires ( not std::is_void_v<ReturnType> )
         {
             ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>( offset.get() );
             ReturnType value;
             std::memcpy( &value, rcast<const std::byte*>( target ), sizeof( ReturnType ));
-            return ptr<ReturnType, Stride>( rcast<ReturnType*>( value ) );
+            return ptr<ReturnType>( rcast<ReturnType*>( value ) );
         }
 
         template<typename ReturnType = T, byte_offset OffT>
         [[nodiscard]] STX_FORCE_INLINE
-        auto walk( OffT offset ) const noexcept -> ptr<void, Stride>
+        auto walk( OffT offset ) const noexcept -> ptr<void>
             requires ( std::is_void_v<ReturnType> )
         {
             ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>( offset.get() );
             ::lbyte::stx::uptr value;
             std::memcpy( &value, rcast<const std::byte*>( target ), sizeof( ::lbyte::stx::uptr ));
-            return ptr<void, Stride>( value );
+            return ptr<void>( value );
         }
 
         template<typename ReturnType = T, std::integral U>
@@ -638,45 +641,23 @@ namespace lbyte::stx
         }
 
         // ---- CHAIN: base / off / off -----------------------------
+        // Byte-level: operator>> reads a uptr from address + offset.get()
+        // (no sizeof(T), no stride). Integral overload wraps to off_s.
 
         template<byte_offset OffT>
         [[nodiscard]] STX_FORCE_INLINE
-        auto operator>>( OffT offset ) const noexcept -> ptr<T, Stride>
-            requires ( not std::is_void_v<T> )
+        auto operator>>( OffT offset ) const noexcept -> ptr<T>
         {
-            ::lbyte::stx::uptr target = address + ( static_cast<::lbyte::stx::uptr>( offset.get() ) * sizeof(T) * Stride );
-            T value;
-            std::memcpy( &value, rcast<const std::byte*>( target ), sizeof( T ));
-            return ptr<T, Stride>( rcast<T*>( value ) );
-        }
-
-        template<byte_offset OffT>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto operator>>( OffT offset ) const noexcept -> ptr<void, Stride>
-            requires ( std::is_void_v<T> )
-        {
-            ::lbyte::stx::uptr target = address + ( static_cast<::lbyte::stx::uptr>( offset.get() ) * Stride );
+            ::lbyte::stx::uptr target = address + static_cast<::lbyte::stx::uptr>( offset.get() );
             ::lbyte::stx::uptr value;
             std::memcpy( &value, rcast<const std::byte*>( target ), sizeof( ::lbyte::stx::uptr ));
-            return ptr<void, Stride>( value );
+            return ptr<T>( rcast<T*>( value ) );
         }
 
         template<std::integral U>
         [[nodiscard]] STX_FORCE_INLINE
         auto operator>>( U offset ) const noexcept {
             return operator>>( off_s{ offset } );
-        }
-
-        // ---- STRIDE MANAGEMENT -----------------------------------
-
-        template<::lbyte::stx::uptr NewStride>
-        [[nodiscard]] constexpr ptr<T, NewStride> step() const noexcept {
-            return ptr<T, NewStride>( address );
-        }
-
-        template<typename U>
-        [[nodiscard]] constexpr ptr<T, sizeof(U)> step() const noexcept {
-            return ptr<T, sizeof(U)>( address );
         }
 
         // ---- ALIGNMENT CHECK -------------------------------------
@@ -719,12 +700,12 @@ namespace lbyte::stx
         }
     };
 
-    // --- ptr_light<T, Stride> (non-chainable proxy from operator[]) -------------
+    // --- ptr_light<T> (non-chainable proxy from operator[]) -------------
 
-    template<typename T, uptr Stride>
-    struct ptr_light : ptr<T, Stride>
+    template<typename T>
+    struct ptr_light : ptr<T>
     {
-        using ptr<T, Stride>::ptr;
+        using ptr<T>::ptr;
 
         template<typename U>
         ptr_light operator[]( U ) const = delete;
@@ -734,28 +715,27 @@ namespace lbyte::stx
 #include <format>
 #include <functional>
 
-template<typename T, lbyte::stx::uptr Stride>
-struct std::hash<lbyte::stx::ptr<T, Stride>>
+template<typename T>
+struct std::hash<lbyte::stx::ptr<T>>
 {
-    [[nodiscard]] auto operator()( const lbyte::stx::ptr<T, Stride>& p ) const noexcept {
+    [[nodiscard]] auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
 
-template<typename T, lbyte::stx::uptr Stride>
-struct std::hash<lbyte::stx::ptr_light<T, Stride>>
+template<typename T>
+struct std::hash<lbyte::stx::ptr_light<T>>
 {
-    [[nodiscard]] auto operator()( const lbyte::stx::ptr_light<T, Stride>& p ) const noexcept {
+    [[nodiscard]] auto operator()( const lbyte::stx::ptr_light<T>& p ) const noexcept {
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
 
-template<typename T, lbyte::stx::uptr Stride>
-struct std::formatter<lbyte::stx::ptr<T, Stride>> : std::formatter<void*> {
-    auto format(const lbyte::stx::ptr<T, Stride>& p, format_context& ctx) const {
+template<typename T>
+struct std::formatter<lbyte::stx::ptr<T>> : std::formatter<void*> {
+    auto format(const lbyte::stx::ptr<T>& p, format_context& ctx) const {
         return std::formatter<void*>::format(reinterpret_cast<void*>(p.addr()), ctx);
     }
 };
 
 #undef STX_FORCE_INLINE
-
