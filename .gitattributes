@@ -1,0 +1,29 @@
+# Auto-detect text files
+* text=auto
+
+# Source code
+*.hpp   text diff=cpp
+*.cpp   text diff=cpp
+*.cppm  text diff=cpp
+
+# Scripts
+*.lua   text
+*.cmake text
+*.sh    text eol=lf
+*.py    text diff=python
+
+# Docs
+*.md    text
+*.txt   text
+*.yml   text
+*.yaml  text
+*.json  text
+
+# Git
+.gitignore text
+.gitattributes text
+
+# Binaries (never touch)
+*.o     binary
+*.so    binary
+*.a     binary
