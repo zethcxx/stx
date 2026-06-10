@@ -3,329 +3,516 @@
 ## `ptr<T, Stride>`
 
 A non-owning pointer wrapper whose arithmetic operates in byte units.
-`ptr<T, Stride = 1>` stores a `uptr` internally — `p + n` moves
-`n * sizeof(T) * Stride` bytes forward.
-
-### Template Parameters
+Internally stores a `uptr` — `p + n` moves `n * sizeof(T) * Stride` bytes.
 
 | Parameter | Constraint | Default | Description |
 |-----------|------------|---------|-------------|
-| `T` | Any type (including `void`) | — | Referenced type |
+| `T` | Any (including `void`) | — | Referenced type |
 | `Stride` | `uptr` | `1` | Element stride multiplier |
 
 ### Construction
 
 ```cpp
-ptr() noexcept;
-ptr(std::nullptr_t) noexcept;
-ptr(null_t) noexcept;
-ptr(T* p) noexcept;
-ptr(const ptr&) noexcept;
-ptr(ptr&&) noexcept;
+ptr() noexcept;                              // null
+ptr(T* raw_ptr) noexcept;                    // from raw pointer
+explicit ptr(address_like auto addr) noexcept; // from uptr, va_s, etc.
+ptr(null_t) noexcept;                        // null
 ```
 
 ```cpp
 stx::ptr<int> p1;                  // null
-stx::ptr<int> p2{nullptr};         // null
-stx::ptr<int> p3{buf};             // from raw pointer
-stx::ptr      p4{buf};             // CTAD -> ptr<element_type>
-stx::ptr<int, 2> p5{buf};          // stride-2: p+1 advances 8 bytes
+stx::ptr<int> p2{buf};             // from T*
+stx::ptr      p3{buf};             // CTAD -> ptr<element_type>
+stx::ptr<int, 2> p4{buf};          // stride 2: p+1 advances 8 bytes
+stx::ptr<int> p5{stx::null};       // null
+stx::ptr<int> p6{stx::uptr(0x1000)};  // from address
 ```
 
 ### Assignment
 
 ```cpp
-ptr& operator=(const ptr&) noexcept;
-ptr& operator=(ptr&&) noexcept;
-ptr& operator=(T* p) noexcept;
-```
-
-### Dereference
-
-```cpp
-T& operator*()  const noexcept;
-T* operator->() const noexcept requires (not std::is_void_v<T>);
+ptr& operator=(T* raw_ptr) noexcept;
+ptr& operator=(address_like auto addr) noexcept;
+template<uptr OtherStride> ptr& operator=(const ptr<T, OtherStride>&) noexcept;
 ```
 
 ```cpp
-*p = 42;
-int val = *p;
-int x = p->member;
+p = buf;          // raw pointer
+p = stx::null;    // null
+p = other_ptr;    // cross-stride copy
 ```
 
-For `ptr<void, S>`, `operator*` and `operator->` are disabled.
+### Accessors
 
-### Array Access
-
-Raw integral indices use element-level arithmetic (respecting stride).
-`off_s`-typed indices use byte-level arithmetic.
-
-```cpp
-T& operator[](isize index) const noexcept;    // element index (stride-aware)
-T& operator[](off_s offset) const noexcept;   // byte offset
-```
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `raw()` | `T*` | Raw pointer (mutable overload) |
+| `raw()` const | `const T*` | Raw pointer (const overload) |
+| `addr()` | `uptr` | Address as integer |
+| `operator uptr()` | `uptr` | Implicit conversion |
+| `operator bool()` | `bool` | Non-null check |
 
 ```cpp
-stx::ptr<stx::u32, 2> p{buf};
-
-p[0] = 10;        // *(buf + 0*4*2) = buf[0]
-p[1] = 20;        // *(buf + 1*4*2) = buf[2]
-
-p[stx::off_s{4}] = 30;  // *(buf + 4) = buf[1]  (byte-level)
-```
-
-### Arithmetic
-
-| Expression | Effect | Unit |
-|------------|--------|------|
-| `p + n` | Advance `n` elements | Elements (stride-aware) |
-| `p - n` | Rewind `n` elements | Elements |
-| `p + off_s{n}` | Advance `n` bytes | Bytes |
-| `p - off_s{n}` | Rewind `n` bytes | Bytes |
-| `p += n` / `p -= n` | In-place element advance | Elements |
-| `p += off_s{n}` / `p -= off_s{n}` | In-place byte advance | Bytes |
-| `p - q` | Element difference | Elements |
-
-```cpp
-stx::ptr<stx::u32, 1> p{buf};
-
-auto p2 = p + 4;            // +4 elements = +16 bytes
-auto p3 = p + stx::off_s{16};  // +16 bytes
-isize diff = p3 - p;        // 4 elements
-
-p += 2;                     // advance 2 elements in place
+T* r = p.raw();
+stx::uptr a = p.addr();
+if (p) { /* valid */ }
 ```
 
 ### Comparison
 
 ```cpp
-explicit operator bool() const noexcept;      // non-null check
-bool operator==(const ptr&) const noexcept;
-bool operator!=(const ptr&) const noexcept;
-auto operator<=>(const ptr&) const noexcept;  // three-way
+auto operator<=>(const ptr&) const noexcept = default;
+bool operator==(const ptr&) const noexcept = default;
+bool operator==(null_t) const noexcept;
+bool operator!=(null_t) const noexcept;
 ```
 
 ```cpp
-if (p) {
-    // valid pointer
-}
-
-if (p < q) {
-    // address comparison
-}
-
-if (p == stx::null) {
-    // null check via null_t
-}
+if (p == q) {}
+if (p < q)  {}
+if (p == stx::null) {}
 ```
 
-### Accessors
-
-| Method | Returns |
-|--------|---------|
-| `get()` | `T*` (raw pointer) |
-| `addr()` | `uptr` (address as integer) |
+### Dereference
 
 ```cpp
-T* raw = p.get();
-stx::uptr a = p.addr();
+T& operator*() noexcept            requires (!std::is_void_v<T>);
+const T& operator*() const noexcept requires (!std::is_void_v<T>);
+T* operator->() noexcept           requires (!std::is_void_v<T>);
+const T* operator->() const noexcept requires (!std::is_void_v<T>);
 ```
 
-### Read / Write / Pop
-
-| Method | Behavior |
-|--------|----------|
-| `read<T>(off)` | Read `T` at byte offset (cursor unchanged) |
-| `write<T>(val, off)` | Write `T` at byte offset |
-| `pop<T>()` | Read `T` then advance by `sizeof(T)` |
-| `read<bounded_array>(off)` | Read array at byte offset |
-| `pop<bounded_array>()` | Read array then advance |
-
 ```cpp
-stx::ptr<stx::u8> p{data};
-
-auto magic = p.read<stx::u32>();           // read u32, no advance
-auto type  = p.read<stx::u16>(stx::off_s{4});  // read u16 at byte 4
-
-p.write<stx::u32>(0xDEAD);                 // write u32 at current pos
-
-auto f1 = p.pop<stx::u32>();               // read + advance 4
-auto f2 = p.pop<stx::u16>();               // read + advance 2
-
-auto arr = p.pop<stx::u8[12]>();           // read 12 bytes into array
+*p = 42;
+int v = *p;
+p->member = 10;
 ```
 
-This makes sequential binary parsing straightforward:
+Disabled for `ptr<void>`.
+
+### Operator[] — Displacement (returns `ptr_light`)
+
+Returns a `ptr_light<T, Stride>` at the calculated address — this is a
+displacement, NOT a dereference. `ptr_light` inherits `ptr` but has
+`operator[]` deleted (no chaining).
 
 ```cpp
-auto read_entry(stx::ptr<std::byte> p) {
-    struct Entry { stx::u32 id; stx::u64 timestamp; stx::u32 size; };
-    return Entry{
-        .id        = p.pop<stx::u32>(),
-        .timestamp = p.pop<stx::u64>(),
-        .size      = p.pop<stx::u32>(),
-    };
-}
+template<std::integral U> constexpr ptr_light<T, Stride> operator[](U offset) const noexcept;
+template<byte_offset OffT> constexpr ptr_light<T, Stride> operator[](OffT offset) const noexcept;
+```
+
+Raw integral → element-level: `address + offset * sizeof(T) * Stride`.
+`off_s`/`rva_s` → byte-level: `address + offset.get()` (no stride, no sizeof).
+
+```cpp
+stx::ptr<stx::u32> p{buf};            // Stride = 1
+
+auto el = p[2];              // ptr_light<u32> at address + 2 * sizeof(u32) * 1
+auto by = p[stx::off_s{4}];  // ptr_light<u32> at address + 4
+
+// Stride changes the displacement:
+stx::ptr<stx::u32, 2> p2{buf};
+auto el2 = p2[2];            // ptr_light<u32> at address + 2 * sizeof(u32) * 2
+
+// step<> changes Stride at runtime:
+auto stepped = p.step<2>();
+auto el3 = stepped[2];       // ptr_light<u32> at address + 2 * sizeof(u32) * 2
+
+// ptr_light usage:
+el.write<stx::u32>(42);
+auto v = el.read<stx::u32>();
+// el[0];  // error: operator[] deleted on ptr_light
+
+// void pointers: no sizeof multiplier
+stx::ptr<void> pv{buf};
+auto el4 = pv[2];            // ptr_light<void> at address + 2 * 1 (no sizeof)
+```
+
+### Arithmetic
+
+All arithmetic is in **bytes** — only `off_s`/`rva_s` operands are accepted
+(no raw integral arithmetic).
+
+| Expression | Effect | Returns |
+|------------|--------|---------|
+| `p + off_s{n}` | Advance `n` bytes | `ptr` |
+| `p - off_s{n}` | Rewind `n` bytes | `ptr` |
+| `p += off_s{n}` / `p -= off_s{n}` | In-place | `ptr&` |
+| `p - q` | Byte difference | `off_s` |
+| `p.diff(addr)` | Diff from any address | `off_s` |
+
+```cpp
+auto p2 = p + stx::off_s{16};      // ptr at address + 16
+auto p3 = p - stx::off_s{8};       // ptr at address - 8
+p += stx::off_s{4};                // advance 4 bytes in place
+stx::off_s delta = p3 - p;         // off_s{8}
+stx::off_s d2 = p.diff(&x);        // difference from raw pointer
+```
+
+### Increment / Decrement
+
+```cpp
+ptr& operator++() noexcept;    // advance by sizeof(T) * Stride
+ptr  operator++(int) noexcept;
+ptr& operator--() noexcept;
+ptr  operator--(int) noexcept;
+```
+
+```cpp
+++p;                            // advance 1 element
+auto old = p++;                 // post-increment
+--p;                            // back 1 element
+```
+
+### Safe Read (memcpy, unaligned-safe)
+
+```cpp
+template<binary_readable U> U                  read()  const noexcept;
+template<bounded_array U>   auto                read()  const noexcept;
+template<binary_readable U> U                  pop()   noexcept;        // read + advance
+template<bounded_array U>   auto                pop()   noexcept;
+template<binary_readable U> void               write(U value) const noexcept;
+template<contiguous_buffer R> void             write(R&& range) const noexcept;
+template<binary_readable U> ptr&               push(const U& value) noexcept;  // write + advance
+template<contiguous_buffer R> ptr&             push(R&& range) noexcept;
+```
+
+```cpp
+// Read without advance
+auto magic = p.read<stx::u32>();
+auto arr   = p.read<stx::u8[16]>();
+
+// Pop (read + advance, sequential parse)
+auto field1 = p.pop<stx::u32>();     // advance 4
+auto field2 = p.pop<stx::u16>();     // advance 2
+auto bytes  = p.pop<stx::u8[12]>();  // advance 12
+
+// Write
+p.write<stx::u32>(0xDEADBEEF);
+p.write(std::vector{stx::u8{1}, stx::u8{2}});  // contiguous_buffer
+
+// Push (write + advance)
+p.push(42).push(3.14f);              // chainable, returns ptr&
+```
+
+### Read Pointer from Memory
+
+```cpp
+template<binary_readable U> ptr<U> read_p() const noexcept;
+```
+
+Reads a `uptr` from memory and wraps it in a new `ptr<U>`. Useful for
+following pointers stored in binary structures.
+
+```cpp
+// A struct at p contains a pointer at offset 8
+auto child = p.read_p<int>();              // reads uptr from *p, returns ptr<int>
+auto child = (p + stx::off_s{8}).read_p<int>();  // at offset 8
+```
+
+### Pointer Chase (memcpy-safe)
+
+Reads `sizeof(ReturnType)` bytes from `address + offset` (byte-level,
+no stride multiplier — offset is always `off_s` or convertible to it),
+then wraps the value in a new `ptr<ReturnType, Stride>`.
+
+```cpp
+template<typename ReturnType = T, byte_offset OffT> ptr<ReturnType, Stride> walk(OffT offset) const noexcept;
+template<typename ReturnType = T, std::integral U> auto walk(U offset) const noexcept;
+```
+
+```cpp
+// p+8 contains a pointer to the next node (stored as uptr)
+auto next = p.walk<int>(stx::off_s{8});  // read uptr at p+8, wrap as ptr<int>
+
+// Integral offset is converted to off_s internally (still byte-level)
+auto next2 = p.walk<int>(8);             // same as above
+```
+
+### Operator>> — Chain / Pointer Chase
+
+Reads a `uptr` from `address + offset` (computed with stride), then
+wraps it in a new `ptr`.
+
+```cpp
+template<byte_offset OffT> ptr<T, Stride> operator>>(OffT offset) const noexcept;
+template<std::integral U>  auto operator>>(U offset) const noexcept;
+```
+
+`byte_offset` → byte-level: reads from `address + offset.get()`.
+Integral → element-level: reads from `address + offset * sizeof(T) * Stride`.
+
+```cpp
+// Follow a pointer stored at byte offset 8 from p
+auto child = p >> stx::off_s{8};
+
+// Element-level: chase using stride
+auto child2 = p >> 2;   // reads uptr at address + 2 * sizeof(T) * Stride
+
+// void: no sizeof multiplier
+stx::ptr<void> pv{buf};
+auto child3 = pv >> 2;  // reads uptr at address + 2 * Stride
+```
+
+### Read Into / Pop Into
+
+```cpp
+template<writable_buffer R> void    read_into(R&& buf) const noexcept;
+template<writable_buffer R> ptr&    pop_into(R&& buf) noexcept;
+```
+
+Reads bytes into a writable container (vector, array, span).
+
+```cpp
+std::vector<stx::u8> tmp(64);
+p.read_into(tmp);         // copy 64 bytes into tmp, no advance
+p.pop_into(tmp);          // copy 64 bytes into tmp, advance 64
+```
+
+### Zero-Copy View
+
+```cpp
+template<bounded_array U> std::span<const std::remove_all_extents_t<U>> as_view() const noexcept;
+template<binary_readable U> std::span<const U> as_view(usize count) const noexcept;
+```
+
+Returns a `span` over the memory at the pointer's address.
+
+```cpp
+auto s1 = p.as_view<stx::u32[16]>();         // span of 16 u32s
+auto s2 = p.as_view<stx::u32>(32);           // span of 32 u32s
+```
+
+### Unsafe Read/Write (direct deref)
+
+```cpp
+template<binary_readable U> U    read_raw() const noexcept;
+template<binary_readable U> void write_raw(U value) const noexcept;
+```
+
+Direct dereference — requires alignment, violates strict-aliasing.
+
+```cpp
+auto v = p.read_raw<stx::u32>();  // *reinterpret_cast<u32*>(addr)
+p.write_raw(42);                  // *reinterpret_cast<u32*>(addr) = 42
+```
+
+### Endian-Aware
+
+```cpp
+template<std::integral U> U    read_le() const noexcept;
+template<std::integral U> U    read_be() const noexcept;
+template<byte_swappable U> void write_le(U value) const noexcept;
+template<std::integral U> void write_be(U value) const noexcept;
+```
+
+```cpp
+auto le = p.read_le<stx::u32>();  // little-endian read
+auto be = p.read_be<stx::u32>();  // big-endian read (byteswapped)
+p.write_be<stx::u32>(0x1234);     // write in big-endian
 ```
 
 ### Type Reinterpretation
 
 ```cpp
-template<typename U> constexpr ptr<U> as() const noexcept;
+template<typename U> constexpr ptr<U> as_p() const noexcept;
+template<typename U> constexpr auto   as() const noexcept -> U;
 ```
 
-Reinterprets the stored address as a pointer to `U`. No stride change.
-
 ```cpp
-auto byte_ptr = int_ptr.as<std::byte>();   // ptr<std::byte>
-auto char_ptr = byte_ptr.as<char>();       // ptr<char>
+auto byte_ptr = p.as_p<std::byte>();   // ptr<std::byte>, same address
+auto as_u64 = p.as<stx::u64>();        // scast<u64>(addr)
 ```
 
 ### Pointer Alignment
 
 ```cpp
-template<std::unsigned_integral U = usize>
-constexpr ptr align_up(U alignment) const noexcept;
-
-template<std::unsigned_integral U = usize>
-constexpr ptr align_down(U alignment) const noexcept;
+template<std::unsigned_integral U = usize> constexpr ptr align_up(U alignment) const noexcept;
+template<std::unsigned_integral U = usize> constexpr ptr align_down(U alignment) const noexcept;
 ```
 
 ```cpp
-stx::ptr<stx::u32> p{reinterpret_cast<stx::u32*>(0x1003)};
-
-auto aligned  = p.align_up(16);    // ptr at 0x1010
-auto aligned2 = p.align_down(16);  // ptr at 0x1000
+auto aligned  = p.align_up(16);    // round address up to 16-byte boundary
+auto aligned2 = p.align_down(16);  // round address down
 ```
 
-### Tagged Access
+### Alignment Check
 
 ```cpp
-template<typename Tag>
-constexpr auto tag() const noexcept;
+template<typename U> constexpr bool is_aligned() const noexcept;
+template<usize Alignment> constexpr bool is_aligned() const noexcept;
 ```
 
-Access address through a `Tag` class exposing a static `addr()` method.
-Useful for hardware register maps or struct offset tables.
+```cpp
+bool ok = p.is_aligned<stx::u32>();   // check alignment for u32
+bool ok = p.is_aligned<16>();         // check 16-byte alignment
+```
+
+### Stride Management
 
 ```cpp
-struct UART0 {
-    static constexpr stx::uptr addr() { return 0x10000000; }
+template<uptr NewStride> constexpr ptr<T, NewStride> step() const noexcept;
+template<typename U> constexpr ptr<T, sizeof(U)> step() const noexcept;
+```
+
+```cpp
+auto p2 = p.step<2>();          // ptr<T, 2> same address
+auto p3 = p.step<stx::u32>();  // ptr<T, sizeof(u32)> = ptr<T, 4>
+```
+
+### Function Call
+
+```cpp
+template<class Sig, class... Args> decltype(auto) call(Args&&... args) const;
+template<class Sig> auto caller() const noexcept;
+```
+
+Treats the pointer as a function pointer and invokes it.
+
+```cpp
+using Sig = int(float, char);
+auto result = p.call<Sig>(3.14f, 'x');
+auto fn = p.caller<Sig>();
+```
+
+### Swap
+
+```cpp
+void swap(ptr& other) noexcept;
+friend void swap(ptr& a, ptr& b) noexcept;
+```
+
+---
+
+## `ptr_light<T, Stride>`
+
+A lightweight proxy returned by `ptr::operator[]`. Inherits `ptr` but
+deletes `operator[]` to prevent double-indexing.
+
+```cpp
+template<typename T, uptr Stride>
+struct ptr_light : ptr<T, Stride>
+{
+    using ptr<T, Stride>::ptr;
+    template<typename U> ptr_light operator[](U) const = delete;
 };
+```
 
-stx::ptr<stx::u32> uart = some_ptr.tag<UART0>();
-// equivalent to: ptr at UART0::addr()
+All `ptr` operations work: `*`, `->`, `read`, `pop`, `write`, `push`,
+`read_p`, `walk`, `>>`, `as_p`, etc. Only `[]` is blocked.
+
+```cpp
+auto el = p[3];                    // ptr_light<int>
+auto v  = el.read<stx::u32>();     // OK
+el.write(42);                      // OK
+// el[0];                          // error: operator[] deleted
+// p[3][4];                        // error: no chaining
 ```
 
 ---
 
 ## `mem::read` / `mem::write`
 
-Free-function single-value binary I/O over raw addresses.
+Free-function single-value binary I/O over any `address_like` base.
 
 ```cpp
-template<binary_readable T>
-T read(const void* src, off_s off = {}) noexcept;
+template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
+Type read(Addr base, OffT off = {}) noexcept;
 
-template<binary_readable T>
-void write(void* dst, const T& value, off_s off = {}) noexcept;
+template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
+void write(Addr base, OffT off, const Type& value) noexcept;
 ```
-
-These perform an unaligned-safe `memcpy` from/to the address. They accept
-any `address_like` base (pointer, `uptr`, `va_s`).
 
 ```cpp
 stx::u32 buf[4] = {};
-
-auto v   = stx::mem::read<stx::u32>(buf);          // read at offset 0
-auto v2  = stx::mem::read<stx::u64>(buf, stx::off_s{4});  // read at byte 4
-auto v3  = stx::mem::read<stx::u32>(stx::va_s{0x1000});    // read from VA
-
-stx::mem::write<stx::u32>(buf, 0xDEADBEEF);        // write at offset 0
-stx::mem::write<stx::u16>(buf, static_cast<stx::u16>(0x1234), stx::off_s{8});
+auto v = stx::mem::read<stx::u32>(buf);               // at offset 0
+auto v2 = stx::mem::read<stx::u64>(buf, stx::off_s{4});  // at byte 4
+auto v3 = stx::mem::read<stx::u32>(stx::va_s{0x1000});   // from VA
+stx::mem::write<stx::u32>(buf, stx::off_s{}, 0xDEADBEEF);
 ```
 
----
+## `mem::read_raw` / `mem::write_raw`
+
+Unsafe direct-deref versions (requires alignment).
+
+```cpp
+template<binary_readable Type, byte_offset OffT = off_s>
+Type read_raw(address_like auto base, OffT off = {}) noexcept;
+
+template<binary_readable Type, byte_offset OffT = off_s>
+void write_raw(address_like auto base, OffT off, Type value) noexcept;
+```
+
+## `mem::read_le` / `mem::write_le`
+
+Little-endian (passthrough, same as `read`/`write`).
+
+```cpp
+template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
+Type read_le(Addr base, OffT off) noexcept;
+// read_le(base) overload without offset
+
+template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
+void write_le(Addr base, OffT off, Type value) noexcept;
+// write_le(base, value) overload without offset
+```
 
 ## `mem::read_be` / `mem::write_be`
 
-Big-endian (network byte order) reads and writes. Results are in native
-byte order — the swap happens transparently during transfer.
-
-Always operates through the underlying `Raw` type (bypassing any custom
-`Type` serialization), then casts back.
+Big-endian (byteswaps on little-endian hosts). Always goes through the
+underlying `Raw` type, then casts back — useful for enums.
 
 ```cpp
-template<byte_swappable T>
-T read_be(const void* src, off_s off = {}) noexcept;
+template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
+Type read_be(Addr base, OffT off) noexcept;
 
-template<byte_swappable T>
-void write_be(void* dst, const T& value, off_s off = {}) noexcept;
+template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
+void write_be(Addr base, OffT off, Type value) noexcept;
 ```
 
 ```cpp
-// Read big-endian u32 from network packet
-auto net = stx::mem::read_be<stx::u32>(packet);       // native-endian result
+// Network packet parsing
+auto net = stx::mem::read_be<stx::u32>(packet);          // big-endian u32
 auto v   = stx::mem::read_be<stx::u16>(packet, stx::off_s{4});
 
 // Write big-endian
-stx::mem::write_be<stx::u32>(buf, 0x12345678);
+stx::mem::write_be<stx::u32>(buf, stx::off_s{}, 0x12345678);
 
-// Works with enums too
-enum class Protocol : stx::u16 { TCP = 6, UDP = 17 };
-auto p = stx::mem::read_be<Protocol>(packet);          // reads big-endian u16
+// Enums work too
+enum class Proto : stx::u16 { TCP = 6, UDP = 17 };
+auto p = stx::mem::read_be<Proto>(packet);               // through underlying type
 ```
 
 ---
 
 ## `mem::align_up` / `mem::align_down`
 
-Free-function alignment for unsigned integrals and strong types.
-
 | Function | Effect | Example |
 |----------|--------|---------|
-| `align_up(v, a)` | Round `v` up to next `a`-aligned boundary | `123 → 128` (align 16) |
-| `align_down(v, a)` | Round `v` down to previous `a`-aligned boundary | `123 → 112` (align 16) |
+| `align_up(v, a)` | Round up to `a` boundary | `1 → 16` (align 16) |
+| `align_down(v, a)` | Round down to `a` boundary | `17 → 16` (align 16) |
 
 ```cpp
-template<std::unsigned_integral T>
-constexpr T align_up(T value, T alignment) noexcept;
-
-template<std::unsigned_integral T>
-constexpr T align_down(T value, T alignment) noexcept;
-
-template<typename T, typename Tag, std::integral U>
-constexpr auto align_up(details::strong_type<T, Tag> st, U alignment) noexcept;
-
-template<typename T, typename Tag, std::integral U>
-constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept;
+template<std::unsigned_integral T> constexpr T align_up(T value, T alignment) noexcept;
+template<std::unsigned_integral T> constexpr T align_down(T value, T alignment) noexcept;
+template<typename T, typename Tag, std::integral U> constexpr auto align_up(details::strong_type<T, Tag> st, U alignment) noexcept;
+template<typename T, typename Tag, std::integral U> constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept;
 ```
 
 ```cpp
-auto a = stx::mem::align_up(0u, 16u);     // 0
-auto b = stx::mem::align_up(1u, 16u);     // 16
-auto c = stx::mem::align_up(16u, 16u);    // 16
-auto d = stx::mem::align_down(123u, 16u); // 112
+auto a = stx::mem::align_up(1u, 16u);      // 16
+auto d = stx::mem::align_down(123u, 16u);  // 112
 
-// Strong types preserve their domain
+// Strong types preserved
 auto off = stx::mem::align_up(stx::off_s{123}, 16u);  // off_s{128}
-static_assert(std::is_same_v<decltype(off), stx::off_s>);
-```
-
-Edge cases:
-
-```cpp
-auto zero  = stx::mem::align_up(0u, 1u);    // 0
-auto same  = stx::mem::align_up(64u, 64u);  // 64
-auto power = stx::mem::align_up(63u, 64u);  // 64
 ```
 
 ---
 
 ## `mem::gap_align_v`
 
-Compile-time aligned gap: accumulates `sizeof` each type with padding to
-each member's natural alignment, then aligns the total up to `Align`.
+Aligned compile-time gap: accumulates `sizeof` with natural-alignment
+padding, then aligns total up to `Align`.
 
 ```cpp
 template<usize Align, typename... Args>
@@ -333,22 +520,7 @@ inline constexpr off_s gap_align_v;
 ```
 
 ```cpp
-// sizeof(u32)=4, sizeof(u64)=8, sizeof(u16)=2
-// u32 at 0, u64 aligns to 8 → padding to 8, u16 at 16
-// total = 18, aligned up to 16 → 32
 constexpr auto sz = stx::mem::gap_align_v<16, stx::u32, stx::u64, stx::u16>;
+// u32 at 0, u64 at 8 (padded), u16 at 16, total=18, aligned=32
 // sz == off_s{32}
 ```
-
-Useful for compile-time struct layout simulation:
-
-```cpp
-struct alignas(16) Simulated {
-    stx::u32 a;   // offset  0
-    stx::u64 b;   // offset  8 (after 4 bytes padding)
-    stx::u16 c;   // offset 16
-    // padding to 32
-};
-static_assert(sizeof(Simulated) == stx::mem::gap_align_v<16, stx::u32, stx::u64, stx::u16>.get());
-```
-
