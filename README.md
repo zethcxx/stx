@@ -49,7 +49,7 @@ Provides safe, low-level memory access, alignment primitives, and typed pointer 
 | `write_raw<Type>(addr, offset, value)` | Direct write; high-performance, alignment-sensitive |
 | `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `uptr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
 | `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator/`, `read/write<T>`, `step<Stride>()`, `align_up/down` |
-| `align_up` / `align_down` | Aligns integral or strong types to power-of-two boundaries |
+| `mem::align_up` / `mem::align_down` | Aligns integral or strong types to power-of-two boundaries |
 
 Intended use:
 

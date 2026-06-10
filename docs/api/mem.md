@@ -1,202 +1,223 @@
 # mem.hpp
 
-## Free Functions (`stx::mem`)
+## `ptr<T, Stride>`
 
-### `read<Type>(addr, off)`
-```cpp
-template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
-[[nodiscard]] Type mem::read(Addr base, OffT off = OffT{}) noexcept;
-```
-```cpp
-u32 v = stx::mem::read<u32>(base, off_s{8});
-```
+A non-owning pointer wrapper with compile-time stride and arithmetic in bytes.
 
-### `read_le<Type>` / `read_be<Type>`
+`ptr<T, Stride = 1>` wraps a `T*` internally but performs all pointer arithmetic in byte units: `p + n` moves `n * sizeof(T) * Stride` bytes.
+
+### Construction
+
 ```cpp
-template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-[[nodiscard]] Type mem::read_le(Addr base, OffT off) noexcept;
-template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-[[nodiscard]] Type mem::read_be(Addr base, OffT off) noexcept;
-```
-```cpp
-u32 le = stx::mem::read_le<u32>(base, off_s{0});
-u32 be = stx::mem::read_be<u32>(base, off_s{4});
+template<typename T, usize Stride = 1>
+class ptr
+{
+    ptr() noexcept;
+    ptr(std::nullptr_t) noexcept;
+    ptr(null_t) noexcept;
+    ptr(T* p) noexcept;
+    ptr(const ptr&) noexcept;
+    ptr(ptr&&) noexcept;
+};
 ```
 
-### `write<Type>(addr, off, value)`
 ```cpp
-template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
-void mem::write(Addr base, OffT off, const Type& value) noexcept;
-```
-```cpp
-stx::mem::write<u32>(base, off_s{8}, 0xDEADBEEF);
+stx::ptr<int> p;               // default (nullptr)
+stx::ptr<int> p2{nullptr};     // null
+stx::ptr     p3{data};         // CTAD -> ptr<element_type>
+stx::ptr<int, 2> p4{buf};      // stride-2 pointer
 ```
 
-### `read_raw<Type>` / `write_raw<Type>`
-```cpp
-template<binary_readable Type, byte_offset OffT = off_s>
-[[nodiscard]] Type mem::read_raw(address_like auto base, OffT off = OffT{}) noexcept;
+### Assignment
 
-template<binary_readable Type, byte_offset OffT = off_s>
-void mem::write_raw(address_like auto base, OffT off, Type value) noexcept;
-```
 ```cpp
-u32 v = stx::mem::read_raw<u32>(ptr, off_s{0});
-stx::mem::write_raw(ptr, off_s{0}, u32{42});
+ptr& operator=(const ptr&) noexcept;
+ptr& operator=(ptr&&) noexcept;
+ptr& operator=(T* p) noexcept;
+```
+
+### Dereference
+
+```cpp
+[[nodiscard]] constexpr T& operator*()  const noexcept;
+[[nodiscard]] constexpr T* operator->() const noexcept
+    requires (not std::is_void_v<T>);
+```
+
+```cpp
+*p = 42;
+int val = p->member;
+```
+
+### Array Access
+
+```cpp
+[[nodiscard]] constexpr T& operator[](isize index) const noexcept; // raw integral index
+[[nodiscard]] constexpr T& operator[](off_s offset) const noexcept; // byte offset
+```
+
+```cpp
+auto a = p[2];        // element at index 2 (stride-aware)
+auto b = p[off_s{8}]; // element at byte offset 8
+```
+
+### Arithmetic
+
+```cpp
+[[nodiscard]] constexpr ptr operator+(isize n) const noexcept; // elements (stride-aware)
+[[nodiscard]] constexpr ptr operator-(isize n) const noexcept;
+[[nodiscard]] constexpr ptr operator+(off_s offset) const noexcept; // bytes
+[[nodiscard]] constexpr ptr operator-(off_s offset) const noexcept;
+ptr& operator+=(isize n) noexcept;
+ptr& operator-=(isize n) noexcept;
+ptr& operator+=(off_s offset) noexcept;
+ptr& operator-=(off_s offset) noexcept;
+[[nodiscard]] constexpr isize operator-(ptr other) const noexcept; // difference in elements
+```
+
+```cpp
+auto p2 = p + 4;        // advance 4 elements
+auto p3 = p + off_s{16}; // advance 16 bytes
+isize d = p3 - p;        // element difference
+p += 2;                  // in-place advance
+```
+
+### Comparison
+
+```cpp
+[[nodiscard]] explicit operator bool() const noexcept;
+bool operator==(const ptr&) const noexcept;
+bool operator!=(const ptr&) const noexcept;
+auto operator<=>(const ptr&) const noexcept;
+```
+
+```cpp
+if (p) { /* valid */ }
+if (p < p2) {}
+```
+
+### Access
+
+```cpp
+[[nodiscard]] constexpr T* get()     const noexcept;
+[[nodiscard]] constexpr uptr addr()  const noexcept;
+```
+
+```cpp
+T* raw = p.get();
+uptr a = p.addr();
+```
+
+### Read / Write
+
+```cpp
+template<binary_readable T>                  T    read(off_s off = {})  const;
+template<binary_readable T>                  void write(const T& val, off_s off = {});
+template<binary_readable T>                  T    pop();
+template<bounded_array T> requires (not std::is_void_v<Element>) auto pop();
+template<bounded_array T> requires (not std::is_void_v<Element>) auto read(off_s off = {}) const;
+```
+
+```cpp
+u32 v = p.read<u32>();      // read u32 at current position
+p.write<u32>(42);           // write u32
+auto ba = p.pop<u8[4]>();   // pop 4 bytes into array, advance
+p.read<u32>(off_s{8});      // read u32 at byte offset 8
+```
+
+### Type Reinterpretation
+
+```cpp
+template<typename U> [[nodiscard]] constexpr ptr<U> as() const noexcept;
+```
+
+```cpp
+auto byte_ptr = p.as<std::byte>(); // reinterpret as byte pointer
+```
+
+### Tagged Access
+
+```cpp
+template<typename Tag>
+[[nodiscard]] constexpr auto tag() const noexcept;
+```
+
+Access via `Tag` class with static `addr()` method.
+
+---
+
+## `mem::read` / `mem::write`
+
+Free-function binary reads/writes from/to raw pointers.
+
+```cpp
+template<binary_readable T> T     read(const void* src, off_s off = {}) noexcept;
+template<binary_readable T> void  write(void* dst, const T& value, off_s off = {}) noexcept;
+```
+
+```cpp
+auto v = stx::mem::read<u32>(data);          // read u32 at data
+stx::mem::write<u32>(data, 0xDEAD);         // write u32 to data
+stx::mem::read<u32>(data, off_s{4});         // read u32 at offset 4
 ```
 
 ---
 
-## `ptr<T, Stride>`
+## `mem::read_be` / `mem::write_be`
+
+Big-endian (network byte order) reads/writes. Swaps bytes from/to native endianness, always through the underlying `Raw` type (bypassing any custom `Type` serialization).
+
 ```cpp
-template<typename T = void, uptr Stride = 1>
-class ptr {
-    constexpr ptr() noexcept = default;
-    constexpr explicit ptr(address_like auto addr) noexcept;
-    [[nodiscard]] constexpr ptr(T* raw_ptr) noexcept;
-    constexpr ptr(null_t) noexcept;
+template<byte_swappable T>
+[[nodiscard]] T read_be(const void* src, off_s off = {}) noexcept;
 
-    // --- state ---
-    [[nodiscard]] auto raw() noexcept -> T*;
-    [[nodiscard]] auto raw() const noexcept -> const T*;
-    [[nodiscard]] constexpr uptr addr() const noexcept;
-    explicit operator bool() const noexcept;
-    explicit operator uptr() const noexcept;
-
-    // --- rebind ---
-    ptr& operator=(T* raw_ptr) noexcept;
-    constexpr ptr& operator=(address_like auto addr) noexcept;
-    template<uptr OtherStride>
-    constexpr ptr& operator=(const ptr<T, OtherStride>& other) noexcept;
-    template<typename U> [[nodiscard]] constexpr ptr<U> as_p() const noexcept;
-
-    // --- deref ---
-    auto operator*() noexcept -> T&         requires (not std::is_void_v<T>);
-    auto operator*() const noexcept -> const T& requires (not std::is_void_v<T>);
-    auto operator->() noexcept -> T*        requires (not std::is_void_v<T>);
-    auto operator->() const noexcept -> const T* requires (not std::is_void_v<T>);
-
-    // --- navigation ---
-    template<std::integral U>
-    constexpr ptr_light<T, Stride> operator[](U offset) const noexcept;
-    template<byte_offset OffT>
-    constexpr ptr_light<T, Stride> operator[](OffT offset) const noexcept;
-
-    // --- chain (read + return ptr) ---
-    template<byte_offset OffT>
-    auto operator>>(OffT offset) const noexcept -> ptr<T, Stride>
-        requires (not std::is_void_v<T>);
-    template<byte_offset OffT>
-    auto operator>>(OffT offset) const noexcept -> ptr<void, Stride>
-        requires (std::is_void_v<T>);
-
-    // --- walk (byte chase, no stride) ---
-    template<typename ReturnType = T, byte_offset OffT>
-    auto walk(OffT offset) const noexcept -> ptr<ReturnType, Stride>;
-
-    // --- stride ---
-    template<uptr NewStride> constexpr ptr<T, NewStride> step() const noexcept;
-    template<typename U>     constexpr ptr<T, sizeof(U)> step() const noexcept;
-
-    // --- read ---
-    template<typename U = T> auto read() const noexcept -> U;
-    template<bounded_array U> auto read() const noexcept -> bounded_array_t<U>;
-    template<typename U = T> auto read_p() const noexcept -> ptr<U>;
-    template<typename U = T> auto read_le() const noexcept -> U;
-    template<typename U = T> auto read_be() const noexcept -> U;
-    template<bounded_array U> auto as_view() const noexcept -> std::span<const std::remove_all_extents_t<U>>;
-    template<typename U = T> auto as_view(usize count) const noexcept -> std::span<const U>;
-    template<writable_buffer R> void read_into(R&& buf) const noexcept;
-
-    // --- pop ---
-    template<typename U = T> auto pop() noexcept -> U;
-    template<bounded_array U> auto pop() noexcept -> bounded_array_t<U>;
-    template<writable_buffer R> ptr& pop_into(R&& buf) noexcept;
-
-    // --- write ---
-    template<typename U = T> void write(U value) const noexcept;
-    template<contiguous_buffer R> void write(R&& range) const noexcept;
-    template<byte_swappable U = T> void write_le(U value) const noexcept;
-    template<byte_swappable U = T> void write_be(U value) const noexcept;
-
-    // --- push ---
-    template<typename U = T> ptr& push(const U& value) noexcept;
-    template<contiguous_buffer R> ptr& push(R&& range) noexcept;
-
-    // --- arithmetic ---
-    template<byte_offset OffT> constexpr ptr operator+(OffT offset) const noexcept;
-    template<byte_offset OffT> constexpr ptr operator-(OffT offset) const noexcept;
-    template<byte_offset OffT> constexpr ptr& operator+=(OffT offset) noexcept;
-    template<byte_offset OffT> constexpr ptr& operator-=(OffT offset) noexcept;
-    constexpr off_s operator-(ptr other) const noexcept;
-    template<address_like Addr> constexpr off_s diff(Addr other) const noexcept;
-
-    // --- inc/dec ---
-    constexpr ptr& operator++() noexcept;
-    constexpr ptr  operator++(int) noexcept;
-    constexpr ptr& operator--() noexcept;
-    constexpr ptr  operator--(int) noexcept;
-
-    // --- alignment ---
-    template<std::unsigned_integral U = usize>
-    constexpr ptr align_up(U alignment) const noexcept;
-    template<std::unsigned_integral U = usize>
-    constexpr ptr align_down(U alignment) const noexcept;
-    template<typename U> constexpr bool is_aligned() const noexcept;
-    template<usize Alignment> constexpr bool is_aligned() const noexcept;
-
-    // --- call ---
-    template<class Sig, class... Args>
-    decltype(auto) call(Args&&... args) const;
-    template<class Sig> auto caller() const noexcept;
-
-    // --- swap ---
-    constexpr void swap(ptr& other) noexcept;
-    friend constexpr void swap(ptr& a, ptr& b) noexcept;
-};
-```
-```cpp
-stx::ptr<u32> base{0x140000000};
-
-// Offset navigation
-auto next = base[off_s{0x100}];           // ptr_light, no deref
-u32 val = base[off_s{0x100}].read<u32>();
-base[off_s{8}].write(u32{0x1234});
-
-// Chain (read + return ptr)
-auto target = (base[off_s{0x100}] >> off_s{0x10} >> off_s{0x20}).addr();
-
-// Walk (byte-level, no stride)
-uptr addr = base.walk(off_s{8}).addr();
-
-// Pop
-u32 a = base.pop<u32>();                  // advances address by sizeof(u32)
-
-// Push
-base.push(u32{0xDEADBEEF});
-
-// Stride
-auto tbl = base.step<4>();                // ptr<void, 4>
-uptr entry = (tbl >> off_s{3} >> off_s{5}).addr();
-
-// Call
-int result = base.call<int(int, int)>(10, 20);
-
-// Read/Write endian-aware
-u32 le = base.read_le<u32>();
-base.write_be(off_s{0}, u32{0xAABBCCDD});
+template<byte_swappable T>
+void write_be(void* dst, const T& value, off_s off = {}) noexcept;
 ```
 
-## `ptr_light<T, Stride>`
 ```cpp
-template<typename T, uptr Stride>
-struct ptr_light : ptr<T, Stride> {
-    using ptr<T, Stride>::ptr;
-    template<typename U> ptr_light operator[](U ) const = delete; // no chaining
-};
+u32 net = stx::mem::read_be<u32>(data);       // big-endian read
+stx::mem::write_be<u32>(data, 0x1234);        // big-endian write
+u16 v = stx::mem::read_be<u16>(data, off_s{4}); // at offset 4
+
+---
+
+## `mem::align_up` / `mem::align_down`
+
+Rounds a value up or down to the nearest power-of-two boundary. Works on unsigned integrals and strong types (`off_s`, `rva_s`, `va_s`).
+
+```cpp
+template<std::unsigned_integral T>
+[[nodiscard]] constexpr T align_up(T value, T alignment) noexcept;
+
+template<std::unsigned_integral T>
+[[nodiscard]] constexpr T align_down(T value, T alignment) noexcept;
+
+template<typename T, typename Tag, std::integral U>
+[[nodiscard]] constexpr auto align_up(details::strong_type<T, Tag> st, U alignment) noexcept;
+
+template<typename T, typename Tag, std::integral U>
+[[nodiscard]] constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept;
 ```
+
 ```cpp
-base[0x100]                // OK: ptr_light
-// base[0x100][0x20]       // ERROR: deleted
-(base + off_s{0x100})[off_s{0x20}] // OK
+auto a = stx::mem::align_up(123u, 16u);   // 128
+auto d = stx::mem::align_down(123u, 16u); // 112
+auto off = stx::mem::align_up(off_s{123}, 16); // off_s{128}
+```
+
+---
+
+## `mem::gap_align_v`
+
+Compile-time aligned gap: total `sizeof` with each type aligned to its natural alignment, then the total aligned up to `Align`.
+
+```cpp
+template<usize Align, typename... Args>
+inline constexpr off_s gap_align_v;
+```
+
+```cpp
+constexpr auto sz = stx::mem::gap_align_v<16, u32, u64, u16>; // off_s{16}
+```
 ```

@@ -135,6 +135,47 @@ namespace lbyte::stx
             ) = value;
         }
 
+        // ALIGNMENT ---------------------------------------------------------
+        template<std::unsigned_integral T>
+        [[nodiscard]] constexpr T align_up( T value, T alignment ) noexcept {
+            return ( value + alignment - 1 ) & ~( alignment - 1 );
+        }
+
+        template<std::unsigned_integral T>
+        [[nodiscard]] constexpr T align_down( T value, T alignment ) noexcept {
+            return value & ~( alignment - 1 );
+        }
+
+        template<typename T, typename Tag, std::integral U>
+        [[nodiscard]] STX_FORCE_INLINE
+        constexpr auto align_up(details::strong_type<T, Tag> st, U alignment) noexcept {
+            using UT = std::make_unsigned_t<T>;
+            return details::strong_type<T, Tag>{
+                static_cast<T>(align_up(static_cast<UT>(st.get()), static_cast<UT>(alignment)))
+            };
+        }
+
+        template<typename T, typename Tag, std::integral U>
+        [[nodiscard]] STX_FORCE_INLINE
+        constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept {
+            using UT = std::make_unsigned_t<T>;
+            return details::strong_type<T, Tag>{
+                static_cast<T>(align_down(static_cast<UT>(st.get()), static_cast<UT>(alignment)))
+            };
+        }
+
+        template<usize Align, typename... Args>
+        inline constexpr off_s gap_align_v = [] {
+            usize total = 0;
+            auto accumulate = [&total]<typename T>() {
+                total = align_up(total, alignof(T));
+                total += sizeof(T);
+            };
+
+            ( accumulate.template operator()<Args>(), ... );
+            return off_s( align_up( total, Align ));
+        }();
+
     } // namespace mem
 
 
@@ -491,12 +532,12 @@ namespace lbyte::stx
 
         template<std::unsigned_integral U = usize>
         [[nodiscard]] constexpr ptr align_up( U alignment ) const noexcept {
-            return ptr( ::lbyte::stx::align_up( address, static_cast<usize>(alignment) ));
+            return ptr( mem::align_up( address, static_cast<usize>(alignment) ));
         }
 
         template<std::unsigned_integral U = usize>
         [[nodiscard]] constexpr ptr align_down( U alignment ) const noexcept {
-            return ptr( ::lbyte::stx::align_down( address, static_cast<usize>(alignment) ));
+            return ptr( mem::align_down( address, static_cast<usize>(alignment) ));
         }
 
         // ---- INCREMENT / DECREMENT --------------------------------

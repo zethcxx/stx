@@ -12,6 +12,12 @@ if ( LBYTE_STX_USE_MODULES )
     add_library( stx STATIC )
     target_compile_features( stx PUBLIC cxx_std_23 )
 
+    target_include_directories(stx
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
+    )
+
     target_sources( stx
     PUBLIC
     FILE_SET CXX_MODULES
@@ -32,23 +38,30 @@ if ( LBYTE_STX_USE_MODULES )
 else()
     add_library(stx INTERFACE)
     target_compile_features(stx INTERFACE cxx_std_23)
+
+    target_include_directories(stx
+        INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
+    )
 endif()
 
 add_library(lbyte::stx ALIAS stx)
 
-target_include_directories(stx
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-)
 
+if ( LBYTE_STX_USE_MODULES )
+    install(TARGETS stx
+        EXPORT stxTargets
 
-install(TARGETS stx
-    EXPORT stxTargets
-
-    CXX_MODULES_SET CXX_MODULES DESTINATION lib/stx/modules
-    INCLUDES DESTINATION include
-)
+        CXX_MODULES_SET CXX_MODULES DESTINATION lib/stx/modules
+        INCLUDES DESTINATION include
+    )
+else()
+    install(TARGETS stx
+        EXPORT stxTargets
+        INCLUDES DESTINATION include
+    )
+endif()
 
 install(EXPORT stxTargets
     FILE lbyte-stx-config.cmake

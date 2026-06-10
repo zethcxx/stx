@@ -10,9 +10,6 @@ export namespace lbyte::stx
 {
     using ::lbyte::stx::ptr;
     using ::lbyte::stx::ptr_light;
-
-    using ::lbyte::stx::align_up;
-    using ::lbyte::stx::align_down;
 }
 
 export namespace lbyte::stx::mem
@@ -26,5 +23,9 @@ export namespace lbyte::stx::mem
     using ::lbyte::stx::mem::write_raw;
     using ::lbyte::stx::mem::write_le;
     using ::lbyte::stx::mem::write_be;
+
+    using ::lbyte::stx::mem::align_up;
+    using ::lbyte::stx::mem::align_down;
+    using ::lbyte::stx::mem::gap_align_v;
 }
 

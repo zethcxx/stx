@@ -133,32 +133,32 @@ TEST_CASE("Core: Alignment Functions")
 {
     SECTION("align_up rounds up to alignment boundary")
     {
-        REQUIRE(stx::align_up(0u,  16u)  == 0u);
-        REQUIRE(stx::align_up(1u,  16u)  == 16u);
-        REQUIRE(stx::align_up(15u, 16u)  == 16u);
-        REQUIRE(stx::align_up(16u, 16u)  == 16u);
-        REQUIRE(stx::align_up(17u, 16u)  == 32u);
-        REQUIRE(stx::align_up(123u, 16u) == 128u);
+        REQUIRE(stx::mem::align_up(0u,  16u)  == 0u);
+        REQUIRE(stx::mem::align_up(1u,  16u)  == 16u);
+        REQUIRE(stx::mem::align_up(15u, 16u)  == 16u);
+        REQUIRE(stx::mem::align_up(16u, 16u)  == 16u);
+        REQUIRE(stx::mem::align_up(17u, 16u)  == 32u);
+        REQUIRE(stx::mem::align_up(123u, 16u) == 128u);
     }
 
     SECTION("align_down rounds down to alignment boundary")
     {
-        REQUIRE(stx::align_down(0u,  16u)  == 0u);
-        REQUIRE(stx::align_down(1u,  16u)  == 0u);
-        REQUIRE(stx::align_down(15u, 16u)  == 0u);
-        REQUIRE(stx::align_down(16u, 16u)  == 16u);
-        REQUIRE(stx::align_down(17u, 16u)  == 16u);
-        REQUIRE(stx::align_down(123u, 16u) == 112u);
+        REQUIRE(stx::mem::align_down(0u,  16u)  == 0u);
+        REQUIRE(stx::mem::align_down(1u,  16u)  == 0u);
+        REQUIRE(stx::mem::align_down(15u, 16u)  == 0u);
+        REQUIRE(stx::mem::align_down(16u, 16u)  == 16u);
+        REQUIRE(stx::mem::align_down(17u, 16u)  == 16u);
+        REQUIRE(stx::mem::align_down(123u, 16u) == 112u);
     }
 
     SECTION("Strong type alignment preserves domain")
     {
         stx::off_s off{123};
-        auto aligned = stx::align_up(off, 16u);
+        auto aligned = stx::mem::align_up(off, 16u);
         static_assert(std::is_same_v<decltype(aligned), stx::off_s>);
         REQUIRE(aligned.get() == 128);
 
-        auto down = stx::align_down(off, 16u);
+        auto down = stx::mem::align_down(off, 16u);
         static_assert(std::is_same_v<decltype(down), stx::off_s>);
         REQUIRE(down.get() == 112);
     }
@@ -177,7 +177,7 @@ TEST_CASE("Core: Compile-Time Gap Calculators")
 
     SECTION("gap_align_v adds alignment padding")
     {
-        constexpr auto aligned = stx::gap_align_v<8, stx::u32, stx::u16, stx::u64>;
+        constexpr auto aligned = stx::mem::gap_align_v<8, stx::u32, stx::u16, stx::u64>;
         static_assert(aligned.get() == 16);
     }
 }
