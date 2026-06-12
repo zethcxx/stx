@@ -93,12 +93,12 @@ namespace lbyte::stx
         }
 
         // ENDIAN-AWARE WRITE ----------------------------------------------------
-        template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
+        template<byte_swappable Type, address_like Addr>
         STX_FORCE_INLINE
-        void write_le( Addr base, OffT off, Type value ) noexcept
+        void write_le( Addr base, Type value ) noexcept
         {
             std::memcpy(
-                rcast<std::byte*>(normalize_addr(base)) + off.get(),
+                rcast<std::byte*>(normalize_addr(base)),
                 &value,
                 sizeof(Type)
             );
@@ -106,31 +106,17 @@ namespace lbyte::stx
 
         template<byte_swappable Type, address_like Addr>
         STX_FORCE_INLINE
-        void write_le( Addr base, Type value ) noexcept
-        {
-            write_le( base, off_s{}, value );
-        }
-
-        template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-        STX_FORCE_INLINE
-        void write_be( Addr base, OffT off, Type value ) noexcept
+        void write_be( Addr base, Type value ) noexcept
         {
             using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
             auto raw = static_cast<Raw>(value);
             if constexpr ( std::endian::native == std::endian::little )
                 raw = std::byteswap(raw);
             std::memcpy(
-                rcast<std::byte*>(normalize_addr(base)) + off.get(),
+                rcast<std::byte*>(normalize_addr(base)),
                 &raw,
                 sizeof(Raw)
             );
-        }
-
-        template<byte_swappable Type, address_like Addr>
-        STX_FORCE_INLINE
-        void write_be( Addr base, Type value ) noexcept
-        {
-            write_be( base, off_s{}, value );
         }
 
         // UNSAFE MEMORY ACCESS (direct deref, requires alignment, strict-aliasing) --

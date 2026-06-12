@@ -445,11 +445,9 @@ Little-endian (passthrough, same as `read`/`write`).
 ```cpp
 template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
 Type read_le(Addr base, OffT off) noexcept;
-// read_le(base) overload without offset
 
-template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-void write_le(Addr base, OffT off, Type value) noexcept;
-// write_le(base, value) overload without offset
+template<byte_swappable Type, address_like Addr>
+void write_le(Addr base, Type value) noexcept;
 ```
 
 ## `mem::read_be` / `mem::write_be`
@@ -461,8 +459,8 @@ underlying `Raw` type, then casts back — useful for enums.
 template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
 Type read_be(Addr base, OffT off) noexcept;
 
-template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-void write_be(Addr base, OffT off, Type value) noexcept;
+template<byte_swappable Type, address_like Addr>
+void write_be(Addr base, Type value) noexcept;
 ```
 
 ```cpp
@@ -470,8 +468,8 @@ void write_be(Addr base, OffT off, Type value) noexcept;
 auto net = stx::mem::read_be<stx::u32>(packet);          // big-endian u32
 auto v   = stx::mem::read_be<stx::u16>(packet, stx::off_s{4});
 
-// Write big-endian
-stx::mem::write_be(buf, 0x12345678);
+// Write big-endian (offset via pointer arithmetic)
+stx::mem::write_be(packet + 8, 0x12345678);
 
 // Enums work too
 enum class Proto : stx::u16 { TCP = 6, UDP = 17 };
