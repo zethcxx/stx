@@ -387,22 +387,38 @@ el.write(42);                      // OK
 
 ## `mem::read` / `mem::write`
 
-Free-function single-value binary I/O over any `address_like` base.
+Free-function binary-safe memcpy I/O over any `address_like` base.
 
 ```cpp
 template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
 Type read(Addr base, OffT off = {}) noexcept;
-
-template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
-void write(Addr base, OffT off, const Type& value) noexcept;
 ```
 
 ```cpp
+// single value — Type deducido del argumento o explícito
+template<binary_readable Type, address_like Addr>
+void write(Addr base, const Type& value) noexcept;
+
+// range — cualquier contiguous_buffer (span, vector, array, string_view...)
+template<address_like Addr, contiguous_buffer R>
+void write(Addr base, R&& range) noexcept;
+```
+
+```cpp
+// read — con o sin offset
 stx::u32 buf[4] = {};
-auto v = stx::mem::read<stx::u32>(buf);               // at offset 0
-auto v2 = stx::mem::read<stx::u64>(buf, stx::off_s{4});  // at byte 4
-auto v3 = stx::mem::read<stx::u32>(stx::va_s{0x1000});   // from VA
-stx::mem::write<stx::u32>(buf, stx::off_s{}, 0xDEADBEEF);
+auto v  = stx::mem::read<stx::u32>(buf);              // offset 0
+auto v2 = stx::mem::read<stx::u64>(buf, stx::off_s{4}); // byte 4
+auto v3 = stx::mem::read<stx::u32>(stx::va_s{0x1000});  // VA
+
+// write single — tipo deducido
+stx::mem::write(buf, 0xDEADBEEF);                     // deduce u32
+stx::mem::write<u64>(buf, 0xDEAD);                    // explícito u64 → 0x000000000000DEAD
+
+// write range
+stx::mem::write(buf, std::span{data, len});            // span
+stx::mem::write(buf, std::array<u32, 4>{1,2,3,4});     // bounded array
+stx::mem::write(buf, "header"sv);                      // string_view
 ```
 
 ## `mem::read_raw` / `mem::write_raw`
@@ -410,11 +426,16 @@ stx::mem::write<stx::u32>(buf, stx::off_s{}, 0xDEADBEEF);
 Unsafe direct-deref versions (requires alignment).
 
 ```cpp
-template<binary_readable Type, byte_offset OffT = off_s>
-Type read_raw(address_like auto base, OffT off = {}) noexcept;
+template<binary_readable Type, address_like Addr>
+Type read_raw(Addr base) noexcept;
 
-template<binary_readable Type, byte_offset OffT = off_s>
-void write_raw(address_like auto base, OffT off, Type value) noexcept;
+template<binary_readable Type, address_like Addr>
+void write_raw(Addr base, Type value) noexcept;
+```
+
+```cpp
+auto v = stx::mem::read_raw<u32>(buf);   // *reinterpret_cast<u32*>(addr)
+stx::mem::write_raw(buf, 42);             // *reinterpret_cast<int*>(addr) = 42
 ```
 
 ## `mem::read_le` / `mem::write_le`
@@ -450,7 +471,7 @@ auto net = stx::mem::read_be<stx::u32>(packet);          // big-endian u32
 auto v   = stx::mem::read_be<stx::u16>(packet, stx::off_s{4});
 
 // Write big-endian
-stx::mem::write_be<stx::u32>(buf, stx::off_s{}, 0x12345678);
+stx::mem::write_be(buf, 0x12345678);
 
 // Enums work too
 enum class Proto : stx::u16 { TCP = 6, UDP = 17 };

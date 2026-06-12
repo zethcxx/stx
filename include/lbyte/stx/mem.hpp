@@ -69,14 +69,26 @@ namespace lbyte::stx
             return read_be<Type>( base, off_s{} );
         }
 
-        template< binary_readable Type, address_like Addr, byte_offset OffT = off_s >
+        template<binary_readable Type, address_like Addr>
         STX_FORCE_INLINE
-        void write( Addr base, OffT off, const Type& value ) noexcept
+        void write( Addr base, const Type& value ) noexcept
         {
             std::memcpy(
-                rcast<std::byte*>(normalize_addr(base)) + off.get(),
+                rcast<std::byte*>(normalize_addr(base)),
                 &value,
                 sizeof(Type)
+            );
+        }
+
+        template<address_like Addr, contiguous_buffer R>
+        STX_FORCE_INLINE
+        void write( Addr base, R&& range ) noexcept
+        {
+            auto const bytes = std::size(range) * sizeof(*std::data(range));
+            std::memcpy(
+                rcast<std::byte*>(normalize_addr(base)),
+                rcast<const std::byte*>(std::data(range)),
+                static_cast<usize>(bytes)
             );
         }
 
@@ -85,7 +97,11 @@ namespace lbyte::stx
         STX_FORCE_INLINE
         void write_le( Addr base, OffT off, Type value ) noexcept
         {
-            write( base, off, value );
+            std::memcpy(
+                rcast<std::byte*>(normalize_addr(base)) + off.get(),
+                &value,
+                sizeof(Type)
+            );
         }
 
         template<byte_swappable Type, address_like Addr>
@@ -103,7 +119,11 @@ namespace lbyte::stx
             auto raw = static_cast<Raw>(value);
             if constexpr ( std::endian::native == std::endian::little )
                 raw = std::byteswap(raw);
-            write<Raw>(base, off, raw);
+            std::memcpy(
+                rcast<std::byte*>(normalize_addr(base)) + off.get(),
+                &raw,
+                sizeof(Raw)
+            );
         }
 
         template<byte_swappable Type, address_like Addr>
@@ -114,10 +134,10 @@ namespace lbyte::stx
         }
 
         // UNSAFE MEMORY ACCESS (direct deref, requires alignment, strict-aliasing) --
-        template<binary_readable Type, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE Type read_raw(address_like auto base, OffT off = OffT{}) noexcept
+        template<binary_readable Type, address_like Addr>
+        [[nodiscard]] STX_FORCE_INLINE Type read_raw( Addr base ) noexcept
         {
-            auto* target_ptr = rcast<std::byte*>(normalize_addr(base)) + off.get();
+            auto* target_ptr = rcast<std::byte*>(normalize_addr(base));
 
             #if defined(__cpp_lib_start_lifetime_as)
                 return *std::start_lifetime_as<Type>(target_ptr);
@@ -126,13 +146,11 @@ namespace lbyte::stx
             #endif
         }
 
-        template<binary_readable Type, byte_offset OffT = off_s>
+        template<binary_readable Type, address_like Addr>
         STX_FORCE_INLINE
-        void write_raw( address_like auto base, OffT off, Type value ) noexcept
+        void write_raw( Addr base, Type value ) noexcept
         {
-            *rcast<Type*>(
-                rcast<std::byte*>(normalize_addr(base)) + off.get()
-            ) = value;
+            *rcast<Type*>( rcast<std::byte*>(normalize_addr(base)) ) = value;
         }
 
         // ALIGNMENT ---------------------------------------------------------
