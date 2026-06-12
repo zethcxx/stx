@@ -1,5 +1,7 @@
 # core.hpp
 
+All examples assume `using namespace stx;` for brevity.
+
 ## `version_info` / `version`
 
 | Member | Type | Description |
@@ -14,7 +16,7 @@ inline constexpr version_info version { 1, 0, 0 };
 
 ---
 
-## Type Aliases
+## Type Aliases (stx::*)
 
 | Category | Alias | Underlying |
 |----------|-------|------------|
@@ -26,15 +28,15 @@ inline constexpr version_info version { 1, 0, 0 };
 | Char | `uchar` / `ushort` / `uint` / `ulong` / `ulonglong` | `unsigned char` / `short` / `int` / `long` / `long long` |
 
 ```cpp
-stx::u32 val = 0xDEADBEEF;
-stx::u8  magic[4];
-stx::usize len = sizeof(magic);  // 4
-stx::uptr addr = stx::rcast<stx::uptr>(&val);
+u32 val = 0xDEADBEEF;
+u8  magic[4];
+usize len = sizeof(magic);  // 4
+uptr addr = rcast<uptr>(&val);
 ```
 
 ---
 
-## Strong Types
+## Strong Types (stx::off_s, stx::rva_s, stx::va_s)
 
 Type-safe wrappers preventing implicit mixing of semantically distinct numeric domains.
 
@@ -44,33 +46,35 @@ Type-safe wrappers preventing implicit mixing of semantically distinct numeric d
 | `rva_s` | `u32` | `rva_tag` | Relative virtual address |
 | `va_s` | `uptr` | `va_tag` | Virtual address |
 
-### Construction
+### Construction (stx::off_s, stx::rva_s, stx::va_s)
 
 ```cpp
-stx::off_s off{128};              // from raw
-stx::rva_s rva{0x2000};
-stx::va_s  base{0x140000000};
+off_s off{128};              // from raw
+rva_s rva{0x2000};
+va_s  base{0x140000000};
 
-stx::rva_s from_off{off};         // cross-ctor: off_s -> rva_s (same tag family)
-// stx::va_s bad{off};            // error: va_s uses va_tag (not offset_tag)
+rva_s from_off{off};         // cross-ctor: off_s -> rva_s (same tag family)
+// va_s bad{off};            // error: va_s uses va_tag (not offset_tag)
 ```
 
-### Access and Casting
+### Access and Casting (stx::off_s, stx::rva_s, stx::va_s)
 
 ```cpp
 auto raw = off.get();             // std::ptrdiff_t = 128
-auto as_i64 = off.as<stx::i64>(); // static_cast
-stx::i64 direct = off;            // explicit operator i64
+auto as_i64 = off.as<i64>(); // static_cast
+i64 direct = off;            // explicit operator i64
 ```
 
-### Arithmetic
+### Arithmetic (stx::off_s, stx::va_s)
 
 | Expression | Result type | Semantics |
 |------------|-------------|-----------|
 | `off + 32` | `off_s` | Offset + scalar |
-| `off + other` | `off_s` | Offset + offset |
+| `off + other` (same tag) | `off_s` | Offset + offset |
+| `va + off` (cross-tag) | `va_s` | VA + offset = VA (converts `off` to `uptr`) |
 | `32 + off` | `std::ptrdiff_t` | Scalar + offset value |
-| `off - other` | `std::ptrdiff_t` | Difference (loses wrapper) |
+| `off - other` (same tag) | `std::ptrdiff_t` | Difference (loses wrapper) |
+| `va - off` (cross-tag) | `va_s` | VA - offset = VA |
 | `off - 32` | `off_s` | Offset - scalar |
 | `32 - off` | `std::ptrdiff_t` | Scalar - offset value |
 | `++off` / `--off` | `off_s&` | Pre-increment/decrement |
@@ -78,117 +82,121 @@ stx::i64 direct = off;            // explicit operator i64
 
 ```cpp
 auto a = off + 32;                // off_s{160}
-auto d = stx::off_s{200} - stx::off_s{150};  // ptrdiff_t = 50
+auto d = off_s{200} - off_s{150};  // ptrdiff_t = 50
 ++off;                            // off_s{129}
+auto va = va_s{0x1000} + off_s{8};  // va_s{0x1008}
+auto va2 = va_s{0x1000} - off_s{4};  // va_s{0xFFC}
 ```
 
-### Comparison
+### Comparison (stx::off_s)
 
 ```cpp
 off_s{10} < off_s{20};            // true
 off_s{10} == off_s{10};           // true
 ```
 
-### Usage in APIs
+### Usage in APIs (stx::off_s)
 
-Strong types select overloads: `ptr::operator[]` and `ptr::operator>>` behave
-differently for `off_s` (byte-level) vs raw integral (element-level).
+Strong types select overloads: `ptr::operator>>` accepts `off_s` directly
+(byte-level chase). For byte-level displacement, use `ptr + off_s{n}`:
 
 ```cpp
-stx::ptr<int> p{buf};
-p[2];                // element index 2 (element-level)
-p[stx::off_s{8}];    // byte offset 8
+ptr<int> p{buf};
+p[2];                        // element index 2 (element-level)
+p[2, 1];                     // byte offset 2 (custom stride 1)
+auto bp = p + off_s{8}; // byte offset 8 via arithmetic
+auto v  = (p + off_s{8}).read<u32>(); // read at byte 8
 ```
 
 ---
 
 ## Concepts
 
-### `address_like`
+### `address_like` (concept)
 
 Types representable as a memory address.
 
 ```cpp
-static_assert(stx::address_like<int*>);
-static_assert(stx::address_like<stx::uptr>);
-static_assert(stx::address_like<stx::va_s>);
-struct HasAddr { stx::uptr addr() const { return 0; } };
-static_assert(stx::address_like<HasAddr>);
-static_assert(!stx::address_like<float>);
+static_assert(address_like<int*>);
+static_assert(address_like<uptr>);
+static_assert(address_like<va_s>);
+struct HasAddr { uptr addr() const { return 0; } };
+static_assert(address_like<HasAddr>);
+static_assert(!address_like<float>);
 ```
 
-### `binary_readable`
+### `binary_readable` (concept)
 
 Types safe for `memcpy` — trivially copyable, standard layout, non-empty, non-pointer.
 
 ```cpp
-static_assert(stx::binary_readable<stx::u32>);
-static_assert(stx::binary_readable<float>);
-static_assert(!stx::binary_readable<std::string>);
-static_assert(!stx::binary_readable<int*>);
+static_assert(binary_readable<u32>);
+static_assert(binary_readable<float>);
+static_assert(!binary_readable<std::string>);
+static_assert(!binary_readable<int*>);
 ```
 
-### `byte_swappable`
+### `byte_swappable` (concept)
 
 Integral/enum types suitable for byte-swapping — excludes `bool`, `char` variants.
 
 ```cpp
-static_assert(stx::byte_swappable<stx::u16>);
-static_assert(stx::byte_swappable<MyEnum>);
-static_assert(!stx::byte_swappable<char>);
-static_assert(!stx::byte_swappable<bool>);
+static_assert(byte_swappable<u16>);
+static_assert(byte_swappable<MyEnum>);
+static_assert(!byte_swappable<char>);
+static_assert(!byte_swappable<bool>);
 ```
 
-### `byte_offset`
+### `byte_offset` (concept)
 
 Strong offset types accepted by memcpy-based APIs.
 
 ```cpp
-static_assert(stx::byte_offset<stx::off_s>);
-static_assert(stx::byte_offset<stx::rva_s>);
-static_assert(!stx::byte_offset<stx::va_s>);
-static_assert(!stx::byte_offset<int>);
+static_assert(byte_offset<off_s>);
+static_assert(byte_offset<rva_s>);
+static_assert(!byte_offset<va_s>);
+static_assert(!byte_offset<int>);
 ```
 
-### `contiguous_buffer` / `writable_buffer`
+### `contiguous_buffer` / `writable_buffer` (concepts)
 
 Ranges with `std::data` + `std::size`, trivially-copyable elements.
 
 ```cpp
-std::vector<stx::u32> v;
-static_assert(stx::contiguous_buffer<decltype(v)>);
+std::vector<u32> v;
+static_assert(contiguous_buffer<decltype(v)>);
 std::array<std::byte, 64> a;
-static_assert(stx::writable_buffer<decltype(a)>);
-stx::u8 raw[256];
-static_assert(stx::writable_buffer<decltype(raw)>);
+static_assert(writable_buffer<decltype(a)>);
+u8 raw[256];
+static_assert(writable_buffer<decltype(raw)>);
 ```
 
-### `buffer_type`
+### `buffer_type` (concept)
 
 Byte-wide element types for `memcur` — `sizeof == 1`, no `bool`, `void`, pointers.
 
 ```cpp
-static_assert(stx::buffer_type<char>);
-static_assert(stx::buffer_type<const std::byte>);
-static_assert(stx::buffer_type<stx::u8>);
-static_assert(stx::buffer_type<stx::i8>);
-static_assert(!stx::buffer_type<int>);
-static_assert(!stx::buffer_type<bool>);
+static_assert(buffer_type<char>);
+static_assert(buffer_type<const std::byte>);
+static_assert(buffer_type<u8>);
+static_assert(buffer_type<i8>);
+static_assert(!buffer_type<int>);
+static_assert(!buffer_type<bool>);
 ```
 
-### `bounded_array`
+### `bounded_array` (concept)
 
 C-style bounded arrays of `binary_readable` elements. Used by `ptr::pop<U>()` / `ptr::read<U>()`.
 
 ```cpp
-static_assert(stx::bounded_array<stx::u32[4]>);
-stx::ptr<stx::u8> p{data};
-auto arr = p.pop<stx::u32[4]>();  // std::array<u32, 4>
+static_assert(bounded_array<u32[4]>);
+ptr<u8> p{data};
+auto arr = p.pop<u32[4]>();  // std::array<u32, 4>
 ```
 
 ---
 
-## `normalize_addr`
+## `normalize_addr` (stx::normalize_addr)
 
 Converts any `address_like` to `uptr`.
 
@@ -199,16 +207,16 @@ constexpr uptr normalize_addr(Addr base) noexcept;
 
 ```cpp
 int x;
-stx::uptr a = stx::normalize_addr(&x);            // address of x
-stx::uptr b = stx::normalize_addr(stx::va_s{0x1000});  // 0x1000
-stx::uptr c = stx::normalize_addr(stx::null);     // 0
+uptr a = normalize_addr(&x);            // address of x
+uptr b = normalize_addr(va_s{0x1000});  // 0x1000
+uptr c = normalize_addr(null);     // 0
 ```
 
 Used internally by `mem::read`/`mem::write` to accept any pointer-like type.
 
 ---
 
-## Casting Helpers
+## Casting Helpers (stx::rcast, stx::scast, stx::bcast, etc.)
 
 | Helper | Equivalent to | Grep target |
 |--------|---------------|-------------|
@@ -219,14 +227,14 @@ Used internally by `mem::read`/`mem::write` to accept any pointer-like type.
 | `dcast<T>(v)` | `dynamic_cast<T>(v)` | `dcast` |
 
 ```cpp
-auto ptr = stx::rcast<stx::u32*>(0x140000000_uptr);
-auto truncated = stx::scast<stx::u8>(0x1234);
-auto bits = stx::bcast<float>(0x40490FDB_u32);   // 3.14159...
+auto ptr = rcast<u32*>(0x140000000_uptr);
+auto truncated = scast<u8>(0x1234);
+auto bits = bcast<float>(0x40490FDB_u32);   // 3.14159...
 ```
 
 ---
 
-## `defer`
+## `defer` (stx::defer)
 
 Scope guard — executes a callable on scope exit. Cancelable, non-copyable, non-movable.
 
@@ -238,7 +246,7 @@ template<std::invocable<> F> defer(F) -> defer<F>;
 
 ```cpp
 void* buf = malloc(1024);
-stx::defer cleanup{[buf] { free(buf); }};
+defer cleanup{[buf] { free(buf); }};
 // ... use buf ...
 // cleanup runs automatically at scope exit
 
@@ -248,7 +256,7 @@ cleanup.cancel();
 
 ---
 
-## `null_t` / `null`
+## `null_t` / `null` (stx::null_t, stx::null)
 
 A null constant distinct from `nullptr`. Does NOT satisfy `address_like`,
 preventing accidental API misuse.
@@ -257,7 +265,7 @@ preventing accidental API misuse.
 inline constexpr null_t null{};
 ```
 
-### Key properties
+### Key properties (stx::null_t)
 
 | Expression | Result |
 |------------|--------|
@@ -266,32 +274,32 @@ inline constexpr null_t null{};
 | `static_cast<bool>(null)` | `false` |
 | `static_cast<std::nullptr_t>(null)` | `nullptr` |
 
-### Null as discard accumulator
+### Null as discard accumulator (stx::null)
 
 When calling `[[nodiscard]]` functions like `pop()`, chaining via
 `null <<` suppresses the warning and discards the value:
 
 ```cpp
-stx::ptr<stx::u8> p{data};
+ptr<u8> p{data};
 
 // Without null: each pop returns a value we don't need
-// stx::null << p.pop<stx::u32>();  // read u32, discard, advance
-// stx::null << p.pop<stx::u16>();  // read u16, discard, advance
+// null << p.pop<u32>();  // read u32, discard, advance
+// null << p.pop<u16>();  // read u16, discard, advance
 
 struct Header {
-    stx::u32 magic;
-    stx::u16 version;
+    u32 magic;
+    u16 version;
 };
 auto hdr = Header{
-    .magic   = p.pop<stx::u32>(),   // want these
-    .version = p.pop<stx::u16>(),
+    .magic   = p.pop<u32>(),   // want these
+    .version = p.pop<u16>(),
 };
 ```
 
-### Null with `ptr`
+### Null with `ptr` (stx::null)
 
 ```cpp
-stx::ptr<int> p{stx::null};        // null pointer
-if (p == stx::null) {}              // comparison
+ptr<int> p{null};        // null pointer
+if (p == null) {}              // comparison
 if (p) {}                           // bool conversion works too
 ```

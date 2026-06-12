@@ -9,7 +9,6 @@ import lbyte.stx.core;
 export namespace lbyte::stx
 {
     using ::lbyte::stx::ptr;
-    using ::lbyte::stx::ptr_light;
 }
 
 export namespace lbyte::stx::mem

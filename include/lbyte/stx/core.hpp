@@ -106,6 +106,12 @@ namespace lbyte::stx
                     value += rhs.value;
                     return *this;
                 }
+                template<typename T2, typename Tag2>
+                    requires ( not std::same_as<Tag, Tag2> )
+                constexpr strong_type& operator+=( strong_type<T2, Tag2> rhs ) noexcept {
+                    value += static_cast<Type>( rhs.get() );
+                    return *this;
+                }
 
                 friend constexpr strong_type operator+( strong_type lhs, Type rhs ) noexcept {
                     lhs.value += rhs;
@@ -114,6 +120,13 @@ namespace lbyte::stx
 
                 friend constexpr strong_type operator+( strong_type lhs, strong_type rhs ) noexcept {
                     return lhs += rhs.value;
+                }
+
+                template<typename T2, typename Tag2>
+                    requires ( not std::same_as<Tag, Tag2> )
+                friend constexpr strong_type operator+( strong_type lhs, strong_type<T2, Tag2> rhs ) noexcept {
+                    lhs.value += static_cast<Type>( rhs.get() );
+                    return lhs;
                 }
 
                 friend constexpr Type operator+( Type lhs, strong_type rhs ) noexcept {
@@ -128,6 +141,12 @@ namespace lbyte::stx
                     value -= rhs.value;
                     return *this;
                 }
+                template<typename T2, typename Tag2>
+                    requires ( not std::same_as<Tag, Tag2> )
+                constexpr strong_type& operator-=( strong_type<T2, Tag2> rhs ) noexcept {
+                    value -= static_cast<Type>( rhs.get() );
+                    return *this;
+                }
 
                 friend constexpr Type operator-( strong_type lhs, strong_type rhs ) noexcept {
                     return lhs.get() - rhs.get();
@@ -140,6 +159,13 @@ namespace lbyte::stx
 
                 friend constexpr Type operator-( Type lhs, strong_type rhs ) noexcept {
                     return lhs - rhs.value;
+                }
+
+                template<typename T2, typename Tag2>
+                    requires ( not std::same_as<Tag, Tag2> )
+                friend constexpr strong_type operator-( strong_type lhs, strong_type<T2, Tag2> rhs ) noexcept {
+                    lhs.value -= static_cast<Type>( rhs.get() );
+                    return lhs;
                 }
 
                 friend constexpr strong_type operator-( strong_type value ) noexcept {

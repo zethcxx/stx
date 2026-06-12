@@ -22,15 +22,15 @@ namespace lbyte::stx
     namespace mem {
 
         // SAFE MEMORY ACCESS (memcpy, well-defined, unaligned-safe) -----------------
-        template<binary_readable Type, address_like Addr, byte_offset OffT = off_s>
+        template<binary_readable Type, address_like Addr>
         [[nodiscard]] STX_FORCE_INLINE
-        constexpr Type read( Addr base, OffT off = OffT{} ) noexcept
+        constexpr Type read( Addr base ) noexcept
         {
             Type value;
 
             std::memcpy(
                 &value,
-                rcast<const std::byte*>(normalize_addr(base)) + off.get(),
+                rcast<const std::byte*>(normalize_addr(base)),
                 sizeof( Type )
             );
 
@@ -38,35 +38,21 @@ namespace lbyte::stx
         }
 
         // ENDIAN-AWARE READ -----------------------------------------------------
-        template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE
-        Type read_le( Addr base, OffT off ) noexcept
-        {
-            return read<Type>( base, off );
-        }
-
         template<byte_swappable Type, address_like Addr>
         [[nodiscard]] STX_FORCE_INLINE
         Type read_le( Addr base ) noexcept
         {
-            return read_le<Type>( base, off_s{} );
-        }
-
-        template<byte_swappable Type, address_like Addr, byte_offset OffT = off_s>
-        [[nodiscard]] STX_FORCE_INLINE constexpr Type read_be( Addr base, OffT off ) noexcept
-        {
-            using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
-            auto raw = read<Raw>(base, off);
-            if constexpr ( std::endian::native == std::endian::little )
-                raw = std::byteswap(raw);
-            return static_cast<Type>(raw);
+            return read<Type>( base );
         }
 
         template<byte_swappable Type, address_like Addr>
-        [[nodiscard]] STX_FORCE_INLINE
-        Type read_be( Addr base ) noexcept
+        [[nodiscard]] STX_FORCE_INLINE constexpr Type read_be( Addr base ) noexcept
         {
-            return read_be<Type>( base, off_s{} );
+            using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
+            auto raw = read<Raw>(base);
+            if constexpr ( std::endian::native == std::endian::little )
+                raw = std::byteswap(raw);
+            return static_cast<Type>(raw);
         }
 
         template<binary_readable Type, address_like Addr>
@@ -187,9 +173,6 @@ namespace lbyte::stx
 
 
     template<typename T>
-    struct ptr_light;
-
-    template<typename T>
     class ptr
     {
         ::lbyte::stx::uptr address = 0;
@@ -290,25 +273,26 @@ namespace lbyte::stx
         // ---- NAVIGATION -------------------------------------------
         // Single integral: element-level,  ptr[n] = addr + n * sizeof(T)
         // Two integrals:    custom step,    ptr[n, s] = addr + n * s
-        // byte_offset:      byte-level,     ptr[off_s{n}] = addr + n
+        // ref-qualified:    p[n][m] is deleted (temporary [] disallowed)
 
         template<std::integral U>
-        [[nodiscard]] constexpr ptr_light<T> operator[]( U offset ) const noexcept {
+        [[nodiscard]] constexpr ptr<T> operator[]( U offset ) const & noexcept {
             if constexpr ( std::is_void_v<T> )
-                return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset ));
+                return ptr<T>( address + static_cast<::lbyte::stx::uptr>( offset ));
             else
-                return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset ) * sizeof(T) );
+                return ptr<T>( address + static_cast<::lbyte::stx::uptr>( offset ) * sizeof(T) );
+        }
+
+        template<std::integral U>
+        [[nodiscard]] constexpr ptr<T> operator[]( U offset ) const && = delete;
+
+        template<std::integral U, std::integral V>
+        [[nodiscard]] constexpr ptr<T> operator[]( U offset, V step ) const & noexcept {
+            return ptr<T>( address + static_cast<::lbyte::stx::uptr>( offset ) * static_cast<::lbyte::stx::uptr>( step ));
         }
 
         template<std::integral U, std::integral V>
-        [[nodiscard]] constexpr ptr_light<T> operator[]( U offset, V step ) const noexcept {
-            return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset ) * static_cast<::lbyte::stx::uptr>( step ));
-        }
-
-        template<byte_offset OffT>
-        [[nodiscard]] constexpr ptr_light<T> operator[]( OffT offset ) const noexcept {
-            return ptr_light<T>( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
-        }
+        [[nodiscard]] constexpr ptr<T> operator[]( U offset, V step ) const && = delete;
 
         // ---- SAFE (memcpy) ---------------------------------------
 
@@ -707,16 +691,6 @@ namespace lbyte::stx
         }
     };
 
-    // --- ptr_light<T> (non-chainable proxy from operator[]) -------------
-
-    template<typename T>
-    struct ptr_light : ptr<T>
-    {
-        using ptr<T>::ptr;
-
-        template<typename U>
-        ptr_light operator[]( U ) const = delete;
-    };
 }
 
 #include <format>
@@ -726,14 +700,6 @@ template<typename T>
 struct std::hash<lbyte::stx::ptr<T>>
 {
     [[nodiscard]] auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
-        return std::hash<lbyte::stx::uptr>{}( p.addr() );
-    }
-};
-
-template<typename T>
-struct std::hash<lbyte::stx::ptr_light<T>>
-{
-    [[nodiscard]] auto operator()( const lbyte::stx::ptr_light<T>& p ) const noexcept {
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
