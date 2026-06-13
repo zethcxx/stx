@@ -7,24 +7,24 @@
 #include <iosfwd>
 #include <type_traits>
 
-namespace lbyte::stx
+namespace lbyte::stx::endian
 {
-    // --- byte_order ----------------------------------------------------------------
+    // --- order ------------------------------------------------------------------
 
-    enum class byte_order : u8 { little, big };
+    enum class order : u8 { little, big };
 
-    // --- endian_compatible concept -------------------------------------------------
+    // --- endian_compatible concept ----------------------------------------------
 
     template<typename T>
-    concept endian_compatible = byte_swappable<T>;
+    concept compatible = byte_swappable<T>;
 
-    // --- endian_value<T, Order> ----------------------------------------------------
+    // --- endian_value<T, Order> -------------------------------------------------
 
-    template<endian_compatible T, byte_order Order>
+    template<compatible T, order Order>
     struct endian_value
     {
         static constexpr bool is_native_little = std::endian::native == std::endian::little;
-        static constexpr bool needs_swap = (Order == byte_order::little) != is_native_little;
+        static constexpr bool needs_swap = (Order == order::little) != is_native_little;
 
         T store{};
 
@@ -34,7 +34,7 @@ namespace lbyte::stx
             : store(swap_if(v))
         {}
 
-        template<endian_compatible U>
+        template<compatible U>
         constexpr explicit endian_value(endian_value<U, Order> other) noexcept
             : store(swap_if(static_cast<T>(static_cast<U>(other))))
         {}
@@ -210,36 +210,36 @@ namespace lbyte::stx
         }
     };
 
-    // --- le<T>, be<T> aliases -----------------------------------------------------
+    // --- le<T>, be<T> aliases -------------------------------------------------
 
-    template<endian_compatible T>
-    using le = endian_value<T, byte_order::little>;
+    template<compatible T>
+    using le = endian_value<T, order::little>;
 
-    template<endian_compatible T>
-    using be = endian_value<T, byte_order::big>;
+    template<compatible T>
+    using be = endian_value<T, order::big>;
 
-    // --- is_endian_value trait ----------------------------------------------------
+    // --- is_endian_value trait ------------------------------------------------
 
     namespace details
     {
         template<typename T>
         struct is_endian_value_impl : std::false_type {};
 
-        template<endian_compatible T, byte_order O>
+        template<compatible T, order O>
         struct is_endian_value_impl<endian_value<T, O>> : std::true_type {};
     }
 
     template<typename T>
     constexpr bool is_endian_value_v = details::is_endian_value_impl<std::remove_cvref_t<T>>::value;
 
-} // namespace lbyte::stx
+} // namespace lbyte::stx::endian
 
 // --- std::hash --------------------------------------------------------------------
 
-template<lbyte::stx::endian_compatible T, lbyte::stx::byte_order O>
-struct std::hash<lbyte::stx::endian_value<T, O>>
+template<lbyte::stx::endian::compatible T, lbyte::stx::endian::order O>
+struct std::hash<lbyte::stx::endian::endian_value<T, O>>
 {
-    [[nodiscard]] std::size_t operator()(const lbyte::stx::endian_value<T, O>& v) const noexcept {
+    [[nodiscard]] std::size_t operator()(const lbyte::stx::endian::endian_value<T, O>& v) const noexcept {
         return std::hash<T>{}( static_cast<T>(v) );
     }
 };
@@ -249,12 +249,11 @@ struct std::hash<lbyte::stx::endian_value<T, O>>
 #if __has_include(<format>)
     #include <format>
 
-    template<lbyte::stx::endian_compatible T, lbyte::stx::byte_order O>
-    struct std::formatter<lbyte::stx::endian_value<T, O>> : std::formatter<T>
+    template<lbyte::stx::endian::compatible T, lbyte::stx::endian::order O>
+    struct std::formatter<lbyte::stx::endian::endian_value<T, O>> : std::formatter<T>
     {
-        auto format(const lbyte::stx::endian_value<T, O>& v, auto& ctx) const {
+        auto format(const lbyte::stx::endian::endian_value<T, O>& v, auto& ctx) const {
             return std::formatter<T>::format(static_cast<T>(v), ctx);
         }
     };
 #endif
-

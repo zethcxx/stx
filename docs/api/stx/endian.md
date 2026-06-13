@@ -1,0 +1,94 @@
+# Endian — `le<T>` / `be<T>`
+
+```cpp
+#include <lbyte/stx/endian.hpp>
+```
+
+Type-safe wrappers for little-endian and big-endian storage. Guarantee a fixed in-memory byte order regardless of host platform. All names in `namespace lbyte::stx::endian`.
+
+## Concept
+
+```cpp
+template<typename T>
+concept compatible = byte_swappable<T>; /* std::integral or enum, excluding char/bool */
+
+template<compatible T, order Order>
+struct endian_value;
+
+using le = endian_value<T, order::little>;
+using be = endian_value<T, order::big>;
+```
+
+## Properties
+
+- `sizeof(le<T>) == sizeof(T)`
+- Trivially copyable (`memcpy`-safe)
+- Standard layout
+- Satisfies `binary_readable` — works with `read<endian::le<u32>>(addr)`
+- Fully `constexpr` (C++23)
+
+## Example
+
+```cpp
+struct header {
+    endian::le<u32> signature;
+    endian::le<u16> machine;
+    endian::be<u64> timestamp;
+};
+
+auto h = read<header>(data);
+if ( h.signature == 0x4550 )   // works on LE and BE hosts
+    process(h);
+```
+
+## Type Trait
+
+```cpp
+template<typename T>
+constexpr bool is_endian_value_v;
+```
+
+Returns `true` if `T` is an instantiation of `endian_value<T, Order>` (e.g. `endian::le<u32>` or `endian::be<u16>`).
+
+```cpp
+static_assert( is_endian_value_v<endian::le<u32>>);
+static_assert(!is_endian_value_v<u32>           );
+```
+
+## Methods
+
+| Method                  | Description                                |
+|-------------------------|--------------------------------------------|
+| `get()`                 | Returns value in native endian             |
+| `operator T()`          | Implicit conversion to native endian       |
+| `operator=(U)`          | Assign raw value, auto-converts to storage |
+| `endian_value(U other)` | Explicit converting ctor from another `endian_value` of different width (e.g. `le<u32>` → `le<u64>`) |
+| `data()`                | Pointer to raw storage (for serialization) |
+| `swap()`                | Exchange two values                        |
+
+## Operators
+
+**Compound assignment:** `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
+
+**Increment/decrement:** `++x`, `x++`, `--x`, `x--`
+
+**Binary arithmetic:** `+`, `-`, `*`, `/`, `%`, `&`, `|`, `^` with `endian_value` or raw `T`
+
+**Shift:** `<<`, `>>`
+
+**Comparison:** `==`, `<=>` with `endian_value` or raw `T` (both sides)
+
+**Unary:** `+`, `-`, `~`
+
+**I/O:** `<<` (ostream), `>>` (istream)
+
+## STL Compatibility
+
+- `std::hash<endian::le<T>>` — same as `hash<T>` of the native value
+- `std::formatter<endian::le<T>>` — reuses formatter of `T` (if `<format>` is available)
+- `std::swap` — via friend `swap()`
+
+## See Also
+
+- `core.hpp` — type aliases (`u32`, `u64`, etc.)
+- `mem.hpp` — `read<T>(addr)` reads `endian::le<T>` correctly from memory

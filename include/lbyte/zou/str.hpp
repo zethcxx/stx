@@ -1,9 +1,11 @@
 #pragma once
-#include "./core.hpp"
+#include "../stx/core.hpp"
+#include "../stx/endian.hpp"
 #include <array>
 #include <string>
+#include <string_view>
 
-namespace lbyte::stx::lit
+namespace lbyte::zou::lit
 {
     template<size_t N>
     struct fstr {
@@ -168,5 +170,54 @@ namespace lbyte::stx::lit
 
     template<fstr Str, details::flag... Flags>
     constexpr str_type<Str, Flags...> str{};
-}
 
+    // BYTESOF -------------------------------------------------------------------
+    using ::lbyte::stx::endian::order;
+
+    namespace detail
+    {
+        using namespace ::lbyte::stx;
+
+        template<order O, fstr Str>
+        consteval auto make_bytesof() noexcept
+        {
+            constexpr auto N = Str.size();
+            using enum order;
+
+            if constexpr ( N <= 1 )
+            {
+                u8 v{};
+                for ( size_t i = 0; i < N; ++i )
+                    v |= static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) )
+                        << ( i * 8 );
+                return v;
+            }
+            else if constexpr ( N <= 8 )
+            {
+                using T = std::conditional_t<N == 2, u16,
+                          std::conditional_t<N <= 4, u32, u64>>;
+                T v{};
+                for ( size_t i = 0; i < N; ++i )
+                {
+                    auto s = static_cast<size_t>( O == little ? i : ( N - 1 - i ) );
+                    v |= static_cast<T>( static_cast<unsigned char>( Str.data[i] ) )
+                        << ( s * 8 );
+                }
+                return v;
+            }
+            else
+            {
+                static constexpr std::array<char, N> arr = [] {
+                    std::array<char, N> a{};
+                    for ( size_t i = 0; i < N; ++i )
+                        a[i] = Str.data[i];
+                    return a;
+                }();
+                return std::string_view{ arr.data(), N };
+            }
+        }
+    }
+
+    template<fstr Str, order Order = order::little>
+    constexpr auto bytesof = detail::make_bytesof<Order, Str>();
+}

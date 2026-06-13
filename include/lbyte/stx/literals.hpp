@@ -1,10 +1,10 @@
 #pragma once
 #include "./mem.hpp"
 #include "./endian.hpp"
-#include "./str.hpp"
 
 namespace lbyte::stx::literals
 {
+    using namespace endian;
     // --- FLOATING TYPES ------------------------------------------------------
     constexpr float  operator""_f32( long double        v ) noexcept { return static_cast<float >(v); }
     constexpr float  operator""_f32( unsigned long long v ) noexcept { return static_cast<float >(v); }

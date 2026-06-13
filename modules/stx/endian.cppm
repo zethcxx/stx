@@ -4,13 +4,12 @@ module;
 
 export module lbyte.stx.endian;
 
-export namespace lbyte::stx
+export namespace lbyte::stx::endian
 {
-    using ::lbyte::stx::byte_order;
-    using ::lbyte::stx::endian_compatible;
-    using ::lbyte::stx::endian_value;
-    using ::lbyte::stx::le;
-    using ::lbyte::stx::be;
-    using ::lbyte::stx::is_endian_value_v;
+    using ::lbyte::stx::endian::order;
+    using ::lbyte::stx::endian::compatible;
+    using ::lbyte::stx::endian::endian_value;
+    using ::lbyte::stx::endian::le;
+    using ::lbyte::stx::endian::be;
+    using ::lbyte::stx::endian::is_endian_value_v;
 }
-

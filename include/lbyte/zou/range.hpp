@@ -1,10 +1,11 @@
 #pragma once
 
-#include "./core.hpp"
+#include "../stx/core.hpp"
 #include <cassert>
 
-namespace lbyte::stx
+namespace lbyte::zou
 {
+    using namespace lbyte::stx;
     namespace details
     {
         template<typename Type>
@@ -18,7 +19,7 @@ namespace lbyte::stx
         struct base_type { using type = T; };
 
         template<typename T, typename Tag>
-        struct base_type<strong_type<T, Tag>> { using type = T; };
+        struct base_type<::lbyte::stx::details::strong_type<T, Tag>> { using type = T; };
 
         template<typename T> requires std::is_enum_v<T>
         struct base_type<T> { using type = std::underlying_type_t<T>; };
@@ -45,14 +46,14 @@ namespace lbyte::stx
     }
 
     // ENUMS ---------------------------------------------------------------------
-    enum class range_mode : u8
+    enum class range_mode : ::lbyte::stx::u8
     {
         Inclusive,
         Exclusive,
     };
 
     namespace details {
-        enum class dir : u8 {
+        enum class dir : ::lbyte::stx::u8 {
             fwd,
             bwd,
         };
@@ -130,8 +131,8 @@ namespace lbyte::stx
 }
 
 // DETAILS IMPLEMENTATIONS ---------------------------------------------------
-template<lbyte::stx::details::rangeable Type>
-struct lbyte::stx::details::range_iter
+template<lbyte::zou::details::rangeable Type>
+struct lbyte::zou::details::range_iter
 {
     using ValueT = base_type_t<Type>;
 
@@ -172,11 +173,11 @@ struct lbyte::stx::details::range_iter
 };
 
 // RANGE VIEW -----------------------------------------------------------------
-template<lbyte::stx::details::rangeable T>
-struct lbyte::stx::details::range_view
+template<lbyte::zou::details::rangeable T>
+struct lbyte::zou::details::range_view
 {
-    using ValueT = stx::details::base_type_t<T>;
-    using iter_t = stx::details::range_iter<T> ;
+    using ValueT = details::base_type_t<T>;
+    using iter_t = details::range_iter<T> ;
 
     ValueT from;
     ValueT to  ;
@@ -199,12 +200,12 @@ struct lbyte::stx::details::range_view
                 auto step_u = static_cast<::lbyte::stx::usize>( step );
 
                 if ( mode == range_mode::Exclusive )
-                    remaining = (dist + step_u - 1) / step_u;  // ceiling — include last partial step
-                else // Inclusive
+                    remaining = (dist + step_u - 1) / step_u;
+                else
                     remaining = dist / step_u + 1;
             }
         }
-        else // bwd
+        else
         {
             if ( from >= to )
             {
@@ -212,8 +213,8 @@ struct lbyte::stx::details::range_view
                 auto step_u = static_cast<::lbyte::stx::usize>( step );
 
                 if ( mode == range_mode::Exclusive )
-                    remaining = (dist + step_u - 1) / step_u;  // ceiling — same as forward exclusive
-                else // Inclusive
+                    remaining = (dist + step_u - 1) / step_u;
+                else
                     remaining = dist / step_u + 1;
             }
         }
@@ -224,7 +225,6 @@ struct lbyte::stx::details::range_view
     }
 
     constexpr auto end() const noexcept {
-        return stx::details::range_sentinel{};
+        return details::range_sentinel{};
     }
 };
-

@@ -1,10 +1,11 @@
 #pragma once
 
-#include "./core.hpp"
+#include "../stx/core.hpp"
 #include <chrono>
 
-namespace lbyte::stx::time
+namespace lbyte::zou::time
 {
+    using namespace lbyte::stx;
     // CLOCK ALIASES -------------------------------------------------------------
     using wall_clock   = std::chrono::system_clock;
     using hires_clock  = std::chrono::high_resolution_clock;
@@ -69,37 +70,24 @@ namespace lbyte::stx::time
     };
 
     // PORTABLE BINARY FORMAT CONVERTERS ----------------------------------------
-    //
-    // Convert between raw integers read from binary data and wall_clock::time_point.
-    // The raw values can be obtained via ptr::read<u32/u64>, memcur::pop, fs::read, etc.
 
     // --- FILETIME (Windows) ----------------------------------------------------
-    // 100-ns intervals since 1601-01-01 00:00:00 UTC.
-    // Commonly used in Windows NTFS, registry, and PE/COFF headers.
-
     [[nodiscard]] constexpr wall_clock::time_point from_filetime(u64 ft) noexcept
     {
-        constexpr u64 epoch_ft = 116'444'736'000'000'000ULL; // 1601→1970 in 100-ns units
+        constexpr u64 epoch_ft = 116'444'736'000'000'000ULL;
         u64 sec = (ft >= epoch_ft) ? ((ft - epoch_ft) / 10'000'000) : 0;
         return wall_clock::time_point{ std::chrono::seconds{sec} };
     }
 
     [[nodiscard]] constexpr u64 to_filetime(wall_clock::time_point tp) noexcept
     {
-        constexpr i64 epoch_sec = 116'444'736'00LL; // 1601→1970 in seconds
+        constexpr i64 epoch_sec = 116'444'736'00LL;
         auto dur = tp.time_since_epoch();
         auto sec = std::chrono::duration_cast<std::chrono::seconds>(dur).count();
         return static_cast<u64>(sec + epoch_sec) * 10'000'000;
     }
 
     // --- DOS date/time ---------------------------------------------------------
-    // Bit-packed 32-bit value used in FAT, ZIP, and EXE timestamps.
-    //
-    //   Upper 16 bits (date):  | year-1980 (7) | month (4) | day (5) |
-    //   Lower 16 bits (time):  | hours (5)     | min (6)   | sec/2 (5) |
-    //
-    // Valid range: 1980-01-01 .. 2107-12-31, sec precision (even only).
-
     [[nodiscard]] constexpr wall_clock::time_point from_dos(u32 dos) noexcept
     {
         using namespace std::chrono;
@@ -147,14 +135,9 @@ namespace lbyte::stx::time
     }
 
     // --- NTP timestamp ---------------------------------------------------------
-    // Seconds since 1900-01-01 00:00:00 UTC as an unsigned 32-bit integer.
-    // Wraps every ~136 years (next wrap: 2036). The 64-bit variant
-    // stores seconds in the upper 32 bits, fractional seconds (2^-32 units)
-    // in the lower 32 bits — the fraction is discarded for time_point conversion.
-
     [[nodiscard]] constexpr wall_clock::time_point from_ntp(u32 seconds) noexcept
     {
-        constexpr u64 epoch_ntp = 2'208'988'800ULL; // 1900→1970 in seconds
+        constexpr u64 epoch_ntp = 2'208'988'800ULL;
         u64 s = (static_cast<u64>(seconds) >= epoch_ntp) ? (static_cast<u64>(seconds) - epoch_ntp) : 0;
         return wall_clock::time_point{ std::chrono::seconds{s} };
     }
