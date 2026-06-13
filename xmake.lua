@@ -32,15 +32,15 @@ target("stx")
         os.cp( "include/lbyte/stx.hpp",  includedir .. "/lbyte"      )
         os.cp( "include/lbyte/stx/*.hpp", includedir .. "/lbyte/stx" )
 
-        if package:config( "use_modules" ) then
+        if has_config( "use_modules" ) then
             import("package.tools.xmake").install( package )
         end
     end)
 
-    on_load( function ( package )
-        package:add( "includedirs", "include" )
-        if package:config( "use_modules" ) then
-            package:add( "cxxmodules", "modules/stx/*.cppm" )
+    on_load( function ( target )
+        target:add( "includedirs", "include" )
+        if has_config( "use_modules" ) then
+            target:add( "cxxmodules", "modules/stx/*.cppm" )
         end
     end)
 

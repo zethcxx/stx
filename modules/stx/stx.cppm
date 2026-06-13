@@ -7,6 +7,7 @@ export import lbyte.stx.range;
 export import lbyte.stx.time;
 export import lbyte.stx.bit;
 export import lbyte.stx.endian;
+export import lbyte.stx.str;
 export import lbyte.stx.fs;
 export import lbyte.stx.literals;
 

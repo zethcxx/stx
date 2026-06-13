@@ -1,149 +1,131 @@
 # String Literals (`str.hpp`)
 
-Compile-time string literal transformations with natural decay.
+Compile-time string literal transformations with `static` storage.
 
 ## Header
 
 ```cpp
-#include <lbyte/stx/str.hpp>   // basic_sl<CharT,N>, operator""_sl
+#include <lbyte/stx/str.hpp>
 ```
 
 ## Overview
 
-`basic_sl<CharT,N>` is a compile-time string builder in `lbyte::stx::details`.
-It is obtained through the `operator""_sl` literal suffix.
+`lit::str<"str", flags...>` transforms a raw string literal at compile time and
+exposes the result as `operator const CharT*()` and `str()`. The transformed
+data lives in a `static constexpr` member — permanent storage duration (like a
+string literal in `.rodata`). No temporary lifetime issues.
 
 ```cpp
-using namespace lbyte::stx::literals;
+using namespace lbyte::stx;
 
-constexpr auto sl = "hello"_sl;
-const char* s = sl;            // decay: operator const CharT* (lvalue only)
-std::string_view sv = sl.sv(); // explicit: string_view (lvalue only)
-auto cstr = sl.c_str();        // explicit: const char* (lvalue only)
-auto str = sl.str();           // explicit: std::string (always safe)
+auto x = lit::str<"hello">;
+const char* p = x;      // operator const CharT* — always valid, .rodata
+std::string s = x.str(); // owned copy
 ```
 
-## Literal Suffixes
+## Flags
 
-| Suffix    | `CharT`    | Decay To          |
-|-----------|------------|-------------------|
-| `""_sl`   | `char`     | `const char*`     |
-| `u8""_sl` | `char8_t`  | `const char8_t*`  |
-| `L""_sl`  | `wchar_t`  | `const wchar_t*`  |
-| `u""_sl`  | `char16_t` | `const char16_t*` |
-| `U""_sl`  | `char32_t` | `const char32_t*` |
+| Flag                | Effect                                                                 |
+|---------------------|------------------------------------------------------------------------|
+| *(none)*            | Raw string, no transformation                                          |
+| `lit::strip`        | Remove first line if empty (whitespace-only) and last line if empty    |
+| `lit::unindent`     | Strip common leading whitespace based on first text line's indentation |
 
-## Methods
-
-| Member                    | Returns                         | Description                                                                    |
-|---------------------------|---------------------------------|--------------------------------------------------------------------------------|
-| `operator const CharT*()` | `const CharT*`                  | Natural decay (like a raw literal); `const &` only — `&&` deleted              |
-| `sv()`                    | `std::basic_string_view<CharT>` | View up to first `\0` (embedded nulls stripped); `const &` only — `&&` deleted |
-| `c_str()`                 | `const CharT*`                  | Explicit C string pointer; `const &` only — `&&` deleted                       |
-| `str()`                   | `std::basic_string<CharT>`      | Owned copy — always safe on any ref-qualifier                                  |
-| `trim()`                  | `basic_sl<CharT, N>`            | Remove leading + trailing `\n` only (internal newlines preserved)              |
-| `unindent()`              | `basic_sl<CharT, N>`            | Remove common leading whitespace based on first text line's indentation        |
-
-## Lifetime
-
-All pointer/view accessors (`operator const CharT*`, `sv()`, `c_str()`) are
-guarded with ref-qualifiers: they are **deleted on rvalue temporaries** to
-prevent dangling at compile time. Store the result first:
-
-### `.sv()` vs `""sv`
-
-`basic_sl::sv()` scans for the first null terminator (`\0`) and returns a view
-of only the characters **before** it — embedded nulls are stripped. This
-differs from `std::string_view` literal `""sv`, which preserves all bytes
-including embedded nulls.
+## Usage
 
 ```cpp
-auto sl  = "abc\0\0\0"_sl;
-auto sv1 = sl.sv();           // "abc"  (3 bytes, stops at first \0)
+using namespace lbyte::stx;
 
-using namespace std::literals;
-auto sv2 = "abc\0\0\0"sv;     // "abc\0\0\0"  (6 bytes, nulls preserved)
+// Raw (no transform)
+auto a = lit::str<"hello">;
+a.str();                        // "hello"
+
+// Strip surrounding empty lines
+auto b = lit::str<"\nhello\n", lit::strip>;
+std::string_view{b};            // "hello"
+
+// Unindent
+auto c = lit::str<"  hello\n  world", lit::unindent>;
+std::string_view{c};            // "hello\nworld"
+
+// Combine flags
+auto d = lit::str<"\n  hello\n  world\n", lit::strip, lit::unindent>;
+std::string_view{d};            // "hello\nworld"
+
+// Pointer to .rodata (eternal)
+const char* p = d;
+printf("%s\n", static_cast<const char*>(d));
 ```
 
-Use `sl.str()` if you need an owned copy with all bytes intact, or access
-`sl.data_` directly for the full internal array.
+## strip
+
+Removes the **first line** if it is empty (whitespace-only) and the **last line**
+if it is empty. Lines in the middle that happen to be empty are preserved.
+Only the outermost lines are candidates — useful for `R"(...)"` raw literals or
+heredoc-style strings where only the opening and closing delimiters should be
+stripped.
 
 ```cpp
-// valid: named lvalue
-constexpr auto s = "\n  hello\n"_sl.trim().unindent();
-const char* p = s;                  // safe
-std::string_view sv = s.sv();       // safe
-auto cstr = s.c_str();              // safe
-std::string str = s.str();          // safe
+std::string_view{ lit::str<"\nhello\n",     lit::strip> }  // "hello"
+std::string_view{ lit::str<"\n\n\nhello",   lit::strip> }  // "\n\nhello"
+std::string_view{ lit::str<"hello\n\n\n",   lit::strip> }  // "hello\n\n"
+std::string_view{ lit::str<"\nhello\nworld\n", lit::strip> } // "hello\nworld"
+
+// Whitespace-only lines also qualify as "empty"
+std::string_view{ lit::str<"  \nhello\n  ", lit::strip> } // "hello"
 ```
 
-```cpp
-// invalid (compile error): temporary + guarded accessor
-// const char* p = "\n  hello\n"_sl.trim().unindent();     // operator&& = delete
-// auto sv = "\n  hello\n"_sl.trim().unindent().sv();      // sv() && = delete
-// auto p  = "\n  hello\n"_sl.trim().unindent().c_str();   // c_str() && = delete
-```
-
-For one-shot usage, use `.str()` (always safe, returns owned copy):
-
-```cpp
-std::string out = "\n  hello\n"_sl.trim().unindent().str();   // safe
-puts(out.c_str());
-```
-
-## trim()
-
-Removes all leading and trailing newline characters (`\n`). Internal newlines
-are preserved. Only `\n` is stripped — other whitespace characters (` `, `\t`,
-`\r`) are left untouched. The result is null-terminated within the same-size
-internal buffer; use `.sv()` to read the trimmed content.
-
-```cpp
-constexpr auto t1 = "\nhello\n"_sl.trim();       t1.sv()   // "hello"
-constexpr auto t2 = "\n\nhello"_sl.trim();       t2.sv()   // "hello"
-constexpr auto t3 = "hello\n\n"_sl.trim();       t3.sv()   // "hello"
-constexpr auto t4 = "\nhello\nworld\n"_sl.trim(); t4.sv()  // "hello\nworld"
-```
-
-## unindent()
+## unindent
 
 Walks every line and removes the first *N* whitespace characters (` ` and `\t`),
 where *N* is the indentation of the **first non-empty line** — the first line
 that contains at least one non-whitespace character. Lines consisting entirely
 of whitespace are skipped when determining *N* but are preserved in the output.
-
-Blank lines (containing only `\n`) keep their `\n` and do not reset the
-indentation search.
+Blank lines (containing only `\n`) keep their `\n` and do not reset the search.
 
 ```cpp
-constexpr auto u1 = "  hello"_sl.unindent();            u1.sv()  // "hello"
-constexpr auto u2 = "  hello\n  world"_sl.unindent();   u2.sv()  // "hello\nworld"
-constexpr auto u3 = "  hello\n    world"_sl.unindent(); u3.sv()  // "hello\n  world"
+std::string_view{ lit::str<"  hello",            lit::unindent> } // "hello"
+std::string_view{ lit::str<"  hello\n  world",   lit::unindent> } // "hello\nworld"
+std::string_view{ lit::str<"  hello\n    world", lit::unindent> } // "hello\n  world"
 
 // First non-empty line determines indent:
-constexpr auto u4 = "\n  hello\n  world"_sl.unindent(); u4.sv()  // "\nhello\nworld"
+std::string_view{ lit::str<"\n  hello\n  world", lit::unindent> } // "\nhello\nworld"
 ```
 
-## Chaining
+## Combined
 
 ```cpp
-constexpr auto s = "\n  hello\n  world\n"_sl.trim().unindent();
-// s.sv() → "hello\nworld"
+std::string_view{ lit::str<"\n  hello\n  world\n", lit::strip, lit::unindent> }
+// "hello\nworld"
+```
+
+## `constexpr` context
+
+```cpp
+constexpr auto x = lit::str<"\n  hello\n  world\n", lit::unindent, lit::strip>;
+static_assert( std::string_view{x} == "hello\nworld" );
+```
+
+## Variable template syntax
+
+`lit::str` is a **variable template** — no `{}` or `()` needed:
+
+```cpp
+auto x = lit::str<"hello", lit::strip>;     // ← no braces
+constexpr auto y = lit::str<"hello">;       // ← constexpr works
 ```
 
 ## C/C++ Comparison
 
-| Language | String Literal                                  | Transform                         |
-|----------|-------------------------------------------------|-----------------------------------|
-| C        | `"..."`                                         | Manual loops                      |
-| C++      | `"..."_sl`                                      | `.trim().unindent()` compile-time |
-| Python   | `"""..."""` + `.strip()` + `inspect.cleandoc()` | Runtime                           |
+| Language | String Literal                  | Transform                         |
+|----------|---------------------------------|-----------------------------------|
+| C        | `"..."`                         | Manual loops                      |
+| C++ (stx)| `lit::str<"...", flags>`        | Compile-time, `.rodata`           |
+| Python   | `"""..."""` + `.strip()` + `...`| Runtime                           |
 
 ## Module
 
 ```cpp
-import lbyte.stx;   // all modules including str
+import lbyte.stx;   // includes lit::str
+import lbyte.stx.str; // or just the str module
 ```
-
-The `_sl` literal is available through `import lbyte.stx.literals`.
-

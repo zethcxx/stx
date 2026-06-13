@@ -32,6 +32,7 @@ if ( LBYTE_STX_USE_MODULES )
         modules/stx/fs.cppm
         modules/stx/bit.cppm
         modules/stx/endian.cppm
+        modules/stx/str.cppm
         modules/stx/literals.cppm
         modules/stx/stx.cppm
     )
