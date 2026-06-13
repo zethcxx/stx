@@ -5,21 +5,24 @@
 
 namespace lbyte::stx::lit
 {
+    template<size_t N>
+    struct fstr {
+        char data[N]{};
+
+        constexpr fstr() noexcept = default;
+        constexpr fstr(const char (&str)[N]) noexcept {
+            for (size_t i = 0; i < N; ++i)
+                data[i] = str[i];
+        }
+
+        [[nodiscard]] constexpr size_t size() const noexcept { return N - 1; }
+        [[nodiscard]] constexpr const char& operator[](size_t i) const noexcept { return data[i]; }
+        [[nodiscard]] constexpr char& operator[](size_t i) noexcept { return data[i]; }
+        [[nodiscard]] constexpr bool operator==(const fstr&) const = default;
+    };
+
     namespace details
     {
-        template<size_t N>
-        struct fixed_string {
-            char data[N]{};
-
-            constexpr fixed_string(const char (&str)[N]) noexcept {
-                for (size_t i = 0; i < N; ++i)
-                    data[i] = str[i];
-            }
-
-            [[nodiscard]] constexpr size_t size() const noexcept { return N - 1; }
-            [[nodiscard]] constexpr bool operator==(const fixed_string&) const = default;
-        };
-
         template<size_t N>
         [[nodiscard]] consteval std::array<char, N> strip_arr(std::array<char, N> data) noexcept {
             size_t null_pos = 0;
@@ -134,7 +137,7 @@ namespace lbyte::stx::lit
     constexpr auto strip    = details::flag::strip;
     constexpr auto unindent = details::flag::unindent;
 
-    template<details::fixed_string Str, details::flag... Flags>
+    template<fstr Str, details::flag... Flags>
     struct str_type {
     private:
         static consteval auto build() noexcept {
@@ -163,7 +166,7 @@ namespace lbyte::stx::lit
         }
     };
 
-    template<details::fixed_string Str, details::flag... Flags>
+    template<fstr Str, details::flag... Flags>
     constexpr str_type<Str, Flags...> str{};
 }
 

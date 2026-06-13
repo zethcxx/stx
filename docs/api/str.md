@@ -106,6 +106,26 @@ constexpr auto x = lit::str<"\n  hello\n  world\n", lit::unindent, lit::strip>;
 static_assert( std::string_view{x} == "hello\nworld" );
 ```
 
+## `lit::fstr<N>` — fixed string NTTP
+
+`fstr<N>` is the structural type that wraps a string literal for use as a
+non-type template parameter. It is the foundation of `lit::str` and can be
+used directly in your own compile-time templates.
+
+```cpp
+using namespace lbyte::stx;
+
+// Basic usage
+constexpr lit::fstr s{ "hello" };
+static_assert( s.size() == 5 );
+static_assert( s[0] == 'h' );
+
+// NTTP in your own templates
+template<lit::fstr Str>
+    requires (Str.size() > 0)
+constexpr auto make_hex() noexcept { /* your decode logic */ }
+```
+
 ## Variable template syntax
 
 `lit::str` is a **variable template** — no `{}` or `()` needed:
