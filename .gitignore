@@ -1,3 +1,4 @@
-test/
-.xmake/
-build/
+/test
+/.xmake
+/build
+

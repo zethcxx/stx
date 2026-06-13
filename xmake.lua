@@ -23,7 +23,7 @@ target("stx")
     set_languages  ( "cxx23"  , { public = true })
     add_includedirs( "include", { public = true })
     add_headerfiles( "include/(lbyte/stx/*.hpp)" )
-    add_headerfiles( "include/(lbyte/stx.hpp)" )
+    add_headerfiles( "include/(lbyte/stx.hpp)"   )
 
     if has_config( "use_modules" ) then
         set_kind( "static" )
@@ -34,16 +34,6 @@ target("stx")
     else
         set_kind("headeronly")
     end
-
-    on_install( function ( package )
-        local includedir = package:installdir("include")
-        os.cp( "include/lbyte/stx.hpp",  includedir .. "/lbyte"      )
-        os.cp( "include/lbyte/stx/*.hpp", includedir .. "/lbyte/stx" )
-
-        if has_config( "use_modules" ) then
-            import("package.tools.xmake").install( package )
-        end
-    end)
 
     on_load( function ( target )
         target:add( "includedirs", "include" )
@@ -73,16 +63,6 @@ target("zou")
     end
 
     add_deps( "stx" )
-
-    on_install( function ( package )
-        local includedir = package:installdir("include")
-        os.cp( "include/lbyte/zou.hpp",  includedir .. "/lbyte"      )
-        os.cp( "include/lbyte/zou/*.hpp", includedir .. "/lbyte/zou" )
-
-        if has_config( "use_modules" ) then
-            import("package.tools.xmake").install( package )
-        end
-    end)
 
     on_load( function ( target )
         target:add( "includedirs", "include" )
