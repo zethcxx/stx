@@ -13,3 +13,4 @@ export namespace lbyte::stx
     using ::lbyte::stx::be;
     using ::lbyte::stx::is_endian_value_v;
 }
+

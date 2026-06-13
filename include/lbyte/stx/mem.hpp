@@ -19,6 +19,14 @@
 
 namespace lbyte::stx
 {
+    namespace details {
+        template<typename T>
+        struct raw_for_endian { using type = T; };
+
+        template<typename T> requires std::is_enum_v<T>
+        struct raw_for_endian<T> { using type = std::underlying_type_t<T>; };
+    }
+
     namespace mem {
 
         // SAFE MEMORY ACCESS (memcpy, well-defined, unaligned-safe) -----------------
@@ -27,13 +35,11 @@ namespace lbyte::stx
         constexpr Type read( Addr base ) noexcept
         {
             Type value;
-
             std::memcpy(
                 &value,
                 rcast<const std::byte*>(normalize_addr(base)),
-                sizeof( Type )
+                sizeof(Type)
             );
-
             return value;
         }
 
@@ -48,7 +54,7 @@ namespace lbyte::stx
         template<byte_swappable Type, address_like Addr>
         [[nodiscard]] STX_FORCE_INLINE constexpr Type read_be( Addr base ) noexcept
         {
-            using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
+            using Raw = details::raw_for_endian<Type>::type;
             auto raw = read<Raw>(base);
             if constexpr ( std::endian::native == std::endian::little )
                 raw = std::byteswap(raw);
@@ -94,7 +100,7 @@ namespace lbyte::stx
         STX_FORCE_INLINE
         void write_be( Addr base, Type value ) noexcept
         {
-            using Raw = std::conditional_t<std::is_enum_v<Type>, std::underlying_type_t<Type>, Type>;
+            using Raw = details::raw_for_endian<Type>::type;
             auto raw = static_cast<Raw>(value);
             if constexpr ( std::endian::native == std::endian::little )
                 raw = std::byteswap(raw);

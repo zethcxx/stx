@@ -65,12 +65,11 @@ namespace lbyte::stx
         };
     }
 
-    // DIRTY VECTOR --------------------------------------------------------------
-    template<binary_readable Type = u8>
-    using dirty_vector = std::vector<Type, details::vec_init_allocator<Type>>;
-
-    // FILE STREAM UTILITIES ----------------------------------------------------
+    // DIRTY VECTOR + FILE STREAM UTILITIES ------------------------------------
     namespace fs {
+
+        template<binary_readable Type = u8>
+        using dirty_vector = std::vector<Type, details::vec_init_allocator<Type>>;
 
         enum class origin : u8
         {
@@ -89,7 +88,7 @@ namespace lbyte::stx
             return std::ios_base::beg;
         }
 
-        inline void setposfs(
+        inline void setpos(
             std::istream& file,
             const off_s offset,
             const origin dir = origin::begin
@@ -101,13 +100,13 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type> [[nodiscard]]
-        std::expected<Type, std::errc> readfs(
+        std::expected<Type, std::errc> read(
             std::istream& file,
             const off_s offset = off_s{0},
             const origin dir = origin::begin
         ) noexcept {
             Type value;
-            setposfs(file, offset, dir);
+            setpos(file, offset, dir);
             file.read(rcast<char*>(&value), sizeof(Type));
 
             if (file.fail()) [[unlikely]]
@@ -118,13 +117,13 @@ namespace lbyte::stx
 
 
         template<binary_readable Type>
-        std::expected<void, std::errc> readfs(
+        std::expected<void, std::errc> read(
             std::istream& file,
             std::span<Type> out_buffer,
             const off_s offset,
             const origin dir = origin::begin
         ) noexcept {
-            setposfs(file, offset, dir);
+            setpos(file, offset, dir);
             file.read(
                 rcast<char*>(std::data(out_buffer)),
                 scast<std::streamsize>(sizeof(Type) * out_buffer.size())
@@ -138,14 +137,14 @@ namespace lbyte::stx
 
 
         template<binary_readable Type = u8> [[nodiscard]]
-        std::expected<dirty_vector<Type>, std::errc> readfs(
+        std::expected<dirty_vector<Type>, std::errc> read(
             std::istream&  file  ,
             const off_s    offset,
             const usize    count ,
             const origin   dir   = origin::begin
         ) {
             dirty_vector<Type> vec(count);
-            auto result = readfs<Type>(file, std::span<std::type_identity_t<Type>>{vec}, offset, dir);
+            auto result = read<Type>(file, std::span<std::type_identity_t<Type>>{vec}, offset, dir);
             if (!result) [[unlikely]]
                 return std::unexpected(result.error());
             return vec;
@@ -154,13 +153,13 @@ namespace lbyte::stx
 
         template<binary_readable Type, usize Size >
         requires ( Size > 0 ) [[nodiscard]]
-        std::expected<std::array<Type, Size>, std::errc> readfs(
+        std::expected<std::array<Type, Size>, std::errc> read(
             std::istream& file  ,
             const off_s   offset = off_s{0},
             const origin  dir = origin::begin
         ) noexcept {
             std::array<Type, Size> arr;
-            auto result = readfs<Type>(file, std::span<std::type_identity_t<Type>>{arr}, offset, dir);
+            auto result = read<Type>(file, std::span<std::type_identity_t<Type>>{arr}, offset, dir);
 
             if (!result) [[unlikely]]
                 return std::unexpected(result.error());
@@ -169,15 +168,15 @@ namespace lbyte::stx
         }
 
         inline
-        void skipfs(
+        void advance(
             std::istream& file,
             const off_s offset
         ) noexcept {
-            setposfs(file, offset, origin::current);
+            setpos(file, offset, origin::current);
         }
 
         // FILE WRITE UTILITIES ----------------------------------------------------
-        inline void setposos(
+        inline void setpos(
             std::ostream& file,
             const off_s offset,
             const origin dir = origin::begin
@@ -189,12 +188,12 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type>
-        std::expected<void, std::errc> writefs(
+        std::expected<void, std::errc> write(
             std::ostream& file,
             const off_s offset,
             const Type& value
         ) noexcept {
-            setposos(file, offset);
+            setpos(file, offset);
             file.write(
                 rcast<const char*>(&value),
                 sizeof(Type)
@@ -205,12 +204,12 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type>
-        std::expected<void, std::errc> writefs(
+        std::expected<void, std::errc> write(
             std::ostream& file,
             const off_s offset,
             std::span<const Type> buffer
         ) noexcept {
-            setposos(file, offset);
+            setpos(file, offset);
             file.write(
                 rcast<const char*>(std::data(buffer)),
                 scast<std::streamsize>(sizeof(Type) * buffer.size())
@@ -220,11 +219,11 @@ namespace lbyte::stx
             return {};
         }
 
-        void skipos(
+        void advance(
             std::ostream& file,
             const off_s offset
         ) noexcept {
-            setposos(file, offset, origin::current);
+            setpos(file, offset, origin::current);
         }
 
     } // namespace fs
@@ -246,8 +245,32 @@ namespace lbyte::stx
         return static_cast<map_flag>(static_cast<u8>(a) | static_cast<u8>(b));
     }
 
-    inline constexpr bool operator&(map_flag a, map_flag b) noexcept {
-        return (static_cast<u8>(a) & static_cast<u8>(b)) != 0;
+    inline constexpr map_flag operator&(map_flag a, map_flag b) noexcept {
+        return static_cast<map_flag>(static_cast<u8>(a) & static_cast<u8>(b));
+    }
+
+    inline constexpr map_flag operator^(map_flag a, map_flag b) noexcept {
+        return static_cast<map_flag>(static_cast<u8>(a) ^ static_cast<u8>(b));
+    }
+
+    inline constexpr map_flag operator~(map_flag a) noexcept {
+        return static_cast<map_flag>(~static_cast<u8>(a));
+    }
+
+    inline constexpr map_flag& operator|=(map_flag& a, map_flag b) noexcept {
+        return a = a | b;
+    }
+
+    inline constexpr map_flag& operator&=(map_flag& a, map_flag b) noexcept {
+        return a = a & b;
+    }
+
+    inline constexpr map_flag& operator^=(map_flag& a, map_flag b) noexcept {
+        return a = a ^ b;
+    }
+
+    inline constexpr bool operator!(map_flag a) noexcept {
+        return static_cast<u8>(a) == 0;
     }
 
     // --- memcur<ByteType> (bounded cursor over a buffer) -----------------------
@@ -347,7 +370,7 @@ namespace lbyte::stx
             cur_ = base_ + off_s{target_offset};
         }
 
-        void skip(const off_s offset) noexcept { seek(offset, origin::current); }
+        void advance(const off_s offset) noexcept { seek(offset, origin::current); }
 
         off_s tell() const noexcept { return cur_.diff(base_); }
         off_s remaining() const noexcept {
@@ -539,7 +562,7 @@ namespace lbyte::stx
         using memcur::size;
         using memcur::base;
         using memcur::seek;
-        using memcur::skip;
+        using memcur::advance;
         using memcur::tell;
         using memcur::remaining;
         using memcur::pop;
@@ -584,12 +607,12 @@ namespace lbyte::stx
         }
     };
 
-    // --- readfs/writefs overloads for map_file -------------------------------
+    // --- read/write overloads for map_file -------------------------------
 
     namespace fs {
 
         template<binary_readable Type> [[nodiscard]]
-        std::expected<Type, std::errc> readfs(
+        std::expected<Type, std::errc> read(
             const map_file& m,
             const off_s offset
         ) noexcept
@@ -602,7 +625,7 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type>
-        std::expected<void, std::errc> writefs(
+        std::expected<void, std::errc> write(
             map_file& m,
             const off_s offset,
             const Type& value
@@ -618,10 +641,10 @@ namespace lbyte::stx
             return {};
         }
 
-        // --- readfs/writefs overloads for spans (positional, no reader_view needed) -
+        // --- read/write overloads for spans (positional, no reader_view needed) -
 
         template<binary_readable Type> [[nodiscard]]
-        std::expected<Type, std::errc> readfs(
+        std::expected<Type, std::errc> read(
             std::span<const std::byte> buf,
             const off_s offset
         ) noexcept
@@ -635,7 +658,7 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type>
-        std::expected<void, std::errc> writefs(
+        std::expected<void, std::errc> write(
             std::span<std::byte> buf,
             const off_s offset,
             const Type& value
@@ -788,28 +811,28 @@ namespace lbyte::stx
             map_flag flags
         ) noexcept -> std::expected<map_file, std::errc>
         {
-            if ((flags & map_flag::shared) && (flags & map_flag::priv))
+            if ((flags & map_flag::shared) != map_flag::none && (flags & map_flag::priv) != map_flag::none)
                 return std::unexpected(std::errc::invalid_argument);
 
             int oflags = O_RDONLY;
             int prot   = PROT_READ;
             int mflags = MAP_PRIVATE;
 
-            if (flags & map_flag::write) {
+            if (!!(flags & map_flag::write)) {
                 oflags = O_RDWR;
                 prot |= PROT_WRITE;
                 mflags = MAP_SHARED;
             }
-            if (flags & map_flag::exec) {
+            if (!!(flags & map_flag::exec)) {
                 prot |= PROT_EXEC;
             }
-            if (flags & map_flag::shared) {
+            if (!!(flags & map_flag::shared)) {
                 mflags = MAP_SHARED;
             }
-            if (flags & map_flag::priv) {
+            if (!!(flags & map_flag::priv)) {
                 mflags = MAP_PRIVATE;
             }
-            if (flags & map_flag::populate) {
+            if (!!(flags & map_flag::populate)) {
                 mflags |= MAP_POPULATE;
             }
 

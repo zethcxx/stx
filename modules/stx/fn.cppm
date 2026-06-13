@@ -12,3 +12,4 @@ export namespace lbyte::stx
     using ::lbyte::stx::caller_t;
     using ::lbyte::stx::caller;
 }
+

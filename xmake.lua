@@ -2,6 +2,8 @@ set_project( "stx"   )
 set_version( "1.0.0" )
 set_license( "MIT"   )
 
+set_xmakever( "2.8.1" )
+
 set_description("Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research.")
 
 option( "use_modules" )
@@ -24,4 +26,21 @@ target("stx")
         set_kind("headeronly")
 
     end
+
+    on_install( function ( package )
+        local includedir = package:installdir("include")
+        os.cp( "include/lbyte/stx.hpp",  includedir .. "/lbyte"      )
+        os.cp( "include/lbyte/stx/*.hpp", includedir .. "/lbyte/stx" )
+
+        if package:config( "use_modules" ) then
+            import("package.tools.xmake").install( package )
+        end
+    end)
+
+    on_load( function ( package )
+        package:add( "includedirs", "include" )
+        if package:config( "use_modules" ) then
+            package:add( "cxxmodules", "modules/stx/*.cppm" )
+        end
+    end)
 

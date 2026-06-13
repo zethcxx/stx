@@ -65,27 +65,36 @@ auto as_i64 = off.as<i64>(); // static_cast
 i64 direct = off;            // explicit operator i64
 ```
 
-### Arithmetic (stx::off_s, stx::va_s)
+### Arithmetic (stx::off_s, stx::rva_s, stx::va_s)
 
 | Expression | Result type | Semantics |
 |------------|-------------|-----------|
 | `off + 32` | `off_s` | Offset + scalar |
 | `off + other` (same tag) | `off_s` | Offset + offset |
-| `va + off` (cross-tag) | `va_s` | VA + offset = VA (converts `off` to `uptr`) |
+| `va + off` (cross-tag) | `va_s` | VA + offset = VA |
+| `rva + off` (cross-tag) | `rva_s` | RVA + offset = RVA |
+| `off + rva` (cross-tag) | `rva_s` | Offset + RVA = RVA |
+| `off + va` (cross-tag) | `va_s` | Offset + VA = VA |
 | `32 + off` | `std::ptrdiff_t` | Scalar + offset value |
 | `off - other` (same tag) | `std::ptrdiff_t` | Difference (loses wrapper) |
 | `va - off` (cross-tag) | `va_s` | VA - offset = VA |
+| `rva - off` (cross-tag) | `rva_s` | RVA - offset = RVA |
 | `off - 32` | `off_s` | Offset - scalar |
 | `32 - off` | `std::ptrdiff_t` | Scalar - offset value |
+| `va += off` / `va -= off` (cross-tag) | `va_s&` | Compound with offset |
+| `rva += off` / `rva -= off` (cross-tag) | `rva_s&` | Compound with offset |
+| `off += 32` / `off -= 32` | `off_s&` | Compound with scalar |
 | `++off` / `--off` | `off_s&` | Pre-increment/decrement |
 | `off++` / `off--` | `off_s` | Post-increment/decrement |
 
 ```cpp
-auto a = off + 32;                // off_s{160}
-auto d = off_s{200} - off_s{150};  // ptrdiff_t = 50
-++off;                            // off_s{129}
-auto va = va_s{0x1000} + off_s{8};  // va_s{0x1008}
+auto a = off + 32;                   // off_s{160}
+auto d = off_s{200} - off_s{150};    // ptrdiff_t = 50
+++off;                               // off_s{129}
+auto va = va_s{0x1000} + off_s{8};   // va_s{0x1008}
 auto va2 = va_s{0x1000} - off_s{4};  // va_s{0xFFC}
+auto rva = rva_s{0x2000} + off_s{8}; // rva_s{0x2008}
+va += off_s{16};                     // va_s{0x1018}
 ```
 
 ### Comparison (stx::off_s)
@@ -267,12 +276,12 @@ inline constexpr null_t null{};
 
 ### Key properties (stx::null_t)
 
-| Expression | Result |
-|------------|--------|
-| `null << expr` | `null` (discards `expr`, suppresses `[[nodiscard]]`) |
-| `static_cast<uptr>(null)` | `0` |
-| `static_cast<bool>(null)` | `false` |
-| `static_cast<std::nullptr_t>(null)` | `nullptr` |
+| Expression                          | Result                                               |
+|-------------------------------------|------------------------------------------------------|
+| `null << expr`                      | `null` (discards `expr`, suppresses `[[nodiscard]]`) |
+| `static_cast<uptr>(null)`           | `0`                                                  |
+| `static_cast<bool>(null)`           | `false`                                              |
+| `static_cast<std::nullptr_t>(null)` | `nullptr`                                            |
 
 ### Null as discard accumulator (stx::null)
 
@@ -283,13 +292,14 @@ When calling `[[nodiscard]]` functions like `pop()`, chaining via
 ptr<u8> p{data};
 
 // Without null: each pop returns a value we don't need
-// null << p.pop<u32>();  // read u32, discard, advance
-// null << p.pop<u16>();  // read u16, discard, advance
+// null << p.pop<u32>()   // read u32, discard, advance
+//      << p.pop<u16>();  // read u16, discard, advance
 
 struct Header {
     u32 magic;
     u16 version;
 };
+
 auto hdr = Header{
     .magic   = p.pop<u32>(),   // want these
     .version = p.pop<u16>(),
@@ -299,7 +309,8 @@ auto hdr = Header{
 ### Null with `ptr` (stx::null)
 
 ```cpp
-ptr<int> p{null};        // null pointer
-if (p == null) {}              // comparison
-if (p) {}                           // bool conversion works too
+ptr<int> p{null};    // null pointer
+if ( p == null ) {}  // comparison
+if ( p ) {}          // bool conversion works too
 ```
+

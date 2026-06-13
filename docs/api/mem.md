@@ -513,12 +513,38 @@ template<typename T, typename Tag, std::integral U> constexpr auto align_down(de
 ```
 
 ```cpp
-auto a = mem::align_up  (1u  , 16u);      // 16
+auto a = mem::align_up  (1u  , 16u);  // 16
 auto d = mem::align_down(123u, 16u);  // 112
 
 // Strong types preserved
 auto off = mem::align_up(off_s{123}, 16u);  // off_s{128}
 ```
+
+---
+
+## STL Compatibility (ptr<T>)
+
+### `std::hash<ptr<T>>`
+
+Enables use of `ptr<T>` in unordered associative containers:
+
+```cpp
+std::unordered_set<stx::ptr<u32>> seen;
+seen.insert(buf.as_p<u32>());
+```
+
+Hashes the underlying address (`uptr`).
+
+### `std::formatter<ptr<T>>`
+
+Enables formatting via `std::format` / `std::print`:
+
+```cpp
+stx::ptr<u32> p{addr};
+fmtprint("ptr at {}\n", p);  // e.g. "ptr at 0x7ffd12345678"
+```
+
+Formats the stored address as `void*` (hex prefix + lowercase hex digits).
 
 ---
 

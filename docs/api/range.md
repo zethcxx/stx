@@ -68,13 +68,13 @@ using base_type_t = typename base_type<T>::type;
 
 For example:
 
-| Type         | `base_type_t<Type>` |
-|--------------|---------------------|
-| `u32`        | `u32`               |
-| `i64`        | `i64`               |
-| `off_s`      | `ptrdiff_t`         |
-| `rva_s`      | `u32`               |
-| `enum class Opcode : u32` | `u32` |
+| Type                      | `base_type_t<Type>` |
+|---------------------------|---------------------|
+| `u32`                     | `u32`               |
+| `i64`                     | `i64`               |
+| `off_s`                   | `ptrdiff_t`         |
+| `rva_s`                   | `u32`               |
+| `enum class Opcode : u32` | `u32`               |
 
 ---
 
@@ -84,8 +84,8 @@ For example:
 
 Boundary inclusion policy.
 
-| Enumerator   | Meaning |
-|--------------|----------|
+| Enumerator   | Meaning            |
+|--------------|--------------------|
 | `Inclusive`  | End value included |
 | `Exclusive`  | End value excluded |
 
@@ -106,20 +106,20 @@ All functions require an explicit `Type` template argument. The direction of ite
 - **3-arg overloads:** direction = `fwd` if `step >= 0`, else `bwd`
 - Step is stored as an absolute magnitude; the sign only selects direction.
 
-| Example | Direction | Values |
-|---------|-----------|--------|
-| `range<int>(5)` | fwd | `0, 1, 2, 3, 4` |
-| `range<int>(5, 0)` | bwd | `5, 4, 3, 2, 1` |
-| `range<int>(0, 10, 2)` | fwd | `0, 2, 4, 6, 8` |
-| `range<int>(10, 0, -2)` | bwd | `10, 8, 6, 4, 2` |
-| `irange<int>(0, 5)` | fwd | `0, 1, 2, 3, 4, 5` |
-| `irange<int>(5, 0)` | bwd | `5, 4, 3, 2, 1, 0` |
+| Example                 | Direction | Values             |
+|-------------------------|-----------|--------------------|
+| `range<int>(5)`         | fwd       | `0, 1, 2, 3, 4`    |
+| `range<int>(5, 0)`      | bwd       | `5, 4, 3, 2, 1`    |
+| `range<int>(0, 10, 2)`  | fwd       | `0, 2, 4, 6, 8`    |
+| `range<int>(10, 0, -2)` | bwd       | `10, 8, 6, 4, 2`   |
+| `irange<int>(0, 5)`     | fwd       | `0, 1, 2, 3, 4, 5` |
+| `irange<int>(5, 0)`     | bwd       | `5, 4, 3, 2, 1, 0` |
 
 ## `range` (Exclusive)
 
 ```cpp
-template<rangeable Type> constexpr auto range( auto to ) noexcept;
-template<rangeable Type> constexpr auto range( auto from, auto to ) noexcept;
+template<rangeable Type> constexpr auto range( auto to                       ) noexcept;
+template<rangeable Type> constexpr auto range( auto from, auto to            ) noexcept;
 template<rangeable Type> constexpr auto range( auto from, auto to, auto step ) noexcept;
 ```
 
@@ -128,15 +128,15 @@ Step defaults to `+1` in the 1-arg and 2-arg overloads.
 The 3-arg overload accepts a **signed** step. A negative step selects backward iteration; the step magnitude is used as the increment.
 
 ```cpp
-range<int>(0, 10, 2)     // forward, step=2  → 0, 2, 4, 6, 8
-range<int>(10, 0, -2)    // backward, step=2 → 10, 8, 6, 4, 2
+range<int>(0, 10,  2)  // forward , step=2 →  0, 2, 4, 6, 8
+range<int>(10, 0, -2)  // backward, step=2 → 10, 8, 6, 4, 2
 ```
 
 ## `irange` (Inclusive)
 
 ```cpp
-template<rangeable Type> constexpr auto irange( auto to ) noexcept;
-template<rangeable Type> constexpr auto irange( auto from, auto to ) noexcept;
+template<rangeable Type> constexpr auto irange( auto to                       ) noexcept;
+template<rangeable Type> constexpr auto irange( auto from, auto to            ) noexcept;
 template<rangeable Type> constexpr auto irange( auto from, auto to, auto step ) noexcept;
 ```
 
@@ -155,9 +155,9 @@ irange<int>(0, 10, 3)    // 0, 3, 6, 9
 Because the overloads accept `auto` arguments and construct `Type{value}`, values that do not fit in the target type are rejected at compile time:
 
 ```cpp
-range<u8>(255)       // ✅ fits
-range<u8>(256)       // ❌ narrowing error at compile time
-range<u8>(0, -1)     // ❌ u8{-1} is narrowing
+range<u8>(255)       // fits
+range<u8>(256)       // narrowing error at compile time
+range<u8>(0, -1)     // u8{-1} is narrowing
 ```
 
 This provides a safety net against accidental truncation.
@@ -166,14 +166,14 @@ This provides a safety net against accidental truncation.
 
 ## Direction Rules Summary
 
-| Overload | Step | Direction Source |
-|----------|------|------------------|
-| `range<T>(to)` | `+1` | `to >= 0` → fwd |
-| `range<T>(from, to)` | `+1` | `to >= from` → fwd |
-| `range<T>(from, to, step)` | user-provided | `step >= 0` → fwd |
-| `irange<T>(to)` | `+1` | `to >= 0` → fwd |
-| `irange<T>(from, to)` | `+1` | `to >= from` → fwd |
-| `irange<T>(from, to, step)` | user-provided | `step >= 0` → fwd |
+| Overload                    | Step          | Direction Source    |
+|-----------------------------|---------------|---------------------|
+| `range<T>(to)`              | `+1`          | `to >= 0     → fwd` |
+| `range<T>(from, to)`        | `+1`          | `to >= from  → fwd` |
+| `range<T>(from, to, step)`  | user-provided | `step >= 0   → fwd` |
+| `irange<T>(to)`             | `+1`          | `to >= 0     → fwd` |
+| `irange<T>(from, to)`       | `+1`          | `to >= from  → fwd` |
+| `irange<T>(from, to, step)` | user-provided | `step >= 0   → fwd` |
 
 When direction is `bwd`, the iteration starts at `from` and counts **down** toward `to`.
 
@@ -225,11 +225,11 @@ struct range_view
     ValueT to;
     ValueT step;
 
-    dir       dir_;
+    dir        dir_;
     range_mode mode;
 
     constexpr auto begin() const noexcept;
-    constexpr auto end() const noexcept;
+    constexpr auto end  () const noexcept;
 };
 ```
 
@@ -261,29 +261,29 @@ struct range_iter
 
 The interval is always `[from, to)` for `range` and `[from, to]` for `irange`.
 
-| Direction | Mode       | Interval | First Value | Last Value | Example |
-|-----------|------------|----------|-------------|------------|---------|
-| fwd       | Exclusive  | `[from, to)` | `from`       | `to - step` | `range<int>(0, 5)` → `{0,1,2,3,4}` |
+| Direction | Mode       | Interval     | First Value  | Last Value  | Example                               |
+|-----------|------------|--------------|--------------|-------------|---------------------------------------|
+| fwd       | Exclusive  | `[from, to)` | `from`       | `to - step` | `range<int> (0, 5)` → `{0,1,2,3,4}`   |
 | fwd       | Inclusive  | `[from, to]` | `from`       | `to`        | `irange<int>(0, 5)` → `{0,1,2,3,4,5}` |
-| bwd       | Exclusive  | `[from, to)` | `from`       | `to + step` | `range<int>(5, 0)` → `{5,4,3,2,1}` |
+| bwd       | Exclusive  | `[from, to)` | `from`       | `to + step` | `range<int> (5, 0)` → `{5,4,3,2,1}`   |
 | bwd       | Inclusive  | `[from, to]` | `from`       | `to`        | `irange<int>(5, 0)` → `{5,4,3,2,1,0}` |
 
 #### With `step > 1`
 
-| Example | Full Progression | Exclusive Result |
-|---------|-----------------|------------------|
-| `range<int>(0, 10, 3)` | `0, 3, 6, 9` | `{0, 3, 6, 9}` |
-| `range<int>(10, 0, -3)` | `10, 7, 4, 1` | `{10, 7, 4, 1}` |
-| `range<int>(30, 0, -3)` | `30, 27, 24, ..., 3, 0` | `{30, 27, ..., 3}` |
+| Example                  | Full Progression        | Exclusive Result   |
+|--------------------------|-------------------------|--------------------|
+| `range<int>( 0, 10,  3)` | `0, 3, 6, 9`            | `{0, 3, 6, 9}`     |
+| `range<int>(10,  0, -3)` | `10, 7, 4, 1`           | `{10, 7, 4, 1}`    |
+| `range<int>(30,  0, -3)` | `30, 27, 24, ..., 3, 0` | `{30, 27, ..., 3}` |
 
 #### `remaining` computation at `begin()`:
 
-| Direction | Mode       | Remaining Count |
-|-----------|------------|-----------------|
-| fwd       | Exclusive  | `(dist + step - 1) / step` (ceiling) |
-| fwd       | Inclusive  | `dist / step + 1` |
-| bwd       | Exclusive  | `(dist + step - 1) / step` (ceiling) |
-| bwd       | Inclusive  | `dist / step + 1` |
+| Direction | Mode       | Remaining Count                       |
+|-----------|------------|---------------------------------------|
+| fwd       | Exclusive  | `(dist + step - 1) / step` (ceiling)  |
+| fwd       | Inclusive  | `dist / step + 1`                     |
+| bwd       | Exclusive  | `(dist + step - 1) / step` (ceiling)  |
+| bwd       | Inclusive  | `dist / step + 1`                     |
 
 Where `dist = to - from` (fwd) or `dist = from - to` (bwd).
 
@@ -358,7 +358,7 @@ stx::off_s file_off{0x400};
 stx::rva_s image_rva{0x1000};
 
 for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
-    scan_section(data, off);          // ✅ off is off_s
+    scan_section(data, off);          // off is off_s
 ```
 
 ---
@@ -373,3 +373,4 @@ for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
 - Compile-time narrowing check on `auto` → `Type` conversion
 - Header-only
 - Zero abstraction overhead
+

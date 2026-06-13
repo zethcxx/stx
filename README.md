@@ -15,7 +15,7 @@ STX is a header-only C++23 library providing a rich set of low-level abstraction
 | Header-only               | Yes |
 | C++ Modules               | Yes |
 | Dependencies              | Standard library only |
-| Memory Management         | Optimized `dirty_vector` avoids unnecessary zero-initialization |
+| Memory Management         | Optimized `fs::dirty_vector` avoids unnecessary zero-initialization |
 | Target Domains            | Binary analysis, runtime patching, low-level tooling, scripting |
 
 ---
@@ -108,11 +108,13 @@ Provides portable UNIX time conversions and high-resolution stopwatch functional
 
 | Component | Description |
 |-----------|-------------|
-| `from_unix_seconds(u64)` | Converts seconds since epoch to `time_point` |
-| `from_unix_millis(u64)` | Converts milliseconds since epoch to `time_point` |
-| `to_unix_seconds(tp)` / `to_unix_millis(tp)` | Converts `time_point` to integer timestamps |
-| `unix_seconds_now()` / `unix_millis_now()` | Current UNIX time |
-| `stop_watch` | Measures elapsed time in various resolutions |
+| `time::from_unix<Dur>(u64)` | Creates `time_point` from UNIX timestamp |
+| `time::to_unix<Dur>(tp)` | Extracts integer UNIX timestamp from `time_point` |
+| `time::now()` / `time::now_ms()` / `time::now_ns()` | Current UNIX time |
+| `time::stopwatch` | Measures elapsed time (monotonic), with `lap()` support |
+| `time::from_filetime` / `to_filetime` | Windows FILETIME ↔ `time_point` |
+| `time::from_dos` / `to_dos` | DOS date/time (FAT/ZIP) ↔ `time_point` |
+| `time::from_ntp` / `to_ntp` | NTP timestamp ↔ `time_point` |
 
 ---
 
@@ -132,91 +134,122 @@ Provides domain-safe, constexpr-friendly integer and strong-type ranges for iter
 
 ---
 
-## Integration with CMake
+## Integration
 
 >[!IMPORTANT]
-> C++ Modules Requirements: Using modules requires CMake 3.28+ and a compatible compiler (Clang 16+, GCC 14+, or MSVC 19.34+).
+> C++ Modules require CMake 3.28+ / Xmake 2.8.1+ and a compatible compiler (Clang 16+, GCC 14+, or MSVC 19.34+).
 
-### Standard
+### CMake
+
+**Header-only (default) — clone manually:**
 
 ```cmake
 add_subdirectory(extern/stx)
-
-# Option B: Enable C++23 Modules
-# set(STX_USE_MODULES ON CACHE BOOL "" FORCE)
-# add_subdirectory(extern/stx)
-
 target_link_libraries(<target> PRIVATE lbyte::stx)
 ```
 
-### FetchContent
+**C++ Modules — clone manually:**
+
+```cmake
+set(LBYTE_STX_USE_MODULES ON CACHE BOOL "" FORCE)
+add_subdirectory(extern/stx)
+target_link_libraries(<target> PRIVATE lbyte::stx)
+```
+
+**FetchContent (header-only):**
 
 ```cmake
 include(FetchContent)
-
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
     GIT_TAG        v1.0.0
 )
-
-# To use modules with FetchContent:
-# set(STX_USE_MODULES ON CACHE BOOL "" FORCE)
-
 FetchContent_MakeAvailable(stx)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE lbyte::stx)
+target_link_libraries(<target> PRIVATE lbyte::stx)
 ```
 
+**FetchContent (modules):**
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+    stx
+    GIT_REPOSITORY https://github.com/zethcxx/stx.git
+    GIT_TAG        v1.0.0
+)
+set(LBYTE_STX_USE_MODULES ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(stx)
+target_link_libraries(<target> PRIVATE lbyte::stx)
+```
 
 ### Xmake
-Since this library is not yet available on **xrepo**, you can use this quick workaround in your `xmake.lua`:
+
+**Package (auto-download from GitHub):**
 
 ```lua
 package("zethcxx.stx")
     set_kind("library", { headeronly = true })
     set_urls("https://github.com/zethcxx/stx.git")
+    add_versions("v1.0.0", "v1.0.0")
 
-    add_versions( "v1.0.0", "v1.0.0" ) -- Or hash
-
-    add_configs( "use_modules", {
-        builtin = false,
+    add_configs("use_modules", {
+        description = "Enable C++ Modules support",
         default = false,
-        type    = "boolean",
-        description = "Use C++ Modules"
+        type = "boolean"
     })
 
-    on_install( function( package )
-        local configs = {}
-        local includedir = package:installdir("include")
-
-        if package:config( "use_modules" ) then
-            configs.use_modules = true
-        end
-
-        import("package.tools.xmake").install( package, configs, { includedirs = includedir })
-    end)
-
     on_load(function (package)
-        package:add("includedirs", "include")
         if package:config("use_modules") then
             package:add("cxxmodules", "modules/stx/*.cppm")
         end
+        package:add("includedirs", "include")
     end)
 
-    on_test( function (package)
-        package:check_cxxsnippets({ test = "import lbyte.stx; int main() { return 0; }"}, { configs = { languages = "c++23" }})
+    on_install(function (package)
+        import("package.tools.xmake").install(package, {
+            use_modules = package:config("use_modules")
+        })
+    end)
+
+    on_test(function (package)
+        package:check_cxxsnippets({ test = [[
+            import lbyte.stx;
+            int main() { return 0; }
+        ]]}, { configs = { languages = "c++23" }})
     end)
 package_end()
 
-add_requires( "zethcxx.stx v1.0.0" -- or other version
-    -- , { configs = { use_modules = true }} -- if modules is required
-)
+-- Header-only:
+add_requires("zethcxx.stx")
 
--- using this in the target:
--- add_packages("zethcxx.stx")
--- set_policy("build.c++.modules", true)
--- set_policy("build.c++.modules.std", false) -- if you have errors with std
+-- Or with modules:
+-- add_requires("zethcxx.stx", { configs = { use_modules = true }})
+
+target("myapp")
+    set_languages("cxx23")
+    add_packages("zethcxx.stx")
+```
+
+**Clone manually — header-only:**
+
+```lua
+add_subdirs("stx")
+
+target("myapp")
+    set_languages("cxx23")
+    add_deps("stx")
+```
+
+**Clone manually — modules:**
+
+```lua
+add_subdirs("stx", { configs = { use_modules = true }})
+
+target("myapp")
+    set_languages("cxx23")
+    add_deps("stx")
+    add_policy("build.c++.modules", true)
 ```
 
 ## Troubleshooting

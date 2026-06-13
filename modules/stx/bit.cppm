@@ -19,3 +19,4 @@ export namespace lbyte::stx
     using ::lbyte::stx::byte_mask;
     using ::lbyte::stx::byte_swap;
 }
+

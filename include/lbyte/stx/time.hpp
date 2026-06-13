@@ -3,80 +3,172 @@
 #include "./core.hpp"
 #include <chrono>
 
-namespace lbyte::stx
+namespace lbyte::stx::time
 {
     // CLOCK ALIASES -------------------------------------------------------------
-    using sys_clock = std::chrono::system_clock;
-    using hr_clock  = std::chrono::high_resolution_clock;
+    using wall_clock   = std::chrono::system_clock;
+    using hires_clock  = std::chrono::high_resolution_clock;
+    using steady_clock = std::chrono::steady_clock;
 
     // UNIX TIME UTILITIES ------------------------------------------------------
-    [[nodiscard]] inline constexpr sys_clock::time_point
-    from_unix_seconds(u64 seconds) noexcept
+    template<typename Dur = std::chrono::seconds> [[nodiscard]]
+    constexpr wall_clock::time_point from_unix(u64 count) noexcept
     {
-        return sys_clock::time_point{
-            std::chrono::seconds{ seconds }
-        };
+        return wall_clock::time_point{ Dur{count} };
     }
 
-    [[nodiscard]] inline constexpr sys_clock::time_point
-    from_unix_millis(u64 millis) noexcept
-    {
-        return sys_clock::time_point{
-            std::chrono::milliseconds{ millis }
-        };
-    }
-
-    [[nodiscard]] inline constexpr u64
-    to_unix_seconds(sys_clock::time_point tp) noexcept
+    template<typename Dur = std::chrono::seconds> [[nodiscard]]
+    constexpr u64 to_unix(wall_clock::time_point tp) noexcept
     {
         return static_cast<u64>(
-            std::chrono::duration_cast<std::chrono::seconds>(
-                tp.time_since_epoch()
-            ).count()
+            std::chrono::duration_cast<Dur>(tp.time_since_epoch()).count()
         );
     }
 
-    [[nodiscard]] inline constexpr u64
-    to_unix_millis(sys_clock::time_point tp) noexcept
+    template<typename Dur = std::chrono::seconds> [[nodiscard]]
+    inline u64 now() noexcept
     {
-        return static_cast<u64>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                tp.time_since_epoch()
-            ).count()
-        );
+        return to_unix<Dur>(wall_clock::now());
     }
 
-    [[nodiscard]] inline u64
-    unix_seconds_now() noexcept
+    [[nodiscard]] inline u64 now_ms() noexcept
     {
-        return to_unix_seconds(sys_clock::now());
+        return now<std::chrono::milliseconds>();
     }
 
-    [[nodiscard]] inline u64
-    unix_millis_now() noexcept
+    [[nodiscard]] inline u64 now_ns() noexcept
     {
-        return to_unix_millis(sys_clock::now());
+        return now<std::chrono::nanoseconds>();
     }
 
-    // STOP WATCH ----------------------------------------------------------------
-    struct stop_watch
+    // STOPWATCH -----------------------------------------------------------------
+    struct stopwatch
     {
-        hr_clock::time_point start_point{ hr_clock::now() };
+        steady_clock::time_point start_{ steady_clock::now() };
 
         template<class Duration = std::chrono::milliseconds>
-        [[nodiscard]] inline u64 elapsed() const noexcept
+        [[nodiscard]] Duration elapsed() const noexcept
         {
-            return static_cast<u64>(
-                std::chrono::duration_cast<Duration>(
-                    hr_clock::now() - start_point
-                ).count()
+            return std::chrono::duration_cast<Duration>(
+                steady_clock::now() - start_
             );
         }
 
-        inline void reset() noexcept
+        template<class Duration = std::chrono::milliseconds>
+        [[nodiscard]] Duration lap() noexcept
         {
-            start_point = hr_clock::now();
+            auto prev = start_;
+            start_ = steady_clock::now();
+            return std::chrono::duration_cast<Duration>(start_ - prev);
+        }
+
+        void reset() noexcept
+        {
+            start_ = steady_clock::now();
         }
     };
-}
 
+    // PORTABLE BINARY FORMAT CONVERTERS ----------------------------------------
+    //
+    // Convert between raw integers read from binary data and wall_clock::time_point.
+    // The raw values can be obtained via ptr::read<u32/u64>, memcur::pop, fs::read, etc.
+
+    // --- FILETIME (Windows) ----------------------------------------------------
+    // 100-ns intervals since 1601-01-01 00:00:00 UTC.
+    // Commonly used in Windows NTFS, registry, and PE/COFF headers.
+
+    [[nodiscard]] constexpr wall_clock::time_point from_filetime(u64 ft) noexcept
+    {
+        constexpr u64 epoch_ft = 116'444'736'000'000'000ULL; // 1601→1970 in 100-ns units
+        u64 sec = (ft >= epoch_ft) ? ((ft - epoch_ft) / 10'000'000) : 0;
+        return wall_clock::time_point{ std::chrono::seconds{sec} };
+    }
+
+    [[nodiscard]] constexpr u64 to_filetime(wall_clock::time_point tp) noexcept
+    {
+        constexpr i64 epoch_sec = 116'444'736'00LL; // 1601→1970 in seconds
+        auto dur = tp.time_since_epoch();
+        auto sec = std::chrono::duration_cast<std::chrono::seconds>(dur).count();
+        return static_cast<u64>(sec + epoch_sec) * 10'000'000;
+    }
+
+    // --- DOS date/time ---------------------------------------------------------
+    // Bit-packed 32-bit value used in FAT, ZIP, and EXE timestamps.
+    //
+    //   Upper 16 bits (date):  | year-1980 (7) | month (4) | day (5) |
+    //   Lower 16 bits (time):  | hours (5)     | min (6)   | sec/2 (5) |
+    //
+    // Valid range: 1980-01-01 .. 2107-12-31, sec precision (even only).
+
+    [[nodiscard]] constexpr wall_clock::time_point from_dos(u32 dos) noexcept
+    {
+        using namespace std::chrono;
+
+        u16 date = static_cast<u16>(dos >> 16);
+        u16 time = static_cast<u16>(dos & 0xFFFF);
+
+        int y = ((date >> 9) & 0x7F) + 1980;
+        int m = (date >> 5) & 0x0F;
+        int d = date & 0x1F;
+
+        int hh = (time >> 11) & 0x1F;
+        int mm = (time >> 5)  & 0x3F;
+        int ss = (time & 0x1F) * 2;
+
+        if (y < 1980 || y > 2107 || m < 1 || m > 12 || d < 1 || d > 31 ||
+            hh > 23 || mm > 59 || ss > 59)
+            return wall_clock::time_point{};
+
+        sys_days dp = year{y} / month{static_cast<unsigned>(m)} / day{static_cast<unsigned>(d)};
+        return wall_clock::time_point{ dp.time_since_epoch() + hours{hh} + minutes{mm} + seconds{ss} };
+    }
+
+    [[nodiscard]] constexpr u32 to_dos(wall_clock::time_point tp) noexcept
+    {
+        using namespace std::chrono;
+
+        auto dp = floor<days>(tp);
+        year_month_day ymd{dp};
+        auto tod = hh_mm_ss{tp - sys_days{dp}};
+
+        int y = int{ymd.year()};
+        unsigned m = unsigned{ymd.month()};
+        unsigned d = unsigned{ymd.day()};
+
+        auto h = tod.hours().count();
+        auto mi = tod.minutes().count();
+        auto s = tod.seconds().count();
+
+        if (y < 1980 || y > 2107) return 0;
+
+        u32 date = (static_cast<u32>(y - 1980) << 9) | (m << 5) | d;
+        u32 tim = (static_cast<u32>(h) << 11) | (static_cast<u32>(mi) << 5) | static_cast<u32>(s / 2);
+        return (date << 16) | tim;
+    }
+
+    // --- NTP timestamp ---------------------------------------------------------
+    // Seconds since 1900-01-01 00:00:00 UTC as an unsigned 32-bit integer.
+    // Wraps every ~136 years (next wrap: 2036). The 64-bit variant
+    // stores seconds in the upper 32 bits, fractional seconds (2^-32 units)
+    // in the lower 32 bits — the fraction is discarded for time_point conversion.
+
+    [[nodiscard]] constexpr wall_clock::time_point from_ntp(u32 seconds) noexcept
+    {
+        constexpr u64 epoch_ntp = 2'208'988'800ULL; // 1900→1970 in seconds
+        u64 s = (static_cast<u64>(seconds) >= epoch_ntp) ? (static_cast<u64>(seconds) - epoch_ntp) : 0;
+        return wall_clock::time_point{ std::chrono::seconds{s} };
+    }
+
+    [[nodiscard]] constexpr wall_clock::time_point from_ntp(u64 ntp_ts) noexcept
+    {
+        return from_ntp(static_cast<u32>(ntp_ts >> 32));
+    }
+
+    [[nodiscard]] constexpr u32 to_ntp(wall_clock::time_point tp) noexcept
+    {
+        constexpr u64 epoch_ntp = 2'208'988'800ULL;
+        auto dur = tp.time_since_epoch();
+        auto sec = std::chrono::duration_cast<std::chrono::seconds>(dur).count();
+        return static_cast<u32>(static_cast<u64>(sec + static_cast<i64>(epoch_ntp)));
+    }
+}

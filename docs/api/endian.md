@@ -37,19 +37,34 @@ struct header {
 };
 
 auto h = read<header>(data);
-if (h.signature == 0x4550)   // works on LE and BE hosts
+if ( h.signature == 0x4550 )   // works on LE and BE hosts
     process(h);
+```
+
+## Type Trait
+
+```cpp
+template<typename T>
+constexpr bool is_endian_value_v;
+```
+
+Returns `true` if `T` is an instantiation of `endian_value<T, Order>` (e.g. `le<u32>` or `be<u16>`).
+
+```cpp
+static_assert( is_endian_value_v<le<u32>>);
+static_assert(!is_endian_value_v<u32>    );
 ```
 
 ## Methods
 
-| Method | Description |
-|--------|-------------|
-| `get()` | Returns value in native endian |
-| `operator T()` | Implicit conversion to native endian |
-| `operator=` | Assign raw value, auto-converts to storage |
-| `data()` | Pointer to raw storage (for serialization) |
-| `swap()` | Exchange two values |
+| Method                  | Description                                |
+|-------------------------|--------------------------------------------|
+| `get()`                 | Returns value in native endian             |
+| `operator T()`          | Implicit conversion to native endian       |
+| `operator=(U)`          | Assign raw value, auto-converts to storage |
+| `endian_value(U other)` | Explicit converting ctor from another `endian_value` of different width (e.g. `le<u32>` → `le<u64>`) |
+| `data()`                | Pointer to raw storage (for serialization) |
+| `swap()`                | Exchange two values                        |
 
 ## Operators
 
@@ -77,3 +92,4 @@ if (h.signature == 0x4550)   // works on LE and BE hosts
 
 - `core.hpp` — type aliases (`u32`, `u64`, etc.)
 - `mem.hpp` — `read<T>(addr)` reads `le<T>` correctly from memory
+

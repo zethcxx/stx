@@ -2,7 +2,9 @@
 #include <lbyte/stx/core.hpp>
 #include <lbyte/stx/mem.hpp>
 
+#include <span>
 #include <type_traits>
+#include <vector>
 
 using namespace lbyte;
 
@@ -322,6 +324,210 @@ TEST_CASE("Core: null_t")
     {
         stx::null << 1 << 2u << 3ull;
         REQUIRE(true);
+    }
+}
+
+TEST_CASE("Core: ccast")
+{
+    SECTION("Removes const from const int")
+    {
+        const int x = 42;
+        int* p = stx::ccast<int*>(&x);
+        REQUIRE(*p == 42);
+    }
+}
+
+#ifdef __GXX_RTTI
+TEST_CASE("Core: dcast")
+{
+    SECTION("Polymorphic downcast")
+    {
+        struct Base { virtual ~Base() = default; };
+        struct Derived : Base { int value = 42; };
+        Base* b = new Derived();
+        auto* d = stx::dcast<Derived*>(b);
+        REQUIRE(d->value == 42);
+        delete d;
+    }
+}
+#endif
+
+TEST_CASE("Core: strong_type cross-tag compound assignment")
+{
+    SECTION("va_s += off_s")
+    {
+        stx::va_s va{0x140000000};
+        stx::off_s off{128};
+        va += off;
+        REQUIRE(va.get() == 0x140000080);
+    }
+
+    SECTION("rva_s += off_s")
+    {
+        stx::rva_s rva{0x2000};
+        stx::off_s off{256};
+        rva += off;
+        REQUIRE(rva.get() == 0x2100);
+    }
+
+    SECTION("va_s -= off_s")
+    {
+        stx::va_s va{0x140000100};
+        stx::off_s off{256};
+        va -= off;
+        REQUIRE(va.get() == 0x140000000);
+    }
+
+    SECTION("rva_s -= off_s")
+    {
+        stx::rva_s rva{0x2100};
+        stx::off_s off{256};
+        rva -= off;
+        REQUIRE(rva.get() == 0x2000);
+    }
+}
+
+TEST_CASE("Core: strong_type increment/decrement")
+{
+    SECTION("rva_s prefix ++")
+    {
+        stx::rva_s rva{0x2000};
+        auto& ref = ++rva;
+        REQUIRE(rva.get() == 0x2001);
+        REQUIRE(&ref == &rva);
+    }
+
+    SECTION("rva_s postfix ++")
+    {
+        stx::rva_s rva{0x2000};
+        auto old = rva++;
+        REQUIRE(old.get() == 0x2000);
+        REQUIRE(rva.get() == 0x2001);
+    }
+
+    SECTION("rva_s prefix --")
+    {
+        stx::rva_s rva{0x2000};
+        --rva;
+        REQUIRE(rva.get() == 0x1FFF);
+    }
+
+    SECTION("rva_s postfix --")
+    {
+        stx::rva_s rva{0x2000};
+        auto old = rva--;
+        REQUIRE(old.get() == 0x2000);
+        REQUIRE(rva.get() == 0x1FFF);
+    }
+
+    SECTION("va_s prefix ++")
+    {
+        stx::va_s va{0x140000000};
+        ++va;
+        REQUIRE(va.get() == 0x140000001);
+    }
+
+    SECTION("va_s postfix ++")
+    {
+        stx::va_s va{0x140000000};
+        auto old = va++;
+        REQUIRE(old.get() == 0x140000000);
+        REQUIRE(va.get() == 0x140000001);
+    }
+
+    SECTION("va_s prefix --")
+    {
+        stx::va_s va{0x140000001};
+        --va;
+        REQUIRE(va.get() == 0x140000000);
+    }
+
+    SECTION("va_s postfix --")
+    {
+        stx::va_s va{0x140000001};
+        auto old = va--;
+        REQUIRE(old.get() == 0x140000001);
+        REQUIRE(va.get() == 0x140000000);
+    }
+}
+
+TEST_CASE("Core: byte_swappable with enums")
+{
+    SECTION("Simple enum satisfies the concept")
+    {
+        enum class color : stx::u32 { red, green, blue };
+        static_assert(stx::byte_swappable<color>);
+        static_assert(!stx::byte_swappable<color&>);
+        static_assert(!stx::byte_swappable<bool>);
+        static_assert(!stx::byte_swappable<char>);
+    }
+}
+
+TEST_CASE("Core: writable_buffer concept")
+{
+    SECTION("std::span<std::byte>")
+    {
+        std::array<std::byte, 4> arr{};
+        std::span<std::byte> sp{arr};
+        static_assert(stx::writable_buffer<decltype(sp)>);
+    }
+
+    SECTION("std::vector<std::byte>")
+    {
+        static_assert(stx::writable_buffer<std::vector<std::byte>>);
+    }
+
+    SECTION("std::array<std::byte, N>")
+    {
+        static_assert(stx::writable_buffer<std::array<std::byte, 4>>);
+    }
+}
+
+TEST_CASE("Core: Cross-tag operators with rva_s")
+{
+    SECTION("rva_s + off_s")
+    {
+        stx::rva_s rva{0x2000};
+        stx::off_s off{128};
+        auto result = rva + off;
+        REQUIRE(result.get() == 0x2080);
+    }
+
+    SECTION("off_s + rva_s")
+    {
+        stx::off_s off{128};
+        stx::rva_s rva{0x2000};
+        auto result = off + rva;
+        REQUIRE(result.get() == 128 + 0x2000);
+    }
+
+    SECTION("rva_s - off_s")
+    {
+        stx::rva_s rva{0x2100};
+        stx::off_s off{256};
+        auto result = rva - off;
+        REQUIRE(result.get() == 0x2000);
+    }
+
+    SECTION("off_s + va_s")
+    {
+        stx::off_s off{100};
+        stx::va_s va{0x1000};
+        auto result = off + va;
+        REQUIRE(result.get() == 100 + 0x1000);
+    }
+}
+
+TEST_CASE("Core: bounded_array concept")
+{
+    SECTION("Various array types")
+    {
+        static_assert(stx::bounded_array<int[4]>);
+        static_assert(stx::bounded_array<stx::u32[8]>);
+        static_assert(stx::bounded_array<int[2][3]>);
+        static_assert(!stx::bounded_array<int[]>);
+        static_assert(!stx::bounded_array<int*>);
+        static_assert(!stx::bounded_array<int>);
     }
 }
 

@@ -37,8 +37,10 @@ struct caller_t<Ret(Args...)>
     template<address_like Addr>
     inline constexpr caller_t(Addr addr) noexcept;
 
-    inline constexpr Ret operator()(Args... args) const noexcept;
+    inline constexpr Ret operator()(Args... args) const noexcept(std::is_nothrow_invocable_v<fn_t, Args...>);
     [[nodiscard]] constexpr explicit operator bool() const noexcept;
+
+    inline constexpr operator fn_t() const noexcept;
 };
 ```
 
@@ -46,20 +48,20 @@ struct caller_t<Ret(Args...)>
 
 ## Design Characteristics
 
-| Property                  | Description |
-|---------------------------|-------------|
-| Zero abstraction overhead | Wraps raw function pointer |
-| Strong signature binding  | Signature enforced at compile time |
+| Property                  | Description                         |
+|---------------------------|-------------------------------------|
+| Zero abstraction overhead | Wraps raw function pointer          |
+| Strong signature binding  | Signature enforced at compile time  |
 | Explicit validity check   | `operator bool()` verifies non-null |
 | `constexpr` friendly      | Fully usable in constant evaluation contexts (if address is valid) |
-| `noexcept` call operator  | Assumes target function does not violate contract |
+| Conditional `noexcept`    | Inherited from target function      |
 
 ---
 
 ## Member: `fn`
 
-| Member | Type                  | Description |
-|--------|----------------------|-------------|
+| Member | Type                  | Description          |
+|--------|-----------------------|----------------------|
 | `fn`   | `Ret (*)(Args...)`    | Raw function pointer |
 
 No ownership semantics. No lifetime guarantees. No validation beyond null check.
@@ -69,7 +71,7 @@ No ownership semantics. No lifetime guarantees. No validation beyond null check.
 ## Invocation Operator
 
 ```cpp
-inline constexpr Ret operator()(Args... args) const noexcept;
+inline constexpr Ret operator()(Args... args) const noexcept(std::is_nothrow_invocable_v<fn_t, Args...>);
 ```
 
 Directly forwards arguments to the stored function pointer.
@@ -111,6 +113,21 @@ stx::caller_t<int(int)> c{some_addr};
 ```
 
 The constructor normalizes the address via `normalize_addr` and reinterpret-casts to the function pointer type. Default member initializer sets `fn = nullptr`, so default-constructed `caller_t` is safe to check via `operator bool`.
+
+## Implicit Conversion to Raw Function Pointer
+
+```cpp
+inline constexpr operator fn_t() const noexcept;
+```
+
+Allows a `caller_t<Sig>` to be used directly wherever a function pointer is expected:
+
+```cpp
+auto callable = stx::caller<int(int)>(some_addr);
+int (*fp)(int) = callable;  // implicit conversion
+```
+
+---
 
 ## Factory Function: `caller<Sig>`
 
@@ -238,13 +255,13 @@ Reason:
 
 ## Safety Considerations
 
-| Risk                              | Explanation |
-|-----------------------------------|-------------|
+| Risk                              | Explanation                 |
+|-----------------------------------|-----------------------------|
 | Signature mismatch                | Leads to undefined behavior |
-| Invalid memory address            | Undefined behavior |
-| Calling convention mismatch       | Undefined behavior |
-| Incorrect alignment               | Undefined behavior |
-| Non-static member functions       | Not supported |
+| Invalid memory address            | Undefined behavior          |
+| Calling convention mismatch       | Undefined behavior          |
+| Incorrect alignment               | Undefined behavior          |
+| Non-static member functions       | Not supported               |
 
 This utility performs no runtime validation.
 
@@ -278,3 +295,4 @@ It assumes the caller guarantees that:
 - The lifetime of the function remains valid.
 
 No additional safety layer is introduced beyond null detection.
+
