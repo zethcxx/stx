@@ -79,13 +79,25 @@ Zero-overhead compile-time utilities. Gated by `LBYTE_STX_BUILD_ZOU` (CMake) / `
 
 Include `<lbyte/zou.hpp>` or individual headers.
 
-### 1. String Literals (`str.hpp`)
+### 1. String Literals (`ct.hpp`)
 
-| Component                       | Description                                        |
-|---------------------------------|----------------------------------------------------|
-| `lit::str<"...", flags...>`     | Compile-time string transform, `.rodata` storage   |
-| `lit::fstr<N>`                  | Fixed-string NTTP for your own templates           |
-| `lit::strip` / `lit::unindent`  | Transform flags                                    |
+#### Namespaces
+
+| Namespace     | Contents                                      |
+|---------------|-----------------------------------------------|
+| `ct::fmt`     | String formatting flags (`strip`, `unindent`) |
+| `ct::endian`  | Endianness (`order::little`, `order::big`)    |
+
+#### Components
+
+| Component                        | Description                                         |
+|----------------------------------|-----------------------------------------------------|
+| `ct::str<"...", fmt...>`     | Compile-time string transform, `.rodata` storage    |
+| `ct::fstr<N>`                    | Fixed-string NTTP for your own templates            |
+| `ct::fmt::strip / unindent`      | Transform flags                                     |
+| `ct::istr<"...", endian?>`       | Native integer (u8/u16/u32/u64), N ≤ 8              |
+| `ct::sstr<"...">`                | Static storage `string_view`, N > 8                 |
+| `ct::vstr<"...">`                | Value type (integer or `byte_block<N>`), any N      |
 
 ### 2. Time (`time.hpp`)
 
@@ -142,6 +154,7 @@ target_link_libraries(<target> PRIVATE lbyte::stx lbyte::zou)
 
 **FetchContent:**
 
+Header-only:
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
@@ -154,37 +167,109 @@ FetchContent_MakeAvailable(stx)
 target_link_libraries(<target> PRIVATE lbyte::stx lbyte::zou)
 ```
 
+With Modules:
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+    stx
+    GIT_REPOSITORY https://github.com/zethcxx/stx.git
+    GIT_TAG        v0.1.0
+)
+set(LBYTE_STX_USE_MODULES ON CACHE BOOL "" FORCE)
+set(LBYTE_STX_BUILD_ZOU ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(stx)
+target_link_libraries(<target> PRIVATE lbyte::stx lbyte::zou)
+```
+
 ### Xmake
 
-**Clone manually — header-only:**
+**Fetch from git (like CMake's FetchContent):** Create a package script at `packages/z/zethcxx.stx/xmake.lua`:
 
 ```lua
+package("zethcxx.stx")
+    set_kind("library", {headeronly = true})
+    set_homepage("https://github.com/zethcxx/stx")
+    set_description("C++23 Systems Toolbelt")
+
+    add_urls("https://github.com/zethcxx/stx.git")
+    add_versions("v0.1.0", "v0.1.0")
+
+    add_configs("with_zou",     { description = "Build zou utils"  , default = true , type = "boolean" })
+    add_configs("use_modules",  { description = "Build C++ modules", default = false, type = "boolean" })
+
+    on_load(function (package)
+        package:add("includedirs", "include")
+        if package:config("use_modules") then
+            package:add("cxxmodules", "modules/stx/*.cppm")
+        end
+    end)
+
+    on_install( function( package )
+        local configs = {}
+        local includedir = package:installdir("include")
+
+        if package:config( "use_modules" ) then
+            configs.use_modules = true
+        end
+
+        import("package.tools.xmake").install( package, configs, { includedirs = includedir })
+    end)
+
+    on_test(function (package)
+        assert(package:check_cxxsnippets({test = [[
+            #include <lbyte/stx/core.hpp>
+            using namespace lbyte::stx;
+            static_assert(version.major == 0);
+        ]]}, { configs = { languages = "cxx23" } }))
+    end)
+package_end()
+```
+
+Then in your project's `xmake.lua`:
+
+Header-only:
+```lua
+add_requires("zethcxx.stx", { configs = { with_zou = true }})
+
+target("myapp")
+    set_languages("cxx23")
+    add_packages("zethcxx.stx")
+```
+
+With Modules:
+```lua
+add_requires("zethcxx.stx", { configs = { with_zou = true, use_modules = true }})
+
+target("myapp")
+    set_languages("cxx23")
+    add_packages("zethcxx.stx")
+    add_policy("build.c++.modules", true)
+```
+
+**Local copy (git clone / submodule):**
+
+```lua
+-- Header-only
 add_subdirs("stx")
 
 target("myapp")
     set_languages("cxx23")
     add_deps("stx", "zou")
-```
 
-**STX only:**
-
-```lua
-add_subdirs("stx", { configs = { with_zou = false }})
-
-target("myapp")
-    set_languages("cxx23")
-    add_deps("stx")
-```
-
-**With Modules:**
-
-```lua
+-- With Modules
 add_subdirs("stx", { configs = { use_modules = true, with_zou = true }})
 
 target("myapp")
     set_languages("cxx23")
     add_deps("stx", "zou")
     add_policy("build.c++.modules", true)
+
+-- STX only (no zou)
+add_subdirs("stx", { configs = { with_zou = false }})
+
+target("myapp")
+    set_languages("cxx23")
+    add_deps("stx")
 ```
 
 ---

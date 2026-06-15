@@ -206,6 +206,12 @@ namespace lbyte::stx
         template<binary_readable Type>
         std::expected<void, std::errc> write(
             std::ostream& file,
+            const Type& value
+        ) noexcept { return lbyte::stx::fs::write( file, off_s{0}, value ); }
+
+        template<binary_readable Type>
+        std::expected<void, std::errc> write(
+            std::ostream& file,
             const off_s offset,
             std::span<const Type> buffer
         ) noexcept {
@@ -218,6 +224,12 @@ namespace lbyte::stx
                 return std::unexpected(std::errc::io_error);
             return {};
         }
+
+        template<binary_readable Type>
+        std::expected<void, std::errc> write(
+            std::ostream& file,
+            std::span<const Type> buffer
+        ) noexcept { return lbyte::stx::fs::write( file, off_s{0}, buffer ); }
 
         void advance(
             std::ostream& file,
@@ -641,12 +653,18 @@ namespace lbyte::stx
             return {};
         }
 
+        template<binary_readable Type>
+        std::expected<void, std::errc> write(
+            map_file& m,
+            const Type& value
+        ) noexcept { return lbyte::stx::fs::write( m, off_s{0}, value ); }
+
         // --- read/write overloads for spans (positional, no reader_view needed) -
 
         template<binary_readable Type> [[nodiscard]]
         std::expected<Type, std::errc> read(
             std::span<const std::byte> buf,
-            const off_s offset
+            const off_s offset = off_s{0}
         ) noexcept
         {
             auto end = offset.get() + static_cast<off_s::value_type>(sizeof(Type));
@@ -671,6 +689,13 @@ namespace lbyte::stx
             return {};
         }
 
+        template<binary_readable Type>
+        std::expected<void, std::errc> write(
+            std::span<std::byte> buf,
+            const Type& value
+        ) noexcept
+        { return lbyte::stx::fs::write( buf, off_s{0}, value ); }
+
     } // namespace fs
 
     // --- platform ------------------------------------------------------------
@@ -688,9 +713,9 @@ namespace lbyte::stx
             DWORD flProtect = PAGE_READONLY;
             DWORD dwFileMapAccess = FILE_MAP_READ;
 
-            if (flags & map_flag::write) {
+            if ((flags & map_flag::write) != map_flag::none) {
                 dwDesiredAccess |= GENERIC_WRITE;
-                if (flags & map_flag::priv) {
+                if ((flags & map_flag::priv) != map_flag::none) {
                     flProtect = PAGE_WRITECOPY;
                     dwFileMapAccess = FILE_MAP_COPY;
                 } else {
@@ -698,9 +723,9 @@ namespace lbyte::stx
                     dwFileMapAccess = FILE_MAP_ALL_ACCESS;
                 }
             }
-            if (flags & map_flag::exec) {
-                if (flags & map_flag::write) {
-                    if (flags & map_flag::priv) {
+            if ((flags & map_flag::exec) != map_flag::none) {
+                if ((flags & map_flag::write) != map_flag::none) {
+                    if ((flags & map_flag::priv) != map_flag::none) {
                         flProtect = PAGE_EXECUTE_WRITECOPY;
                     } else {
                         flProtect = PAGE_EXECUTE_READWRITE;
@@ -709,13 +734,13 @@ namespace lbyte::stx
                     flProtect = PAGE_EXECUTE_READ;
                 }
                 dwFileMapAccess = FILE_MAP_EXECUTE | (dwFileMapAccess & ~FILE_MAP_COPY);
-                if (flags & map_flag::priv) dwFileMapAccess |= FILE_MAP_COPY;
+                if ((flags & map_flag::priv) != map_flag::none) dwFileMapAccess |= FILE_MAP_COPY;
             }
-            if (flags & map_flag::shared) {
-                if (flags & map_flag::priv)
+            if ((flags & map_flag::shared) != map_flag::none) {
+                if ((flags & map_flag::priv) != map_flag::none)
                     return std::unexpected(std::errc::invalid_argument);
             }
-            if (flags & map_flag::priv) {
+            if ((flags & map_flag::priv) != map_flag::none) {
                 dwDesiredAccess |= GENERIC_WRITE;
             }
 

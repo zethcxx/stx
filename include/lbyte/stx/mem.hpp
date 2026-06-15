@@ -62,6 +62,7 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type, address_like Addr>
+            requires (not contiguous_buffer<Type>)
         STX_FORCE_INLINE
         void write( Addr base, const Type& value ) noexcept
         {
@@ -278,6 +279,7 @@ namespace lbyte::stx
 
         // ---- NAVIGATION -------------------------------------------
         // Single integral: element-level,  ptr[n] = addr + n * sizeof(T)
+        // Byte-offset:     byte-level,     ptr[off_s{n}] = addr + n  (no * sizeof)
         // Two integrals:    custom step,    ptr[n, s] = addr + n * s
         // ref-qualified:    p[n][m] is deleted (temporary [] disallowed)
 
@@ -291,6 +293,15 @@ namespace lbyte::stx
 
         template<std::integral U>
         [[nodiscard]] constexpr ptr<T> operator[]( U offset ) const && = delete;
+
+        // Byte-offset types (off_s / rva_s): byte-level, ptr[off] = addr + off (no * sizeof)
+        template<byte_offset O>
+        [[nodiscard]] constexpr ptr<T> operator[]( O offset ) const & noexcept {
+            return ptr<T>( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
+        template<byte_offset O>
+        [[nodiscard]] constexpr ptr<T> operator[]( O offset ) const && = delete;
 
         template<std::integral U, std::integral V>
         [[nodiscard]] constexpr ptr<T> operator[]( U offset, V step ) const & noexcept {
