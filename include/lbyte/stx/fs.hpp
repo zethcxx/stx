@@ -188,12 +188,14 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type>
+            requires (not contiguous_buffer<Type>)
         std::expected<void, std::errc> write(
             std::ostream& file,
             const off_s offset,
-            const Type& value
+            const Type& value,
+            const origin dir = origin::begin
         ) noexcept {
-            setpos(file, offset);
+            setpos(file, offset, dir);
             file.write(
                 rcast<const char*>(&value),
                 sizeof(Type)
@@ -204,20 +206,37 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type>
+            requires (not contiguous_buffer<Type>)
+        std::expected<void, std::errc> write(
+            std::ostream& file,
+            const Type& value,
+            const origin dir = origin::begin
+        ) noexcept { return lbyte::stx::fs::write( file, off_s{0}, value, dir ); }
+
+        template<contiguous_buffer R>
         std::expected<void, std::errc> write(
             std::ostream& file,
             const off_s offset,
-            std::span<const Type> buffer
+            const R& buffer,
+            const origin dir = origin::begin
         ) noexcept {
-            setpos(file, offset);
+            setpos(file, offset, dir);
+            auto const bytes = std::size(buffer) * sizeof(*std::data(buffer));
             file.write(
                 rcast<const char*>(std::data(buffer)),
-                scast<std::streamsize>(sizeof(Type) * buffer.size())
+                scast<std::streamsize>(bytes)
             );
             if (file.fail()) [[unlikely]]
                 return std::unexpected(std::errc::io_error);
             return {};
         }
+
+        template<contiguous_buffer R>
+        std::expected<void, std::errc> write(
+            std::ostream& file,
+            const R& buffer,
+            const origin dir = origin::begin
+        ) noexcept { return lbyte::stx::fs::write( file, off_s{0}, buffer, dir ); }
 
         void advance(
             std::ostream& file,
@@ -625,15 +644,25 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type>
+            requires (not contiguous_buffer<Type>)
         std::expected<void, std::errc> write(
             map_file& m,
             const off_s offset,
-            const Type& value
+            const Type& value,
+            const origin dir = origin::begin
         ) noexcept
         {
             if (!(m.flags() & map_flag::write))
                 return std::unexpected(std::errc::permission_denied);
-            auto const byte_off = offset.get();
+
+            off_s actual_off{0};
+            switch (dir) {
+                case origin::begin:   actual_off = offset; break;
+                case origin::current: actual_off = off_s{m.tell().get() + offset.get()}; break;
+                case origin::end:     actual_off = off_s{scast<off_s::value_type>(m.size()) + offset.get()}; break;
+            }
+
+            auto const byte_off = actual_off.get();
             if (byte_off + static_cast<off_s::value_type>(sizeof(Type)) > static_cast<off_s::value_type>(m.size()))
                 return std::unexpected(std::errc::argument_out_of_domain);
             auto target = m.base() + static_cast<uptr>(byte_off);
@@ -641,12 +670,54 @@ namespace lbyte::stx
             return {};
         }
 
-        // --- read/write overloads for spans (positional, no reader_view needed) -
+        template<binary_readable Type>
+            requires (not contiguous_buffer<Type>)
+        std::expected<void, std::errc> write(
+            map_file& m,
+            const Type& value,
+            const origin dir = origin::begin
+        ) noexcept { return lbyte::stx::fs::write( m, off_s{0}, value, dir ); }
+
+        template<contiguous_buffer R>
+        std::expected<void, std::errc> write(
+            map_file& m,
+            const off_s offset,
+            const R& buffer,
+            const origin dir = origin::begin
+        ) noexcept
+        {
+            if (!(m.flags() & map_flag::write))
+                return std::unexpected(std::errc::permission_denied);
+
+            off_s actual_off{0};
+            switch (dir) {
+                case origin::begin:   actual_off = offset; break;
+                case origin::current: actual_off = off_s{m.tell().get() + offset.get()}; break;
+                case origin::end:     actual_off = off_s{scast<off_s::value_type>(m.size()) + offset.get()}; break;
+            }
+
+            auto const byte_off = actual_off.get();
+            auto const bytes = std::size(buffer) * sizeof(*std::data(buffer));
+            if (byte_off + static_cast<off_s::value_type>(bytes) > static_cast<off_s::value_type>(m.size()))
+                return std::unexpected(std::errc::argument_out_of_domain);
+            auto target = rcast<void*>(m.base() + static_cast<uptr>(byte_off));
+            std::memcpy(target, rcast<const void*>(std::data(buffer)), static_cast<usize>(bytes));
+            return {};
+        }
+
+        template<contiguous_buffer R>
+        std::expected<void, std::errc> write(
+            map_file& m,
+            const R& buffer,
+            const origin dir = origin::begin
+        ) noexcept { return lbyte::stx::fs::write( m, off_s{0}, buffer, dir ); }
+
+        // --- read overloads for spans (positional, no reader_view needed) -
 
         template<binary_readable Type> [[nodiscard]]
         std::expected<Type, std::errc> read(
             std::span<const std::byte> buf,
-            const off_s offset
+            const off_s offset = off_s{0}
         ) noexcept
         {
             auto end = offset.get() + static_cast<off_s::value_type>(sizeof(Type));
@@ -655,20 +726,6 @@ namespace lbyte::stx
             Type val;
             std::memcpy(&val, buf.data() + offset.get(), sizeof(Type));
             return val;
-        }
-
-        template<binary_readable Type>
-        std::expected<void, std::errc> write(
-            std::span<std::byte> buf,
-            const off_s offset,
-            const Type& value
-        ) noexcept
-        {
-            auto end = offset.get() + static_cast<off_s::value_type>(sizeof(Type));
-            if (end > static_cast<off_s::value_type>(buf.size()))
-                return std::unexpected(std::errc::argument_out_of_domain);
-            std::memcpy(buf.data() + offset.get(), &value, sizeof(Type));
-            return {};
         }
 
     } // namespace fs
@@ -688,9 +745,9 @@ namespace lbyte::stx
             DWORD flProtect = PAGE_READONLY;
             DWORD dwFileMapAccess = FILE_MAP_READ;
 
-            if (flags & map_flag::write) {
+            if ((flags & map_flag::write) != map_flag::none) {
                 dwDesiredAccess |= GENERIC_WRITE;
-                if (flags & map_flag::priv) {
+                if ((flags & map_flag::priv) != map_flag::none) {
                     flProtect = PAGE_WRITECOPY;
                     dwFileMapAccess = FILE_MAP_COPY;
                 } else {
@@ -698,9 +755,9 @@ namespace lbyte::stx
                     dwFileMapAccess = FILE_MAP_ALL_ACCESS;
                 }
             }
-            if (flags & map_flag::exec) {
-                if (flags & map_flag::write) {
-                    if (flags & map_flag::priv) {
+            if ((flags & map_flag::exec) != map_flag::none) {
+                if ((flags & map_flag::write) != map_flag::none) {
+                    if ((flags & map_flag::priv) != map_flag::none) {
                         flProtect = PAGE_EXECUTE_WRITECOPY;
                     } else {
                         flProtect = PAGE_EXECUTE_READWRITE;
@@ -709,13 +766,13 @@ namespace lbyte::stx
                     flProtect = PAGE_EXECUTE_READ;
                 }
                 dwFileMapAccess = FILE_MAP_EXECUTE | (dwFileMapAccess & ~FILE_MAP_COPY);
-                if (flags & map_flag::priv) dwFileMapAccess |= FILE_MAP_COPY;
+                if ((flags & map_flag::priv) != map_flag::none) dwFileMapAccess |= FILE_MAP_COPY;
             }
-            if (flags & map_flag::shared) {
-                if (flags & map_flag::priv)
+            if ((flags & map_flag::shared) != map_flag::none) {
+                if ((flags & map_flag::priv) != map_flag::none)
                     return std::unexpected(std::errc::invalid_argument);
             }
-            if (flags & map_flag::priv) {
+            if ((flags & map_flag::priv) != map_flag::none) {
                 dwDesiredAccess |= GENERIC_WRITE;
             }
 

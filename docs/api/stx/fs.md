@@ -65,15 +65,18 @@ auto read(std::istream&, off_s = {}, origin = begin) noexcept -> std::expected<s
 
 ```cpp
 template<binary_readable Type>
-std::expected<void, std::errc> write(std::ostream&, off_s, const Type& value) noexcept;
+    requires (not contiguous_buffer<Type>)
+std::expected<void, std::errc> write(std::ostream&, off_s, const Type& value, origin = begin) noexcept;
 ```
 
-### Buffer write
+### Range write
 
 ```cpp
-template<binary_readable Type>
-std::expected<void, std::errc> write(std::ostream&, off_s, std::span<const Type>) noexcept;
+template<contiguous_buffer R>
+std::expected<void, std::errc> write(std::ostream&, off_s, const R& buffer, origin = begin) noexcept;
 ```
+
+Accepts `span`, `string`, `string_view`, `vector`, `array`, `str_type` — any type with `.data()` + `.size()` and trivially copyable elements.
 
 ### Navigation helpers
 
@@ -364,7 +367,11 @@ template<binary_readable Type>
 std::expected<Type, std::errc> read(const map_file& m, off_s offset) noexcept;
 
 template<binary_readable Type>
-std::expected<void, std::errc> write(map_file& m, off_s offset, const Type& value) noexcept;
+    requires (not contiguous_buffer<Type>)
+std::expected<void, std::errc> write(map_file& m, off_s offset, const Type& value, origin = begin) noexcept;
+
+template<contiguous_buffer R>
+std::expected<void, std::errc> write(map_file& m, off_s offset, const R& buffer, origin = begin) noexcept;
 ```
 
 ```cpp
@@ -374,20 +381,16 @@ auto magic = fs::read<u32>(*m, off_s{0});
 
 ---
 
-## `fs::read` / `fs::write` (span overloads)
+## `fs::read` (span overloads)
 
-Positional access into a `std::span<std::byte>`.
+Positional read from a `std::span<const std::byte>`.
 
 ```cpp
 template<binary_readable Type>
 std::expected<Type, std::errc> read(std::span<const std::byte> buf, off_s offset) noexcept;
-
-template<binary_readable Type>
-std::expected<void, std::errc> write(std::span<std::byte> buf, off_s offset, const Type& value) noexcept;
 ```
 
 ```cpp
-std::vector<std::byte> buf(1024);
 auto v = fs::read<u32>(std::span<const std::byte>{buf}, off_s{0});
 ```
 

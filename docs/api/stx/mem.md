@@ -394,8 +394,7 @@ friend void swap(ptr& a, ptr& b) noexcept;
 
 ## `mem::read` / `mem::write`
 
-Free-function binary-safe memcpy I/O over any `address_like` base.
-For offset access, use pointer arithmetic (`base + off_s{n}`).
+Free-function binary-safe memcpy I/O over any `address_like` base or `writable_buffer`.
 
 ```cpp
 template<binary_readable Type, address_like Addr>
@@ -403,13 +402,39 @@ Type read(Addr base) noexcept;
 ```
 
 ```cpp
+// --- address_like base (raw pointer / VA / ptr<T>) -----------------------
+
 // single value — Type is automatically deduced
 template<binary_readable Type, address_like Addr>
+    requires (not contiguous_buffer<Type>)
 void write(Addr base, const Type& value) noexcept;
+
+template<binary_readable Type, address_like Addr>
+    requires (not contiguous_buffer<Type>)
+void write(Addr base, off_s offset, const Type& value) noexcept;
 
 // range — any contiguous_buffer (span, vector, array, string_view...)
 template<address_like Addr, contiguous_buffer R>
 void write(Addr base, R&& range) noexcept;
+
+template<address_like Addr, contiguous_buffer R>
+void write(Addr base, off_s offset, const R& range) noexcept;
+
+// --- writable_buffer (span, vector, array...) ---------------------------
+
+template<writable_buffer Dest, binary_readable Type>
+    requires (not contiguous_buffer<Type>)
+void write(Dest&& dest, off_s offset, const Type& value) noexcept;
+
+template<writable_buffer Dest, binary_readable Type>
+    requires (not contiguous_buffer<Type>)
+void write(Dest&& dest, const Type& value) noexcept;
+
+template<writable_buffer Dest, contiguous_buffer R>
+void write(Dest&& dest, off_s offset, const R& range) noexcept;
+
+template<writable_buffer Dest, contiguous_buffer R>
+void write(Dest&& dest, const R& range) noexcept;
 ```
 
 ```cpp
@@ -421,15 +446,19 @@ auto v2  = mem::read<u64>(buf + off_s{4});           // byte 4 (ptr arithmetic)
 auto v3  = mem::read<u32>(va_s{0x1000});             // VA
 auto v4  = mem::read<u16>(buf + mem::gap_v<u32>);   // skip u32
 
-// write single — offset via pointer arithmetic
+// write to address_like base — offset overload or pointer arithmetic
 mem::write(buf, 0xDEADBEEF);                          // deduce u32, offset 0
-mem::write(buf + off_s{8}, 0xDEAD);                   // deduce u16, byte 8
-mem::write<u64>(va_s{0x1000} + off_s{4}, 0xDEAD);    // VA + offset
+mem::write(buf, off_s{8}, 0xDEAD);                    // deduce u16, byte 8 (offset overload)
+mem::write<u64>(va_s{0x1000} + off_s{4}, 0xDEAD);    // VA + offset (ptr arithmetic)
 
-// write range
-mem::write(buf, std::span{data, len});                // span
-mem::write(buf, std::array<u32, 4>{1,2,3,4});         // bounded array
-mem::write(buf, "header"sv);                          // string_view
+// write range — offset overload
+mem::write(buf, off_s{0}, std::span{data, len});      // span at offset 0
+mem::write(buf, off_s{4}, std::array<u32, 4>{1,2,3,4}); // bounded array at byte 4
+mem::write(buf, off_s{8}, "header"sv);                // string_view at byte 8
+
+// write into writable_buffer (span, vector, string, array...)
+mem::write(std::span<std::byte>{buf}, off_s{2}, u32{0x12345678});
+mem::write(my_vector, off_s{0}, "data");
 
 // gap_v for compile-time offsets:
 mem::write(buf + mem::gap_v<u32, u16>, 0x42);         // skip u32+u16, write u8

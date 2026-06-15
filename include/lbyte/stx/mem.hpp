@@ -62,6 +62,7 @@ namespace lbyte::stx
         }
 
         template<binary_readable Type, address_like Addr>
+            requires (not contiguous_buffer<Type>)
         STX_FORCE_INLINE
         void write( Addr base, const Type& value ) noexcept
         {
@@ -69,6 +70,17 @@ namespace lbyte::stx
                 rcast<std::byte*>(normalize_addr(base)),
                 &value,
                 sizeof(Type)
+            );
+        }
+
+        template<binary_readable Type, address_like Addr>
+            requires (not contiguous_buffer<Type>)
+        STX_FORCE_INLINE
+        void write( Addr base, const off_s offset, const Type& value ) noexcept
+        {
+            write(
+                rcast<std::byte*>(normalize_addr(base)) + offset.get(),
+                value
             );
         }
 
@@ -82,6 +94,58 @@ namespace lbyte::stx
                 rcast<const std::byte*>(std::data(range)),
                 static_cast<usize>(bytes)
             );
+        }
+
+        template<address_like Addr, contiguous_buffer R>
+        STX_FORCE_INLINE
+        void write( Addr base, const off_s offset, const R& range ) noexcept
+        {
+            auto const bytes = std::size(range) * sizeof(*std::data(range));
+            std::memcpy(
+                rcast<std::byte*>(normalize_addr(base)) + offset.get(),
+                rcast<const std::byte*>(std::data(range)),
+                static_cast<usize>(bytes)
+            );
+        }
+
+        // WRITE INTO WRITABLE BUFFER (span, vector, array...)
+        template<writable_buffer Dest, binary_readable Type>
+            requires (not contiguous_buffer<Type>)
+        STX_FORCE_INLINE
+        void write( Dest&& dest, const off_s offset, const Type& value ) noexcept
+        {
+            std::memcpy(
+                rcast<std::byte*>(std::data(dest)) + offset.get(),
+                &value,
+                sizeof(Type)
+            );
+        }
+
+        template<writable_buffer Dest, binary_readable Type>
+            requires (not contiguous_buffer<Type>)
+        STX_FORCE_INLINE
+        void write( Dest&& dest, const Type& value ) noexcept
+        {
+            write(std::forward<Dest>(dest), off_s{0}, value);
+        }
+
+        template<writable_buffer Dest, contiguous_buffer R>
+        STX_FORCE_INLINE
+        void write( Dest&& dest, const off_s offset, const R& range ) noexcept
+        {
+            auto const bytes = std::size(range) * sizeof(*std::data(range));
+            std::memcpy(
+                rcast<std::byte*>(std::data(dest)) + offset.get(),
+                rcast<const std::byte*>(std::data(range)),
+                static_cast<usize>(bytes)
+            );
+        }
+
+        template<writable_buffer Dest, contiguous_buffer R>
+        STX_FORCE_INLINE
+        void write( Dest&& dest, const R& range ) noexcept
+        {
+            write(std::forward<Dest>(dest), off_s{0}, range);
         }
 
         // ENDIAN-AWARE WRITE ----------------------------------------------------
@@ -278,6 +342,7 @@ namespace lbyte::stx
 
         // ---- NAVIGATION -------------------------------------------
         // Single integral: element-level,  ptr[n] = addr + n * sizeof(T)
+        // Byte-offset:     byte-level,     ptr[off_s{n}] = addr + n  (no * sizeof)
         // Two integrals:    custom step,    ptr[n, s] = addr + n * s
         // ref-qualified:    p[n][m] is deleted (temporary [] disallowed)
 
@@ -291,6 +356,15 @@ namespace lbyte::stx
 
         template<std::integral U>
         [[nodiscard]] constexpr ptr<T> operator[]( U offset ) const && = delete;
+
+        // Byte-offset types (off_s / rva_s): byte-level, ptr[off] = addr + off (no * sizeof)
+        template<byte_offset O>
+        [[nodiscard]] constexpr ptr<T> operator[]( O offset ) const & noexcept {
+            return ptr<T>( address + static_cast<::lbyte::stx::uptr>( offset.get() ));
+        }
+
+        template<byte_offset O>
+        [[nodiscard]] constexpr ptr<T> operator[]( O offset ) const && = delete;
 
         template<std::integral U, std::integral V>
         [[nodiscard]] constexpr ptr<T> operator[]( U offset, V step ) const & noexcept {
