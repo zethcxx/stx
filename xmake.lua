@@ -1,5 +1,5 @@
 set_project( "stx"   )
-set_version( "0.1.0" )
+set_version( "0.2.0" )
 set_license( "MIT"   )
 
 set_xmakever( "2.8.1" )

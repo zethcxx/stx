@@ -23,6 +23,8 @@ export namespace lbyte::stx::mem
     using ::lbyte::stx::mem::write_le;
     using ::lbyte::stx::mem::write_be;
 
+    using ::lbyte::stx::mem::diff;
+
     using ::lbyte::stx::mem::align_up;
     using ::lbyte::stx::mem::align_down;
     using ::lbyte::stx::mem::gap_align_v;

@@ -144,7 +144,8 @@ All arithmetic is in **bytes** — only `off_s`/`rva_s` operands are accepted
 | `p - off_s{n}`                    | Rewind `n` bytes      | `ptr`   |
 | `p += off_s{n}` / `p -= off_s{n}` | In-place              | `ptr&`  |
 | `p - q`                           | Byte difference       | `off_s` |
-| `p.diff(addr)`                    | Diff from any address | `off_s` |
+| `p.diff(addr)`                    | Diff from any address (default) | `off_s` |
+| `p.diff<T>(addr)`                 | Diff from any address (explicit integral) | `T` |
 
 ```cpp
 auto p1 = p + off_s{ 16 }; // ptr at address + 16
@@ -574,6 +575,34 @@ fmtprint("ptr at {}\n", p);  // e.g. "ptr at 0x7ffd12345678"
 ```
 
 Formats the stored address as `void*` (hex prefix + lowercase hex digits).
+
+---
+
+## `mem::diff`
+
+Byte difference between two `address_like` addresses.
+
+| Expression                        | Returns |
+|-----------------------------------|---------|
+| `mem::diff(a, b)`                 | `off_s` |
+| `mem::diff<T>(a, b)`              | `T` (`std::integral`) |
+
+Accepts any combination of `address_like` types (raw pointers, `uptr`, `va_s`, `ptr<T>`, etc.).
+
+```cpp
+u32 buf[4];
+auto d1 = mem::diff(buf, &buf[2]);          // off_s{-8}
+auto d2 = mem::diff<usize>(buf, &buf[2]);   // usize, absolute diff
+auto d3 = mem::diff(ptr{buf}, &buf[2]);     // ptr<T> + raw pointer
+```
+
+The `ptr::diff()` member follows the same pattern:
+
+```cpp
+ptr p{buf};
+auto d1 = p.diff(&buf[2]);    // off_s{-8}
+auto d2 = p.diff<usize>(&buf[2]); // usize
+```
 
 ---
 

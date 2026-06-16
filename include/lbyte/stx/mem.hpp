@@ -224,6 +224,21 @@ namespace lbyte::stx
             };
         }
 
+        // DIFF -------------------------------------------------------------------
+        template<address_like A, address_like B>
+        [[nodiscard]] constexpr off_s diff(A a, B b) noexcept
+        {
+            return off_s{ scast<off_s::value_type>(
+                normalize_addr(a) - normalize_addr(b)
+            )};
+        }
+
+        template<std::integral T, address_like A, address_like B>
+        [[nodiscard]] constexpr T diff(A a, B b) noexcept
+        {
+            return scast<T>(normalize_addr(a) - normalize_addr(b));
+        }
+
         template<typename... Args>
         inline constexpr off_s gap_v = off_s{( sizeof(Args) + ... )};
 
@@ -678,6 +693,11 @@ namespace lbyte::stx
         template<address_like Addr>
         [[nodiscard]] constexpr off_s diff( Addr other ) const noexcept {
             return off_s{ scast<off_s::value_type>( address - normalize_addr(other) ) };
+        }
+
+        template<std::integral Ret, address_like Addr>
+        [[nodiscard]] constexpr Ret diff( Addr other ) const noexcept {
+            return scast<Ret>( address - normalize_addr(other) );
         }
 
         // ---- WALK (memcpy-safe pointer chasing) ------------------
