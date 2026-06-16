@@ -115,9 +115,9 @@ constexpr auto x = ct::str<"\n  hello\n  world\n", ct::fmt::unindent, ct::fmt::s
 static_assert( std::string_view{x} == "hello\nworld" );
 ```
 
-## `ct::fstr<N>` — fixed string NTTP
+## `ct::fixed_string<N>` — fixed string NTTP
 
-`fstr<N>` is the structural type that wraps a string literal for use as a
+`fixed_string<N>` is the structural type that wraps a string literal for use as a
 non-type template parameter. It is the foundation of `ct::str` and can be
 used directly in your own compile-time templates.
 
@@ -125,12 +125,12 @@ used directly in your own compile-time templates.
 using namespace lbyte::stx;
 
 // Basic usage
-constexpr ct::fstr s{ "hello" };
+constexpr ct::fixed_string s{ "hello" };
 static_assert( s.size() == 5 );
 static_assert( s[0] == 'h' );
 
 // NTTP in your own templates
-template<ct::fstr Str>
+template<ct::fixed_string Str>
     requires (Str.size() > 0)
 constexpr auto make_hex() noexcept { /* your decode logic */ }
 ```

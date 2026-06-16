@@ -1,8 +1,8 @@
-# fs.hpp
+# io.hpp
 
 All examples assume `using namespace stx;` for brevity.
 
-## `fs::dirty_vector`
+## `io::dirty_vector`
 
 A `std::vector` with an allocator that does NOT zero-initialize elements.
 Useful for buffers that will be overwritten entirely.
@@ -14,14 +14,14 @@ using dirty_vector = std::vector<Type, details::vec_init_allocator<Type>>;
 
 ```cpp
 // read returns dirty_vector directly, no wasted zeroing:
-auto vec = fs::read<u8>(file, off_s{0}, 1024);
+auto vec = io::read<u8>(file, off_s{0}, 1024);
 
 // Or construct manually and overwrite:
-auto buf = fs::dirty_vector<u8>(4096);
+auto buf = io::dirty_vector<u8>(4096);
 read(fd, buf.data(), buf.size());  // POSIX read into uninitialized memory
 ```
 
-## `fs::origin`
+## `io::origin`
 
 Seek-origin enum for `memcur::seek` / `memcur::advance`.
 
@@ -32,12 +32,12 @@ Seek-origin enum for `memcur::seek` / `memcur::advance`.
 | `origin::end`     | Seek from end              |
 
 ```cpp
-using fs::origin;
+using io::origin;
 ```
 
 ---
 
-## `fs::read` / `fs::write` (stream I/O)
+## `io::read` / `io::write` (stream I/O)
 
 Positional read/write from/to `std::istream`/`std::ostream`.
 
@@ -89,23 +89,23 @@ void advance(std::ostream&, off_s) noexcept;
 ```
 
 ```cpp
-std::ifstream file{"data.bin", std::ios::binary};
+std::iiotream file{"data.bin", std::ios::binary};
 
 // Single value at offset
-auto magic = fs::read<u32>(file, off_s{0});
+auto magic = io::read<u32>(file, off_s{0});
 if (magic) {
     // use magic.value()
 }
 
 // Read into a buffer
 std::vector<u8> buf(1024);
-auto ok = fs::read(file, std::span{buf}, off_s{0x100});
+auto ok = io::read(file, std::span{buf}, off_s{0x100});
 
 // Read fixed array
-auto arr = fs::read<u8, 16>(file, off_s{0x200});
+auto arr = io::read<u8, 16>(file, off_s{0x200});
 
 // Write
-fs::write(file, off_s{0}, 0xDEADBEEF);
+io::write(file, off_s{0}, 0xDEADBEEF);
 ```
 
 ---
@@ -358,7 +358,7 @@ The first guide applies when the type already models `buffer_type` (e.g. `std::b
 
 ---
 
-## `fs::read` / `fs::write` (map_file overloads)
+## `io::read` / `io::write` (map_file overloads)
 
 Positional access into a `map_file` without moving its cursor.
 
@@ -376,12 +376,12 @@ std::expected<void, std::errc> write(map_file& m, off_s offset, const R& buffer,
 
 ```cpp
 auto m = map_file::open("file.bin");
-auto magic = fs::read<u32>(*m, off_s{0});
+auto magic = io::read<u32>(*m, off_s{0});
 ```
 
 ---
 
-## `fs::read` (span overloads)
+## `io::read` (span overloads)
 
 Positional read from a `std::span<const std::byte>`.
 
@@ -391,6 +391,6 @@ std::expected<Type, std::errc> read(std::span<const std::byte> buf, off_s offset
 ```
 
 ```cpp
-auto v = fs::read<u32>(std::span<const std::byte>{buf}, off_s{0});
+auto v = io::read<u32>(std::span<const std::byte>{buf}, off_s{0});
 ```
 

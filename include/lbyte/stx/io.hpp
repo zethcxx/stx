@@ -66,7 +66,7 @@ namespace lbyte::stx
     }
 
     // DIRTY VECTOR + FILE STREAM UTILITIES ------------------------------------
-    namespace fs {
+    namespace io {
 
         template<binary_readable Type = u8>
         using dirty_vector = std::vector<Type, details::vec_init_allocator<Type>>;
@@ -211,7 +211,7 @@ namespace lbyte::stx
             std::ostream& file,
             const Type& value,
             const origin dir = origin::begin
-        ) noexcept { return lbyte::stx::fs::write( file, off_s{0}, value, dir ); }
+        ) noexcept { return lbyte::stx::io::write( file, off_s{0}, value, dir ); }
 
         template<contiguous_buffer R>
         std::expected<void, std::errc> write(
@@ -236,7 +236,7 @@ namespace lbyte::stx
             std::ostream& file,
             const R& buffer,
             const origin dir = origin::begin
-        ) noexcept { return lbyte::stx::fs::write( file, off_s{0}, buffer, dir ); }
+        ) noexcept { return lbyte::stx::io::write( file, off_s{0}, buffer, dir ); }
 
         void advance(
             std::ostream& file,
@@ -245,9 +245,9 @@ namespace lbyte::stx
             setpos(file, offset, origin::current);
         }
 
-    } // namespace fs
+    } // namespace io
 
-    using fs::origin;
+    using io::origin;
 
     // MAP_FILE -------------------------------------------------------------------
 
@@ -628,7 +628,7 @@ namespace lbyte::stx
 
     // --- read/write overloads for map_file -------------------------------
 
-    namespace fs {
+    namespace io {
 
         template<binary_readable Type> [[nodiscard]]
         std::expected<Type, std::errc> read(
@@ -676,7 +676,7 @@ namespace lbyte::stx
             map_file& m,
             const Type& value,
             const origin dir = origin::begin
-        ) noexcept { return lbyte::stx::fs::write( m, off_s{0}, value, dir ); }
+        ) noexcept { return lbyte::stx::io::write( m, off_s{0}, value, dir ); }
 
         template<contiguous_buffer R>
         std::expected<void, std::errc> write(
@@ -710,7 +710,7 @@ namespace lbyte::stx
             map_file& m,
             const R& buffer,
             const origin dir = origin::begin
-        ) noexcept { return lbyte::stx::fs::write( m, off_s{0}, buffer, dir ); }
+        ) noexcept { return lbyte::stx::io::write( m, off_s{0}, buffer, dir ); }
 
         // --- read overloads for spans (positional, no reader_view needed) -
 
@@ -728,7 +728,7 @@ namespace lbyte::stx
             return val;
         }
 
-    } // namespace fs
+    } // namespace io
 
     // --- platform ------------------------------------------------------------
 

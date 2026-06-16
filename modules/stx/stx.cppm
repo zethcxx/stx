@@ -5,7 +5,7 @@ export import lbyte.stx.mem;
 export import lbyte.stx.fn;
 export import lbyte.stx.bit;
 export import lbyte.stx.endian;
-export import lbyte.stx.fs;
+export import lbyte.stx.io;
 export import lbyte.stx.literals;
 
 export namespace lbyte::stx {}

@@ -47,7 +47,7 @@ All always available. Include `<lbyte/stx.hpp>` or individual headers.
 | `mem::align_up / align_down`   | Power-of-two alignment                                   |
 | `mem::gap_v / mem::gap_align_v`| Compile-time size calculators                            |
 
-### 3. File System (`fs.hpp`)
+### 3. File System (`io.hpp`)
 
 | Function                             | Description                                      |
 |--------------------------------------|--------------------------------------------------|
@@ -93,7 +93,7 @@ Include `<lbyte/zou.hpp>` or individual headers.
 | Component                        | Description                                         |
 |----------------------------------|-----------------------------------------------------|
 | `ct::str<"...", fmt...>`     | Compile-time string transform, `.rodata` storage    |
-| `ct::fstr<N>`                    | Fixed-string NTTP for your own templates            |
+| `ct::fixed_string<N>`                    | Fixed-string NTTP for your own templates            |
 | `ct::fmt::strip / unindent`      | Transform flags                                     |
 | `ct::istr<"...", endian?>`       | Native integer (u8/u16/u32/u64), N ≤ 8              |
 | `ct::sstr<"...">`                | Static storage `string_view`, N > 8                 |

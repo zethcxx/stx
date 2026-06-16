@@ -11,7 +11,7 @@
 | Core | `core.hpp` | Fundamental types, strong types, concepts |
 | Memory | `mem.hpp` | Low-level memory access, `ptr<T>` |
 | Function | `fn.hpp` | Function pointer abstractions |
-| File | `fs.hpp` | Binary file stream utilities |
+| File | `io.hpp` | Binary file stream utilities |
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
 | Range | `range.hpp` | Integer range iteration |
 | Literals | `literals.hpp` | Literal suffixes for all core types ([docs](./api/literals.md)) |
@@ -82,7 +82,7 @@ auto main() -> int
 - [Core API](./api/core.md) - Detailed core documentation
 - [Memory API](./api/mem.md) - Memory access, ptr
 - [Function API](./api/fn.md) - Function pointer invocations
-- [File API](./api/fs.md) - Binary file stream utilities
+- [File API](./api/io.md) - Binary file stream utilities
 - [Time API](./api/time.md) - UNIX time and stopwatch
 - [Range API](./api/range.md) - Integer range iteration
 - [Literals API](./api/literals.md) - Literal suffixes for core types

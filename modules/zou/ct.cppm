@@ -8,7 +8,7 @@ import lbyte.stx.core;
 
 export namespace lbyte::zou::ct
 {
-    using ::lbyte::zou::ct::fstr;
+    using ::lbyte::zou::ct::fixed_string;
     using ::lbyte::zou::ct::fmt;
     using ::lbyte::zou::ct::operator|;
     using ::lbyte::zou::ct::operator&;

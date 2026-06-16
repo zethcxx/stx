@@ -8,11 +8,11 @@
 namespace lbyte::zou::ct
 {
     template<size_t N>
-    struct fstr {
+    struct fixed_string {
         char data[N]{};
 
-        constexpr fstr() noexcept = default;
-        constexpr fstr(const char (&str)[N]) noexcept {
+        constexpr fixed_string() noexcept = default;
+        constexpr fixed_string(const char (&str)[N]) noexcept {
             for (size_t i = 0; i < N; ++i)
                 data[i] = str[i];
         }
@@ -20,7 +20,7 @@ namespace lbyte::zou::ct
         [[nodiscard]] constexpr size_t size() const noexcept { return N - 1; }
         [[nodiscard]] constexpr const char& operator[](size_t i) const noexcept { return data[i]; }
         [[nodiscard]] constexpr char& operator[](size_t i) noexcept { return data[i]; }
-        [[nodiscard]] constexpr bool operator==(const fstr&) const = default;
+        [[nodiscard]] constexpr bool operator==(const fixed_string&) const = default;
     };
 
     // ── fmt ──────────────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ namespace lbyte::zou::ct
 
         using namespace ::lbyte::stx;
 
-        template<endian O, fstr Str>
+        template<endian O, fixed_string Str>
         consteval auto make_istr() noexcept
         {
             constexpr auto N = Str.size();
@@ -173,7 +173,7 @@ namespace lbyte::zou::ct
             }
         }
 
-        template<fstr Str>
+        template<fixed_string Str>
         consteval auto make_sstr() noexcept
         {
             constexpr auto N = Str.size();
@@ -188,7 +188,7 @@ namespace lbyte::zou::ct
             return std::string_view{ arr.data(), N };
         }
 
-        template<fstr Str>
+        template<fixed_string Str>
         consteval auto make_vstr() noexcept
         {
             constexpr auto N = Str.size();
@@ -222,7 +222,7 @@ namespace lbyte::zou::ct
     }
 
     // ── str / str_type ────────────────────────────────────────────────────────────
-    template<fstr Str, fmt... Flags>
+    template<fixed_string Str, fmt... Flags>
     struct str_type {
     private:
         static consteval auto build() noexcept {
@@ -253,19 +253,19 @@ namespace lbyte::zou::ct
         }
     };
 
-    template<fstr Str, fmt... Flags>
+    template<fixed_string Str, fmt... Flags>
     constexpr str_type<Str, Flags...> str{};
 
     // ── istr ──────────────────────────────────────────────────────────────────────
-    template<fstr Str, endian Order = endian::little>
+    template<fixed_string Str, endian Order = endian::little>
     constexpr auto istr = details::make_istr<Order, Str>();
 
     // ── sstr ──────────────────────────────────────────────────────────────────────
-    template<fstr Str>
+    template<fixed_string Str>
     constexpr auto sstr = details::make_sstr<Str>();
 
     // ── vstr ──────────────────────────────────────────────────────────────────────
-    template<fstr Str>
+    template<fixed_string Str>
     constexpr auto vstr = details::make_vstr<Str>();
 }
 
