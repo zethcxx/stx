@@ -3,7 +3,7 @@
 #include "../stx/core.hpp"
 #include <chrono>
 
-namespace lbyte::zou::time
+namespace lbyte::stx::time
 {
     using namespace lbyte::stx;
     // CLOCK ALIASES -------------------------------------------------------------

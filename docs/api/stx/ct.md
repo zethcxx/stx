@@ -5,7 +5,7 @@ Compile-time string literal transformations with `static` storage.
 ## Header
 
 ```cpp
-#include <lbyte/zou/ct.hpp>
+#include <lbyte/stx/ct.hpp>
 ```
 
 ## Overview
@@ -156,7 +156,7 @@ constexpr auto y = ct::str<"hello">;       // ← constexpr works
 
 ```cpp
 import lbyte.stx;   // includes ct::str
-import lbyte.stx.str; // or just the str module
+import lbyte.stx.ct; // or just the ct module
 ```
 
 ## `ct::istr<Str, Order>` — integral string

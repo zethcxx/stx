@@ -1,12 +1,9 @@
-# STX / ZOU — C++23 Systems Toolbelt
+# STX — C++23 Systems Toolbelt
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 0.2.0
+**Version:** 0.1.0
 
-Two header-only C++23 libraries for low-level systems programming, binary analysis, and runtime instrumentation.
-
-- **STX** (`lbyte::stx`) — core: types, memory, functions, filesystem, bit/endian, literals.
-- **ZOU** (`lbyte::zou`) — optional compile-time utilities: strings, time, ranges. Zero-overhead utils.
+A header-only C++23 library for low-level systems programming, binary analysis, and runtime instrumentation. Includes compile-time string literals, time utilities, and integer ranges.
 
 ---
 
@@ -15,16 +12,16 @@ Two header-only C++23 libraries for low-level systems programming, binary analys
 | Feature              | Description                                               |
 |----------------------|-----------------------------------------------------------|
 | Language Standard    | C++23                                                     |
-| Header-only          | Yes (STX mandatory, ZOU optional)                         |
-| C++ Modules          | Yes (both targets)                                        |
+| Header-only          | Yes                                                       |
+| C++ Modules          | Yes                                                       |
 | Dependencies         | Standard library only                                     |
 | Target Domains       | Binary analysis, runtime patching, low-level tooling      |
 
 ---
 
-## STX Modules (`lbyte::stx`)
+## Modules (`lbyte::stx`)
 
-All always available. Include `<lbyte/stx.hpp>` or individual headers.
+Include `<lbyte/stx.hpp>` for all modules or individual headers.
 
 ### 1. Core Types (`core.hpp`)
 
@@ -71,15 +68,7 @@ Bit manipulation and endian conversion utilities.
 
 User-defined literals for strong types and units.
 
----
-
-## ZOU Modules (`lbyte::zou` — optional)
-
-Zero-overhead compile-time utilities. Gated by `LBYTE_STX_BUILD_ZOU` (CMake) / `with_zou` (Xmake), both default ON.
-
-Include `<lbyte/zou.hpp>` or individual headers.
-
-### 1. String Literals (`ct.hpp`)
+### 7. String Literals (`ct.hpp`)
 
 #### Namespaces
 
@@ -99,7 +88,7 @@ Include `<lbyte/zou.hpp>` or individual headers.
 | `ct::sstr<"...">`                | Static storage `string_view`, N > 8                 |
 | `ct::vstr<"...">`                | Value type (integer or `byte_block<N>`), any N      |
 
-### 2. Time (`time.hpp`)
+### 8. Time (`time.hpp`)
 
 | Component                              | Description                                    |
 |----------------------------------------|------------------------------------------------|
@@ -110,7 +99,7 @@ Include `<lbyte/zou.hpp>` or individual headers.
 | `time::from_dos` / `to_dos`            | DOS date/time (FAT/ZIP) ↔ `time_point`         |
 | `time::from_ntp` / `to_ntp`            | NTP timestamp ↔ `time_point`                   |
 
-### 3. Range (`range.hpp`)
+### 9. Range (`range.hpp`)
 
 | Component        | Description                                              |
 |------------------|----------------------------------------------------------|
@@ -129,17 +118,9 @@ Supports forward/backward, custom step, enums, strong types.
 
 ### CMake
 
-**Header-only (STX + ZOU):**
+**Header-only:**
 
 ```cmake
-add_subdirectory(extern/stx)
-target_link_libraries(<target> PRIVATE lbyte::stx lbyte::zou)
-```
-
-**STX only (no ZOU):**
-
-```cmake
-set(LBYTE_STX_BUILD_ZOU OFF CACHE BOOL "" FORCE)
 add_subdirectory(extern/stx)
 target_link_libraries(<target> PRIVATE lbyte::stx)
 ```
@@ -149,41 +130,25 @@ target_link_libraries(<target> PRIVATE lbyte::stx)
 ```cmake
 set(LBYTE_STX_USE_MODULES ON CACHE BOOL "" FORCE)
 add_subdirectory(extern/stx)
-target_link_libraries(<target> PRIVATE lbyte::stx lbyte::zou)
+target_link_libraries(<target> PRIVATE lbyte::stx)
 ```
 
 **FetchContent:**
 
-Header-only:
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v0.2.0
+    GIT_TAG        v0.1.0
 )
-set(LBYTE_STX_BUILD_ZOU ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(stx)
-target_link_libraries(<target> PRIVATE lbyte::stx lbyte::zou)
-```
-
-With Modules:
-```cmake
-include(FetchContent)
-FetchContent_Declare(
-    stx
-    GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v0.2.0
-)
-set(LBYTE_STX_USE_MODULES ON CACHE BOOL "" FORCE)
-set(LBYTE_STX_BUILD_ZOU ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(stx)
-target_link_libraries(<target> PRIVATE lbyte::stx lbyte::zou)
+target_link_libraries(<target> PRIVATE lbyte::stx)
 ```
 
 ### Xmake
 
-**Fetch from git (like CMake's FetchContent):** Create a package script at `packages/z/zethcxx.stx/xmake.lua`:
+**Fetch from git:** Create a package script at `packages/z/zethcxx.stx/xmake.lua`:
 
 ```lua
 package("zethcxx.stx")
@@ -192,9 +157,8 @@ package("zethcxx.stx")
     set_description("C++23 Systems Toolbelt")
 
     add_urls("https://github.com/zethcxx/stx.git")
-    add_versions("v0.2.0", "v0.2.0")
+    add_versions("v0.1.0", "v0.1.0")
 
-    add_configs("with_zou",     { description = "Build zou utils"  , default = true , type = "boolean" })
     add_configs("use_modules",  { description = "Build C++ modules", default = false, type = "boolean" })
 
     on_load(function (package)
@@ -227,45 +191,18 @@ package_end()
 
 Then in your project's `xmake.lua`:
 
-Header-only:
 ```lua
-add_requires("zethcxx.stx", { configs = { with_zou = true }})
+add_requires("zethcxx.stx")
 
 target("myapp")
     set_languages("cxx23")
     add_packages("zethcxx.stx")
-```
-
-With Modules:
-```lua
-add_requires("zethcxx.stx", { configs = { with_zou = true, use_modules = true }})
-
-target("myapp")
-    set_languages("cxx23")
-    add_packages("zethcxx.stx")
-    add_policy("build.c++.modules", true)
 ```
 
 **Local copy (git clone / submodule):**
 
 ```lua
--- Header-only
 add_subdirs("stx")
-
-target("myapp")
-    set_languages("cxx23")
-    add_deps("stx", "zou")
-
--- With Modules
-add_subdirs("stx", { configs = { use_modules = true, with_zou = true }})
-
-target("myapp")
-    set_languages("cxx23")
-    add_deps("stx", "zou")
-    add_policy("build.c++.modules", true)
-
--- STX only (no zou)
-add_subdirs("stx", { configs = { with_zou = false }})
 
 target("myapp")
     set_languages("cxx23")

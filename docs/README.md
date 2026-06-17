@@ -15,7 +15,7 @@
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
 | Range | `range.hpp` | Integer range iteration |
 | Literals | `literals.hpp` | Literal suffixes for all core types ([docs](./api/literals.md)) |
-| String   | `ct.hpp`       | Compile-time string literals with trim/unindent ([docs](./api/ct.md)) |
+| String   | `ct.hpp`       | Compile-time string literals with trim/unindent ([docs](./api/stx/ct.md)) |
 
 ---
 
@@ -83,6 +83,7 @@ auto main() -> int
 - [Memory API](./api/mem.md) - Memory access, ptr
 - [Function API](./api/fn.md) - Function pointer invocations
 - [File API](./api/io.md) - Binary file stream utilities
-- [Time API](./api/time.md) - UNIX time and stopwatch
-- [Range API](./api/range.md) - Integer range iteration
+- [Time API](./api/stx/time.md) - UNIX time and stopwatch
+- [Range API](./api/stx/range.md) - Integer range iteration
 - [Literals API](./api/literals.md) - Literal suffixes for core types
+- [String API](./api/stx/ct.md) - Compile-time string literals

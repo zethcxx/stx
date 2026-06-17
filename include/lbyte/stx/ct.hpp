@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace lbyte::zou::ct
+namespace lbyte::stx::ct
 {
     template<size_t N>
     struct fixed_string {

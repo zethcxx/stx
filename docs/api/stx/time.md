@@ -1,13 +1,13 @@
 # `time.hpp`
 
-All examples assume `using namespace lbyte::zou;` for brevity.
+All examples assume `using namespace lbyte::stx;` for brevity.
 
 ## Overview
 
 `time.hpp` provides portable UNIX time utilities and a lightweight stopwatch
 built on `std::chrono` under C++23.
 
-Everything lives in `namespace zou::time`.
+Everything lives in `namespace stx::time`.
 
 ---
 

@@ -3,7 +3,7 @@
 #include "../stx/core.hpp"
 #include <cassert>
 
-namespace lbyte::zou
+namespace lbyte::stx
 {
     using namespace lbyte::stx;
     namespace details
@@ -59,23 +59,36 @@ namespace lbyte::zou
         };
     }
 
-    // FACTORY FUNCTIONS (explicit Type only, auto-converting args) ---------------
+    // FACTORY FUNCTIONS ---------------------------------------------------------
     // Direction is inferred: 1-arg/2-arg from to>=from, 3-arg from step sign.
+    //
+    // Deduction overloads (preferred): infer Type from arguments.
+    //    range(5)              → Type = int
+    //    range(off_s{5})       → Type = off_s
+    //    range(1, 10)          → Type = int (same-type args)
+    //    range(1, 10, -1)      → Type = int
+    //
+    // Explicit overloads: require explicit template argument.
+    //    range<usize>(off_s_var, rva_var)  → for mixed/non-common types
 
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range( auto _to ) noexcept
+    // ── Deduction overloads ──────────────────────────────────────────────────
+
+    template<details::rangeable T> [[nodiscard]]
+    constexpr auto range( T _to ) noexcept
     {
+        using Type = T;
         using ValueT = details::base_type_t<Type>;
-        using SignedT = std::make_signed_t<ValueT>;
         ValueT from{};
         ValueT to = details::unwrap( Type{ _to } );
         auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
         return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Exclusive };
     }
 
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range( auto _from, auto _to ) noexcept
+    template<details::rangeable T1, details::rangeable T2>
+        requires std::same_as<T1, T2>
+    [[nodiscard]] constexpr auto range( T1 _from, T2 _to ) noexcept
     {
+        using Type = T1;
         using ValueT = details::base_type_t<Type>;
         ValueT from = details::unwrap( Type{ _from } );
         ValueT to   = details::unwrap( Type{ _to   } );
@@ -83,9 +96,11 @@ namespace lbyte::zou
         return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Exclusive };
     }
 
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto range( auto _from, auto _to, auto _step ) noexcept
+    template<details::rangeable T1, details::rangeable T2>
+        requires std::same_as<T1, T2>
+    [[nodiscard]] constexpr auto range( T1 _from, T2 _to, auto _step ) noexcept
     {
+        using Type = T1;
         using ValueT = details::base_type_t<Type>;
         using SignedT = std::make_signed_t<ValueT>;
         ValueT from = details::unwrap( Type{ _from } );
@@ -96,9 +111,10 @@ namespace lbyte::zou
         return details::range_view<Type>{ from, to, mag, d, range_mode::Exclusive };
     }
 
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( auto _to ) noexcept
+    template<details::rangeable T> [[nodiscard]]
+    constexpr auto irange( T _to ) noexcept
     {
+        using Type = T;
         using ValueT = details::base_type_t<Type>;
         ValueT from{};
         ValueT to = details::unwrap( Type{ _to } );
@@ -106,9 +122,11 @@ namespace lbyte::zou
         return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Inclusive };
     }
 
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( auto _from, auto _to ) noexcept
+    template<details::rangeable T1, details::rangeable T2>
+        requires std::same_as<T1, T2>
+    [[nodiscard]] constexpr auto irange( T1 _from, T2 _to ) noexcept
     {
+        using Type = T1;
         using ValueT = details::base_type_t<Type>;
         ValueT from = details::unwrap( Type{ _from } );
         ValueT to   = details::unwrap( Type{ _to   } );
@@ -116,9 +134,11 @@ namespace lbyte::zou
         return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Inclusive };
     }
 
-    template<details::rangeable Type> [[nodiscard]]
-    constexpr auto irange( auto _from, auto _to, auto _step ) noexcept
+    template<details::rangeable T1, details::rangeable T2>
+        requires std::same_as<T1, T2>
+    [[nodiscard]] constexpr auto irange( T1 _from, T2 _to, auto _step ) noexcept
     {
+        using Type = T1;
         using ValueT = details::base_type_t<Type>;
         using SignedT = std::make_signed_t<ValueT>;
         ValueT from = details::unwrap( Type{ _from } );
@@ -128,11 +148,13 @@ namespace lbyte::zou
         ValueT mag = static_cast<ValueT>( step >= 0 ? step : -step );
         return details::range_view<Type>{ from, to, mag, d, range_mode::Inclusive };
     }
+
+
 }
 
 // DETAILS IMPLEMENTATIONS ---------------------------------------------------
-template<lbyte::zou::details::rangeable Type>
-struct lbyte::zou::details::range_iter
+template<lbyte::stx::details::rangeable Type>
+struct lbyte::stx::details::range_iter
 {
     using ValueT = base_type_t<Type>;
 
@@ -173,8 +195,8 @@ struct lbyte::zou::details::range_iter
 };
 
 // RANGE VIEW -----------------------------------------------------------------
-template<lbyte::zou::details::rangeable T>
-struct lbyte::zou::details::range_view
+template<lbyte::stx::details::rangeable T>
+struct lbyte::stx::details::range_view
 {
     using ValueT = details::base_type_t<T>;
     using iter_t = details::range_iter<T> ;

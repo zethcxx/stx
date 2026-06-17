@@ -186,7 +186,7 @@ Enums are `rangeable` — iterate over enum values without casting:
 ```cpp
 enum class Perms : u32 { Read = 1, Write = 2, Exec = 4, All = 7 };
 
-for (auto p : zou::irange<Perms>(Perms{0}, Perms{7}))
+for (auto p : stx::irange<Perms>(Perms{0}, Perms{7}))
     test_protection(p);              // p is Perms
 ```
 
@@ -197,7 +197,7 @@ for (auto p : zou::irange<Perms>(Perms{0}, Perms{7}))
 Domain separation is preserved — the iteration variable retains the strong type:
 
 ```cpp
-for (auto off : zou::range<stx::off_s>(0, 0x200, 0x28))
+for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
     scan_section(data, off);          // off is off_s
 ```
 
@@ -296,7 +296,7 @@ A `step == 0` triggers an assertion failure.
 ## 1. Scanning Memory Regions
 
 ```cpp
-for (auto off : zou::range<stx::off_s>(0, 0x200, 0x28))
+for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
 {
     auto name = reader.read<stx::u64>(off);
     auto vmsz = reader.read<stx::u32>(off + 0x18);
@@ -308,18 +308,18 @@ for (auto off : zou::range<stx::off_s>(0, 0x200, 0x28))
 
 ```cpp
 // Walk backwards using negative step
-for (auto off : zou::range<stx::off_s>(1024, 0, -16))
+for (auto off : stx::range<stx::off_s>(1024, 0, -16))
     process(off);   // 1024, 1008, ..., 16
 
 // Or use from>to with implicit step=+1
-for (auto off : zou::range<stx::off_s>(1024, 0))
+for (auto off : stx::range<stx::off_s>(1024, 0))
     process(off);   // 1024, 1023, ..., 1
 ```
 
 ## 3. Chunk Processing
 
 ```cpp
-for (auto off : zou::range<stx::off_s>(1024, 0, 16, /* implicitly exclusive */))
+for (auto off : stx::range<stx::off_s>(1024, 0, 16, /* implicitly exclusive */))
     // Wait — no 4-arg overload. Use:
     //   range<off_s>(1024, 0)  → step=+1, backward
     //   range<off_s>(1024, 0, -16)  → step=16, backward (exclusive of 0)
@@ -330,7 +330,7 @@ for (auto off : zou::range<stx::off_s>(1024, 0, 16, /* implicitly exclusive */))
 ```cpp
 constexpr auto sum = [] {
     auto s = 0;
-    for (auto i : zou::irange<int>(0, 100))
+    for (auto i : stx::irange<int>(0, 100))
         s += i;
     return s;
 }();
@@ -347,7 +347,7 @@ enum class Perms : stx::u32 {
     All     = 7,
 };
 
-for (auto p : zou::irange<Perms>(Perms{0}, Perms{7}))
+for (auto p : stx::irange<Perms>(Perms{0}, Perms{7}))
     test_protection(p);
 ```
 
@@ -357,7 +357,7 @@ for (auto p : zou::irange<Perms>(Perms{0}, Perms{7}))
 stx::off_s file_off{0x400};
 stx::rva_s image_rva{0x1000};
 
-for (auto off : zou::range<stx::off_s>(file_off, file_off + 0x200))
+for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
     scan_section(data, off);          // off is off_s
 ```
 
