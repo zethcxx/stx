@@ -85,8 +85,8 @@ User-defined literals for strong types and units.
 | `ct::fixed_string<N>`                    | Fixed-string NTTP for your own templates            |
 | `ct::fmt::strip / unindent`      | Transform flags                                     |
 | `ct::istr<"...", endian?>`       | Native integer (u8/u16/u32/u64), N ≤ 8              |
-| `ct::sstr<"...">`                | Static storage `string_view`, N > 8                 |
-| `ct::vstr<"...">`                | Value type (integer or `byte_block<N>`), any N      |
+| `ct::vstr<"...">`                | `byte_block<N>` with `.data()` / `.size()`, any N   |
+| `ct::byte_block<N>`              | Raw byte array with `.data()` / `.size()`           |
 
 ### 8. Time (`time.hpp`)
 

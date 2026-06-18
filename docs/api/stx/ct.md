@@ -169,19 +169,19 @@ static_assert( ct::istr<"\x01\x02">              == u16{0x0201} );
 static_assert( ct::istr<"\x01\x02", endian::big> == u16{0x0102} );
 ```
 
-## `ct::sstr<Str>` — static string (`std::string_view`, `.rodata`)
+## `ct::byte_block<N>` — raw byte array
 
-For strings > 8 bytes. Backed by a `static constexpr` array.
+A fixed-size byte array with `.data()` and `.size()`. Useful for binary I/O.
 
 ```cpp
-auto sv = ct::sstr<"hello world">;  // string_view → .rodata
+ct::byte_block<4> blk{};
 ```
 
-## `ct::vstr<Str>` — value string
+## `ct::vstr<Str>` — value string (`ct::byte_block<N>`)
 
-For any N. N ≤ 8 → integer; N > 8 → `byte_block<N>` with `.data()` / `.size()`.
+Packs any N into a `ct::byte_block<N>`. The entire string lives in the value itself (no static storage needed).
 
 ```cpp
 auto cmd = ct::vstr<"calc.exe\0">;  // byte_block<9>
-mem::write(buf, ct::vstr<"hello">); // uses value or range overload as appropriate
+mem::write(buf, cmd);
 ```

@@ -17,7 +17,7 @@ export namespace lbyte::stx::ct
     using ::lbyte::stx::ct::endian;
     using ::lbyte::stx::ct::str_type;
     using ::lbyte::stx::ct::str;
+    using ::lbyte::stx::ct::byte_block;
     using ::lbyte::stx::ct::istr;
-    using ::lbyte::stx::ct::sstr;
     using ::lbyte::stx::ct::vstr;
 }

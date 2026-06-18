@@ -44,6 +44,14 @@ namespace lbyte::stx::ct
         return static_cast<fmt>(~static_cast<unsigned char>(a));
     }
 
+    // ── byte_block ──────────────────────────────────────────────────────────────
+    template<size_t N>
+    struct byte_block {
+        u8 _[N];
+        [[nodiscard]] constexpr const u8* data() const noexcept { return _; }
+        [[nodiscard]] constexpr usize size() const noexcept { return N; }
+    };
+
     // ── endian ───────────────────────────────────────────────────────────────────
     enum class endian : unsigned char {
         little = 0,
@@ -144,11 +152,10 @@ namespace lbyte::stx::ct
         using namespace ::lbyte::stx;
 
         template<endian O, fixed_string Str>
+            requires (Str.size() > 0 && Str.size() <= 8)
         consteval auto make_istr() noexcept
         {
             constexpr auto N = Str.size();
-            static_assert(N > 0, "istr requires at least 1 byte");
-            static_assert(N <= 8, "istr only supports up to 8 bytes; use sstr (static) or vstr (value) for larger strings");
 
             if constexpr ( N <= 1 )
             {
@@ -174,50 +181,14 @@ namespace lbyte::stx::ct
         }
 
         template<fixed_string Str>
-        consteval auto make_sstr() noexcept
-        {
-            constexpr auto N = Str.size();
-            static_assert(N > 8, "sstr is only for strings larger than 8 bytes; use istr for small strings");
-
-            static constexpr std::array<char, N> arr = [&] {
-                std::array<char, N> a{};
-                for ( size_t i = 0; i < N; ++i )
-                    a[i] = Str.data[i];
-                return a;
-            }();
-            return std::string_view{ arr.data(), N };
-        }
-
-        template<fixed_string Str>
+            requires (Str.size() > 0)
         consteval auto make_vstr() noexcept
         {
             constexpr auto N = Str.size();
-            static_assert(N > 0, "vstr requires at least 1 byte");
-
-            if constexpr ( N <= 8 )
-            {
-                using T = std::conditional_t<N == 1, u8,
-                          std::conditional_t<N == 2, u16,
-                          std::conditional_t<N <= 4, u32, u64>>>;
-                T v{};
-                for ( size_t i = 0; i < N; ++i )
-                    v |= static_cast<T>( static_cast<unsigned char>( Str.data[i] ) )
-                        << ( i * 8 );
-                return v;
-            }
-            else
-            {
-                struct byte_block {
-                    u8 _[N];
-                    [[nodiscard]] constexpr const u8* data() const noexcept { return _; }
-                    [[nodiscard]] constexpr usize size() const noexcept { return N; }
-                };
-
-                byte_block blk{};
-                for ( size_t i = 0; i < N; ++i )
-                    blk._[i] = static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) );
-                return blk;
-            }
+            ::lbyte::stx::ct::byte_block<N> blk{};
+            for ( size_t i = 0; i < N; ++i )
+                blk._[i] = static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) );
+            return blk;
         }
     }
 
@@ -240,12 +211,22 @@ namespace lbyte::stx::ct
     public:
         static constexpr std::array<char, Str.size() + 1> value = build();
         using char_type = char;
+        using value_type = const char_type*;
+        using view_type  = std::basic_string_view<char_type>;
 
         [[nodiscard]] constexpr const char_type* data() const noexcept { return value.data(); }
-        [[nodiscard]] constexpr size_t size() const noexcept { return Str.size(); }
+        [[nodiscard]] constexpr size_t size() const noexcept {
+            size_t n = 0;
+            while (n < value.size() && value[n]) ++n;
+            return n;
+        }
 
         [[nodiscard]] constexpr operator const char_type*() const noexcept {
             return value.data();
+        }
+
+        [[nodiscard]] constexpr operator view_type() const noexcept {
+            return {value.data(), size()};
         }
 
         [[nodiscard]] constexpr std::basic_string<char_type> str() const {
@@ -259,10 +240,6 @@ namespace lbyte::stx::ct
     // ── istr ──────────────────────────────────────────────────────────────────────
     template<fixed_string Str, endian Order = endian::little>
     constexpr auto istr = details::make_istr<Order, Str>();
-
-    // ── sstr ──────────────────────────────────────────────────────────────────────
-    template<fixed_string Str>
-    constexpr auto sstr = details::make_sstr<Str>();
 
     // ── vstr ──────────────────────────────────────────────────────────────────────
     template<fixed_string Str>
