@@ -5,12 +5,6 @@
 #include <string>
 #include <string_view>
 
-#if __has_include(<ctre-unicode.hpp>)
-#include <ctre-unicode.hpp>
-#elif __has_include(<ctre.hpp>)
-#include <ctre.hpp>
-#endif
-
 namespace lbyte::stx::ct
 {
     template<size_t N>
@@ -531,6 +525,103 @@ namespace lbyte::stx::ct
             }
         };
 
+        struct remove_blank_lines {
+            template<size_t N>
+            static consteval auto apply(std::array<char, N> data) noexcept
+                -> std::array<char, N>
+            {
+                size_t null_pos = 0;
+                while (null_pos < N && data[null_pos] != '\0') ++null_pos;
+                std::array<char, N> result{};
+                size_t dst = 0;
+                size_t line_start = 0;
+                bool pending_nl = false;
+                for (size_t i = 0; i <= null_pos; ++i) {
+                    auto c = (i < null_pos) ? data[i] : '\n';
+                    if (c == '\n') {
+                        bool blank = true;
+                        for (size_t j = line_start; j < i; ++j) {
+                            if (data[j] != ' ' && data[j] != '\t') {
+                                blank = false;
+                                break;
+                            }
+                        }
+                        if (!blank) {
+                            if (pending_nl) result[dst++] = '\n';
+                            for (size_t j = line_start; j < i; ++j)
+                                result[dst++] = data[j];
+                            pending_nl = true;
+                        }
+                        line_start = i + 1;
+                    }
+                }
+                return result;
+            }
+        };
+
+        struct trim_each_line {
+            template<size_t N>
+            static consteval auto apply(std::array<char, N> data) noexcept
+                -> std::array<char, N>
+            {
+                size_t null_pos = 0;
+                while (null_pos < N && data[null_pos] != '\0') ++null_pos;
+                std::array<char, N> result{};
+                size_t dst = 0;
+                size_t line_start = 0;
+                bool leading = true;
+                for (size_t i = 0; i <= null_pos; ++i) {
+                    auto c = data[i];
+                    if (leading) {
+                        if (c == '\n') {
+                            result[dst++] = c;
+                            line_start = dst;
+                        } else if (c != ' ' && c != '\t') {
+                            result[dst++] = c;
+                            leading = false;
+                        }
+                    } else if (i == null_pos || c == '\n') {
+                        size_t end = dst;
+                        while (end > line_start && (result[end - 1] == ' ' || result[end - 1] == '\t'))
+                            --end;
+                        dst = end;
+                        if (i < null_pos) result[dst++] = '\n';
+                        line_start = dst;
+                        leading = true;
+                    } else {
+                        result[dst++] = c;
+                    }
+                }
+                result[dst] = '\0';
+                return result;
+            }
+        };
+
+        struct collapse_whitespace {
+            template<size_t N>
+            static consteval auto apply(std::array<char, N> data) noexcept
+                -> std::array<char, N>
+            {
+                size_t null_pos = 0;
+                while (null_pos < N && data[null_pos] != '\0') ++null_pos;
+                std::array<char, N> result{};
+                size_t dst = 0;
+                bool prev_ws = false;
+                for (size_t i = 0; i < null_pos; ++i) {
+                    auto c = data[i];
+                    if (c == ' ' || c == '\t') {
+                        if (!prev_ws)
+                            result[dst++] = ' ';
+                        prev_ws = true;
+                    } else {
+                        result[dst++] = c;
+                        prev_ws = false;
+                    }
+                }
+                return result;
+            }
+        };
+
         template<fixed_string From, fixed_string To>
             requires (To.size() <= From.size())
         struct replace_all {
@@ -703,74 +794,6 @@ namespace lbyte::stx::ct
 
     template<fixed_string Str, typename... Args>
     constexpr auto istr = istr_t<Str, Args...>::value;
-
-    // --- ct::re (CTRE-based compile-time regex, optional) -------------------------
-#if __has_include(<ctre.hpp>)
-    template<ctll::fixed_string Pattern>
-    struct re
-    {
-        template<fixed_string Replacement>
-        struct replace {
-            template<size_t N>
-            static consteval auto apply(std::array<char, N> data) noexcept
-                -> std::array<char, N>
-            {
-                constexpr auto repl = Replacement.data;
-                constexpr auto repl_n = Replacement.size();
-
-                size_t null_pos = 0;
-                while (null_pos < N && data[null_pos] != '\0') ++null_pos;
-                if (null_pos == 0) return data;
-
-                std::array<char, N> result{};
-                size_t dst = 0;
-
-                const char* ptr = data.data();
-                size_t remaining_size = null_pos;
-
-                while (remaining_size > 0)
-                {
-                    std::string_view current{ptr, remaining_size};
-                    auto match = ctre::search<Pattern>(current);
-                    if (!match) break;
-
-                    auto view = match.to_view();
-                    auto pos = static_cast<size_t>(view.data() - ptr);
-                    auto len = view.size();
-
-                    for (size_t i = 0; i < pos && dst < N - 1; ++i)
-                        result[dst++] = ptr[i];
-
-                    for (size_t i = 0; i < repl_n && dst < N - 1; ++i)
-                        result[dst++] = repl[i];
-
-                    if (len == 0) [[unlikely]] {
-                        if (dst < N - 1) result[dst++] = ptr[pos];
-                        ptr += pos + 1;
-                        remaining_size -= pos + 1;
-                    } else {
-                        ptr += pos + len;
-                        remaining_size -= pos + len;
-                    }
-                }
-
-                for (size_t i = 0; i < remaining_size && dst < N - 1; ++i)
-                    result[dst++] = ptr[i];
-
-                return result;
-            }
-        };
-
-        struct remove {
-            template<size_t N>
-            static consteval auto apply(std::array<char, N> data) noexcept
-                -> std::array<char, N>
-            {
-                return replace<"">::apply(data);
-            }
-        };
-    };
-#endif
 
     // --- vstr ---------------------------------------------------------------------
     //   vstr<"PE">        -> byte_block<2>

@@ -1,7 +1,7 @@
 # STX — C++23 Systems Toolbelt
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 
 A header-only C++23 library for low-level systems programming, binary analysis, and runtime instrumentation. Includes compile-time string literals, time utilities, and integer ranges.
 
@@ -84,7 +84,7 @@ User-defined literals for strong types and units.
 | `ct::str<"...", fmt...>`     | Compile-time string transform, `.rodata` storage    |
 | `ct::fixed_string<N>`                    | Fixed-string NTTP for your own templates            |
 | `ct::fmt::strip / unindent`      | Transform flags (includes `trim_left`, `replace_all`, `chain`, etc.) |
-| `ct::re<"...">::replace/remove` | CTRE-based compile-time regex replace/remove (`<lbyte/stx/ct_re.hpp>`) |
+| `ct::fmt::remove_blank_lines` | Remove blank/whitespace-only lines |
 | `ct::args<Vs...>`                | Format string expansion (`{}`, `{:x}`, `{:>8}`)     |
 | `ct::str_type<N>`                | Underlying type of `ct::str` with `apply<MoreFlags...>()` |
 | `ct::istr<"...", T?, Order?>`    | Integral string (auto/explicit type, little/big endian), N ≤ 8 |
@@ -143,7 +143,7 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v0.1.0
+    GIT_TAG        v0.2.0
 )
 FetchContent_MakeAvailable(stx)
 target_link_libraries(<target> PRIVATE lbyte::stx)
@@ -151,16 +151,18 @@ target_link_libraries(<target> PRIVATE lbyte::stx)
 
 ### Xmake
 
-**Fetch from git:** Create a package script at `packages/z/zethcxx.stx/xmake.lua`:
+**Fetch from git:** Create a package script at `packages/l/lbyte.stx/xmake.lua`:
 
 ```lua
-package("zethcxx.stx")
+package("lbyte.stx")
     set_kind("library", {headeronly = true})
     set_homepage("https://github.com/zethcxx/stx")
     set_description("C++23 Systems Toolbelt")
 
     add_urls("https://github.com/zethcxx/stx.git")
+    add_versions("main", "main")
     add_versions("v0.1.0", "v0.1.0")
+    add_versions("v0.2.0", "v0.2.0")
 
     add_configs("use_modules",  { description = "Build C++ modules", default = false, type = "boolean" })
 
@@ -185,8 +187,9 @@ package("zethcxx.stx")
     on_test(function (package)
         assert(package:check_cxxsnippets({test = [[
             #include <lbyte/stx/core.hpp>
-            using namespace lbyte::stx;
-            static_assert(version.major == 0);
+            using namespace lbyte;
+
+            int main(){ return stx::u32{}; }
         ]]}, { configs = { languages = "cxx23" } }))
     end)
 package_end()
@@ -195,11 +198,11 @@ package_end()
 Then in your project's `xmake.lua`:
 
 ```lua
-add_requires("zethcxx.stx")
+add_requires("lbyte.stx")
 
 target("myapp")
     set_languages("cxx23")
-    add_packages("zethcxx.stx")
+    add_packages("lbyte.stx")
 ```
 
 **Local copy (git clone / submodule):**
@@ -239,3 +242,4 @@ export CPLUS_INCLUDE_PATH="/usr/lib/clang/21/include/":$CPLUS_INCLUDE_PATH
 - Explicit memory and file safety, no hidden side effects
 - C++23 constexpr-friendly, usable in compile-time contexts
 - Focused on low-level tooling, scripting, reverse engineering
+

@@ -19,8 +19,4 @@ export namespace lbyte::stx::ct
     using ::lbyte::stx::ct::istr_t;
     using ::lbyte::stx::ct::istr;
     using ::lbyte::stx::ct::vstr;
-
-#if __has_include(<ctre.hpp>)
-    using ::lbyte::stx::ct::re;
-#endif
 }

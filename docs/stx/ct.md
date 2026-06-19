@@ -32,19 +32,22 @@ mem::write(buf, off_s{0}, x);
 Each flag is a **type** inside `struct fmt` -- not an enum value. Parameterized
 transforms take template arguments.
 
-| Flag / Transform | Effect |
-|---|---|
-| *(none)* | Raw string, no transformation |
-| `fmt::strip` | Remove first line if empty (whitespace-only) and last line if empty |
-| `fmt::unindent` | Strip common leading whitespace based on first text line's indentation |
-| `fmt::trim_left` | Remove leading whitespace (spaces/tabs) |
-| `fmt::trim_right` | Remove trailing whitespace (spaces/tabs) |
-| `fmt::trim_trailing_lines` | Trim trailing whitespace on each line |
-| `fmt::collapse_blank_lines` | Collapse consecutive blank lines into one |
-| `fmt::replace_all\<"from", "to"\>` | Replace all occurrences of `from` with `to` |
-| `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker |
-| `fmt::chain\<Fs...\>` | Apply multiple transforms in order |
-| `fmt::trim_block` | Preset: `chain\<strip, unindent\>` |
+| Flag / Transform                   | Effect                                                                 |
+|------------------------------------|------------------------------------------------------------------------|
+| *(none)*                           | Raw string, no transformation                                          |
+| `fmt::strip`                       | Remove first line if empty (whitespace-only) and last line if empty    |
+| `fmt::unindent`                    | Strip common leading whitespace based on first text line's indentation |
+| `fmt::trim_left`                   | Remove leading whitespace (spaces/tabs)                                |
+| `fmt::trim_right`                  | Remove trailing whitespace (spaces/tabs)                               |
+| `fmt::trim_trailing_lines`         | Trim trailing whitespace on each line                                  |
+| `fmt::collapse_blank_lines`        | Collapse consecutive blank lines into one                              |
+| `fmt::remove_blank_lines`          | Remove entirely blank (or whitespace-only) lines                       |
+| `fmt::trim_each_line`              | Trim leading/trailing whitespace on each line                          |
+| `fmt::collapse_whitespace`         | Collapse horizontal whitespace (spaces/tabs) to single space           |
+| `fmt::replace_all\<"from", "to"\>` | Replace all occurrences of `from` with `to`                            |
+| `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker                            |
+| `fmt::chain\<Fs...\>`              | Apply multiple transforms in order                                     |
+| `fmt::trim_block`                  | Preset: `chain\<strip, unindent\>`                                     |
 
 ## Usage
 
@@ -117,6 +120,36 @@ std::string_view{ ct::str<"\n  hello\n  world\n", ct::fmt::trim_block> }
 // "hello\nworld"
 ```
 
+## remove_blank_lines
+
+Removes any line that is empty or contains only whitespace (spaces/tabs).
+
+```cpp
+std::string_view{ ct::str<"a\n\n\nb",           ct::fmt::remove_blank_lines> } // "a\nb"
+std::string_view{ ct::str<"a\n  \nb",           ct::fmt::remove_blank_lines> } // "a\nb"
+std::string_view{ ct::str<"\n\na",              ct::fmt::remove_blank_lines> } // "a"
+std::string_view{ ct::str<"hello",              ct::fmt::remove_blank_lines> } // "hello"
+```
+
+## trim_each_line
+
+Trims leading and trailing whitespace from each line independently.
+
+```cpp
+std::string_view{ ct::str<"  hello\n  world",  ct::fmt::trim_each_line> } // "hello\nworld"
+std::string_view{ ct::str<"hello   \nworld ",  ct::fmt::trim_each_line> } // "hello\nworld"
+std::string_view{ ct::str<"  hello world  ",   ct::fmt::trim_each_line> } // "hello world"
+```
+
+## collapse_whitespace
+
+Collapses sequences of horizontal whitespace (spaces and tabs) into a single space.
+
+```cpp
+std::string_view{ ct::str<"a    b   c",        ct::fmt::collapse_whitespace> } // "a b c"
+std::string_view{ ct::str<"a\t\tb  c",         ct::fmt::collapse_whitespace> } // "a b c"
+```
+
 ## replace_all
 
 Replaces all occurrences of `From` with `To`. Requires `To.size() <= From.size()`
@@ -141,9 +174,20 @@ std::string_view{ ct::str<"a\n// b\nc", ct::fmt::strip_line_comments<"//">> }
 Applies a sequence of transforms in declaration order (left to right).
 
 ```cpp
-std::string_view{ ct::str<"\n  a\n  b\n",
-    ct::fmt::chain<ct::fmt::strip, ct::fmt::unindent, ct::fmt::replace_all<"a", "z">>> }
-// "z\nb"
+std::string_view{ ct::str<"\n  a\n\n  b\n",
+    ct::fmt::chain<ct::fmt::trim_block, ct::fmt::remove_blank_lines>> }
+// "a\nb"
+
+// Full minify pipeline
+std::string_view{ ct::str<"\n  e asm.nbytes      = 16\n  e scr.color       = 1\n",
+    ct::fmt::chain<
+        ct::fmt::trim_block,
+        ct::fmt::trim_each_line,
+        ct::fmt::collapse_whitespace,
+        ct::fmt::replace_all<" = ", "=">,
+        ct::fmt::replace_all<"\n", ";">
+    >> }
+// "e asm.nbytes=16;e scr.color=1"
 ```
 
 ## `constexpr` context
@@ -293,52 +337,24 @@ auto sig = ct::vstr<"PE", 4>;   // byte_block<4>{'P','E',0,0}
 auto cmd = ct::vstr<"cmd.exe">; // byte_block<7>{'c','m','d','.','e','x','e'}
 ```
 
-## `ct::re<Pattern>` -- compile-time regex (via CTRE)
+## Compile-time regex via CTRE (external)
 
-Available when CTRE is detectable (`__has_include(<ctre.hpp>)`). Include `<ctre.hpp>`
-before or after `<lbyte/stx/ct.hpp>` -- `ct::re<...>` is defined inside `ct.hpp`
-when CTRE is present. Adds two transforms compatible with `ct::str` and `ct::fmt::chain`:
-
-| Transform | Effect |
-|---|---|
-| `re<Pattern>::replace<Replacement>` | Replace all matches of `Pattern` with `Replacement` |
-| `re<Pattern>::remove` | Remove all matches of `Pattern` (shorthand for `replace<"">`) |
+`ct::re<Pattern>` is no longer included in stx. If you need compile-time regex, use
+[CTRE](https://github.com/hanickadot/compile-time-regular-expressions) directly:
 
 ```cpp
-// CTRE must be in your include path. Include in any order:
 #include <ctre.hpp>
 #include <lbyte/stx/ct.hpp>
 
 using namespace lbyte::stx;
 
-// Collapse multiple newlines to semicolon
-auto a = ct::str<"a\n\n\nb", ct::re<"\n+">::replace<";">>;
-std::string_view{a};            // "a;b"
+// Replace matches via fmt::replace_all (for fixed strings)
+auto a = ct::str<"a--b--c", ct::fmt::replace_all<"--", ".">>;
+std::string_view{a};            // "a.b.c"
 
-// Collapse horizontal whitespace
-auto b = ct::str<"a    b   c", ct::re<"\\s+">::replace<" ">>;
-std::string_view{b};            // "a b c"
-
-// Trim spaces around = (minify config)
-auto c = ct::str<"e asm.nbytes      = 16", ct::re<"\\s*=\\s*">::replace<"=">>;
-std::string_view{c};            // "e asm.nbytes=16"
-
-// Remove matches entirely
-auto d = ct::str<"a--b--c", ct::re<"--">::remove>;
-std::string_view{d};            // "abc"
-
-// Chained with fmt transforms
-auto e = ct::str<"\n  hello\n  world\n", ct::fmt::chain<
-    ct::fmt::trim_block,
-    ct::re<"\n+">::replace<";">
->>;
-std::string_view{e};            // "hello;world"
+// For regex patterns at compile time, use CTRE's own facilities:
+//   ctre::search<"\n+">(str), ctre::replace<...>(str), etc.
+// See https://github.com/hanickadot/compile-time-regular-expressions
+```
 ```
 
-Notes:
-- `Pattern` uses PCRE syntax (via CTRE) -- supports `\s`, `\d`, `\w`, `+`, `*`, etc.
-- Unicode properties like `\p{Letter}`, `\p{Number}`, `\p{Uppercase}` are supported
-  (requires `<ctre-unicode.hpp>`, auto-detected via `__has_include`).
-- Patterns with zero-length matches (e.g. `\s*`) advance by one character to prevent infinite loops.
-- Compatible with `ct::fmt::chain`, `ct::str`, and `str_type::apply()`.
-```
