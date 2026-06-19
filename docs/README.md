@@ -15,7 +15,7 @@
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
 | Range | `range.hpp` | Integer range iteration |
 | Literals | `literals.hpp` | Literal suffixes for all core types ([docs](./api/literals.md)) |
-| String   | `ct.hpp`       | Compile-time string literals with trim/unindent ([docs](./api/stx/ct.md)) |
+| String   | `ct.hpp`       | Compile-time string transforms + optional CTRE regex ([docs](./stx/ct.md)) |
 
 ---
 

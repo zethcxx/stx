@@ -83,7 +83,10 @@ User-defined literals for strong types and units.
 |----------------------------------|-----------------------------------------------------|
 | `ct::str<"...", fmt...>`     | Compile-time string transform, `.rodata` storage    |
 | `ct::fixed_string<N>`                    | Fixed-string NTTP for your own templates            |
-| `ct::fmt::strip / unindent`      | Transform flags                                     |
+| `ct::fmt::strip / unindent`      | Transform flags (includes `trim_left`, `replace_all`, `chain`, etc.) |
+| `ct::re<"...">::replace/remove` | CTRE-based compile-time regex replace/remove (`<lbyte/stx/ct_re.hpp>`) |
+| `ct::args<Vs...>`                | Format string expansion (`{}`, `{:x}`, `{:>8}`)     |
+| `ct::str_type<N>`                | Underlying type of `ct::str` with `apply<MoreFlags...>()` |
 | `ct::istr<"...", T?, Order?>`    | Integral string (auto/explicit type, little/big endian), N ≤ 8 |
 | `ct::vstr<"...">` / `vstr<"...", N>` | `byte_block<N>` with `.data()` / `.size()`, padded to N |
 | `ct::byte_block<N>`              | Raw byte array with `.data()` / `.size()`           |
