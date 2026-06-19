@@ -159,15 +159,20 @@ import lbyte.stx;   // includes ct::str
 import lbyte.stx.ct; // or just the ct module
 ```
 
-## `ct::istr<Str, Order>` — integral string
+## `ct::istr<Str, T?, Order?>` — integral string
 
-Packs ≤ 8 bytes into `u8`/`u16`/`u32`/`u64`. Compile error for larger strings.
+Packs ≤ 8 bytes into `u8`/`u16`/`u32`/`u64`. Parameters are positional: string (required), type (optional, defaults to auto-deduced), endian (optional, defaults to `ct::endian::little`).
 
 ```cpp
 using namespace lbyte::stx;
-static_assert( ct::istr<"\x01\x02">              == u16{0x0201} );
-static_assert( ct::istr<"\x01\x02", endian::big> == u16{0x0102} );
+static_assert( ct::istr<"\x01\x02">                       == u16{0x0201}      );
+static_assert( ct::istr<"\x01\x02", ct::endian::big>      == u16{0x0102}      );
+static_assert( ct::istr<"MZ", u64>                        == u64{0x5A4D}      );
+static_assert( ct::istr<"PE", u32>                        == u32{0x00004550}  );
+static_assert( ct::istr<"PE", u32, ct::endian::big>       == u32{0x50450000}  );
 ```
+
+Note: `ct::endian::big` and `ct::endian::little` are type tags (not enum values).
 
 ## `ct::byte_block<N>` — raw byte array
 
@@ -177,11 +182,11 @@ A fixed-size byte array with `.data()` and `.size()`. Useful for binary I/O.
 ct::byte_block<4> blk{};
 ```
 
-## `ct::vstr<Str>` — value string (`ct::byte_block<N>`)
+## `ct::vstr<Str>` / `ct::vstr<Str, N>` — value string (`ct::byte_block<N>`)
 
-Packs any N into a `ct::byte_block<N>`. The entire string lives in the value itself (no static storage needed).
+Packs a string into a `ct::byte_block<N>`. If `N > Str.size()`, the extra bytes are zero-padded. If `N == Str.size()` (default), exact fit.
 
 ```cpp
-auto cmd = ct::vstr<"calc.exe\0">;  // byte_block<9>
-mem::write(buf, cmd);
+auto sig = ct::vstr<"PE", 4>;   // byte_block<4>{'P','E',0,0}
+auto cmd = ct::vstr<"cmd.exe">; // byte_block<7>{'c','m','d','.','e','x','e'}
 ```

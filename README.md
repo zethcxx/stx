@@ -75,7 +75,7 @@ User-defined literals for strong types and units.
 | Namespace     | Contents                                      |
 |---------------|-----------------------------------------------|
 | `ct::fmt`     | String formatting flags (`strip`, `unindent`) |
-| `ct::endian`  | Endianness (`order::little`, `order::big`)    |
+| `ct::endian`  | Endianness (enum `v`, type `tag<E>`, aliases `little`/`big`) |
 
 #### Components
 
@@ -84,8 +84,8 @@ User-defined literals for strong types and units.
 | `ct::str<"...", fmt...>`     | Compile-time string transform, `.rodata` storage    |
 | `ct::fixed_string<N>`                    | Fixed-string NTTP for your own templates            |
 | `ct::fmt::strip / unindent`      | Transform flags                                     |
-| `ct::istr<"...", endian?>`       | Native integer (u8/u16/u32/u64), N ≤ 8              |
-| `ct::vstr<"...">`                | `byte_block<N>` with `.data()` / `.size()`, any N   |
+| `ct::istr<"...", T?, Order?>`    | Integral string (auto/explicit type, little/big endian), N ≤ 8 |
+| `ct::vstr<"...">` / `vstr<"...", N>` | `byte_block<N>` with `.data()` / `.size()`, padded to N |
 | `ct::byte_block<N>`              | Raw byte array with `.data()` / `.size()`           |
 
 ### 8. Time (`time.hpp`)

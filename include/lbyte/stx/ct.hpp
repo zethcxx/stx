@@ -23,7 +23,7 @@ namespace lbyte::stx::ct
         [[nodiscard]] constexpr bool operator==(const fixed_string&) const = default;
     };
 
-    // ── fmt ──────────────────────────────────────────────────────────────────────
+    // --- fmt ---------------------------------------------------------------------
     // Compile-time string formatting flags for str_type / str<>
     enum class fmt : unsigned char {
         none     = 0,
@@ -44,7 +44,7 @@ namespace lbyte::stx::ct
         return static_cast<fmt>(~static_cast<unsigned char>(a));
     }
 
-    // ── byte_block ──────────────────────────────────────────────────────────────
+    // --- byte_block --------------------------------------------------------------
     template<size_t N>
     struct byte_block {
         u8 _[N];
@@ -52,13 +52,16 @@ namespace lbyte::stx::ct
         [[nodiscard]] constexpr usize size() const noexcept { return N; }
     };
 
-    // ── endian ───────────────────────────────────────────────────────────────────
-    enum class endian : unsigned char {
-        little = 0,
-        big    = 1,
+    // --- endian struct (enum values + type tags for template usage) --------------
+    struct endian {
+        enum v : unsigned char { _little = 0, _big = 1 };
+        template<v E>
+        struct tag { static constexpr v value = E; };
+        using little = tag<_little>;
+        using big    = tag<_big>;
     };
 
-    // ── details (internal helpers) ───────────────────────────────────────────────
+    // --- details (internal helpers) ------------------------------------------------
     namespace details
     {
         template<size_t N>
@@ -151,48 +154,35 @@ namespace lbyte::stx::ct
 
         using namespace ::lbyte::stx;
 
-        template<endian O, fixed_string Str>
-            requires (Str.size() > 0 && Str.size() <= 8)
-        consteval auto make_istr() noexcept
+        template<endian::v O, std::integral T, fixed_string Str>
+            requires (Str.size() > 0 && sizeof(T) <= 8 && Str.size() <= sizeof(T))
+        consteval T make_istr_impl() noexcept
         {
             constexpr auto N = Str.size();
-
-            if constexpr ( N <= 1 )
-            {
-                u8 v{};
-                for ( size_t i = 0; i < N; ++i )
-                    v |= static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) )
-                        << ( i * 8 );
-                return v;
-            }
-            else
-            {
-                using T = std::conditional_t<N == 2, u16,
-                          std::conditional_t<N <= 4, u32, u64>>;
-                T v{};
-                for ( size_t i = 0; i < N; ++i )
-                {
-                    auto s = static_cast<size_t>( O == endian::little ? i : ( N - 1 - i ) );
-                    v |= static_cast<T>( static_cast<unsigned char>( Str.data[i] ) )
-                        << ( s * 8 );
-                }
-                return v;
-            }
-        }
-
-        template<fixed_string Str>
-            requires (Str.size() > 0)
-        consteval auto make_vstr() noexcept
-        {
-            constexpr auto N = Str.size();
-            ::lbyte::stx::ct::byte_block<N> blk{};
+            T v{};
             for ( size_t i = 0; i < N; ++i )
-                blk._[i] = static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) );
-            return blk;
+            {
+                auto s = static_cast<size_t>( O == endian::_little ? i : ( sizeof(T) - 1 - i ) );
+                v |= static_cast<T>( static_cast<unsigned char>( Str.data[i] ) )
+                    << ( s * 8 );
+            }
+            return v;
         }
+
+        template<size_t N>
+        struct istr_type_selector {};
+        template<> struct istr_type_selector<1> { using type = u8;  };
+        template<> struct istr_type_selector<2> { using type = u16; };
+        template<size_t N> requires (N >= 3 && N <= 4)
+        struct istr_type_selector<N> { using type = u32; };
+        template<size_t N> requires (N >= 5 && N <= 8)
+        struct istr_type_selector<N> { using type = u64; };
+
+        template<size_t N>
+        using istr_type_t = typename istr_type_selector<N>::type;
     }
 
-    // ── str / str_type ────────────────────────────────────────────────────────────
+    // --- str / str_type -----------------------------------------------------------
     template<fixed_string Str, fmt... Flags>
     struct str_type {
     private:
@@ -237,12 +227,46 @@ namespace lbyte::stx::ct
     template<fixed_string Str, fmt... Flags>
     constexpr str_type<Str, Flags...> str{};
 
-    // ── istr ──────────────────────────────────────────────────────────────────────
-    template<fixed_string Str, endian Order = endian::little>
-    constexpr auto istr = details::make_istr<Order, Str>();
+    // --- istr_t (variable template with optional positional args) ------------------
+    template<fixed_string Str, typename... Args>
+        requires (Str.size() > 0 && Str.size() <= 8 && sizeof...(Args) <= 2)
+    struct istr_t;
 
-    // ── vstr ──────────────────────────────────────────────────────────────────────
     template<fixed_string Str>
-    constexpr auto vstr = details::make_vstr<Str>();
+    struct istr_t<Str> {
+        static constexpr auto value = details::make_istr_impl<endian::_little, details::istr_type_t<Str.size()>, Str>();
+    };
+
+    template<fixed_string Str, typename A>
+        requires (Str.size() > 0 && Str.size() <= 8)
+    struct istr_t<Str, A> {
+        static constexpr auto value = [] {
+            if constexpr (std::integral<A>)
+                return details::make_istr_impl<endian::_little, A, Str>();
+            else
+                return details::make_istr_impl<A::value, details::istr_type_t<Str.size()>, Str>();
+        }();
+    };
+
+    template<fixed_string Str, std::integral T, typename E>
+        requires (Str.size() > 0 && sizeof(T) <= 8 && Str.size() <= sizeof(T))
+    struct istr_t<Str, T, E> {
+        static constexpr auto value = details::make_istr_impl<E::value, T, Str>();
+    };
+
+    template<fixed_string Str, typename... Args>
+    constexpr auto istr = istr_t<Str, Args...>::value;
+
+    // --- vstr ---------------------------------------------------------------------
+    //   vstr<"PE">        -> byte_block<2>
+    //   vstr<"PE", 4>     -> byte_block<4> (zero-padded)
+    template<fixed_string Str, size_t N = Str.size()>
+        requires (N >= Str.size())
+    constexpr byte_block<N> vstr = [] {
+        byte_block<N> blk{};
+        for ( size_t i = 0; i < Str.size(); ++i )
+            blk._[i] = static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) );
+        return blk;
+    }();
 }
 
