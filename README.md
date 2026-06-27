@@ -217,24 +217,6 @@ target("myapp")
 
 ---
 
-## Troubleshooting
-
-### Missing Clang Resource Headers
-
-When using C++ Modules with Clang, you might encounter errors like:
-
-```
-fatal error: 'stddef.h' file not found
-```
-
-Export the resource path:
-
-```bash
-export CPLUS_INCLUDE_PATH="/usr/lib/clang/21/include/":$CPLUS_INCLUDE_PATH
-```
-
----
-
 ## Design Principles
 
 - Header-only, zero-runtime overhead abstractions
