@@ -444,12 +444,21 @@ namespace lbyte::stx::ct
             {
                 size_t null_pos = 0;
                 while (null_pos < N && data[null_pos] != '\0') ++null_pos;
-                size_t start = 0;
-                while (start < null_pos && (data[start] == ' ' || data[start] == '\t'))
-                    ++start;
                 std::array<char, N> result{};
-                for (size_t i = start; i < null_pos; ++i)
-                    result[i - start] = data[i];
+                size_t dst = 0;
+                size_t line_start = 0;
+                for (size_t i = 0; i <= null_pos; ++i) {
+                    auto c = (i < null_pos) ? data[i] : '\n';
+                    if (c == '\n') {
+                        size_t content = line_start;
+                        while (content < i && (data[content] == ' ' || data[content] == '\t'))
+                            ++content;
+                        for (size_t j = content; j < i; ++j)
+                            result[dst++] = data[j];
+                        if (i < null_pos) result[dst++] = '\n';
+                        line_start = i + 1;
+                    }
+                }
                 return result;
             }
         };
@@ -462,12 +471,23 @@ namespace lbyte::stx::ct
                 size_t null_pos = 0;
                 while (null_pos < N && data[null_pos] != '\0') ++null_pos;
                 if (null_pos == 0) return data;
-                size_t end = null_pos;
-                while (end > 0 && (data[end - 1] == ' ' || data[end - 1] == '\t'))
-                    --end;
                 std::array<char, N> result{};
-                for (size_t i = 0; i < end; ++i)
-                    result[i] = data[i];
+                size_t dst = 0;
+                size_t line_start = 0;
+                for (size_t i = 0; i <= null_pos; ++i) {
+                    auto c = (i < null_pos) ? data[i] : '\n';
+                    if (c == '\n') {
+                        size_t end = dst;
+                        while (end > line_start && (result[end - 1] == ' ' || result[end - 1] == '\t'))
+                            --end;
+                        dst = end;
+                        if (i < null_pos) result[dst++] = '\n';
+                        line_start = dst;
+                    } else {
+                        result[dst++] = c;
+                    }
+                }
+                result[dst] = '\0';
                 return result;
             }
         };

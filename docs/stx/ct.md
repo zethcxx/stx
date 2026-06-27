@@ -37,8 +37,8 @@ transforms take template arguments.
 | *(none)*                           | Raw string, no transformation                                          |
 | `fmt::strip`                       | Remove first line if empty (whitespace-only) and last line if empty    |
 | `fmt::unindent`                    | Strip common leading whitespace based on first text line's indentation |
-| `fmt::trim_left`                   | Remove leading whitespace (spaces/tabs)                                |
-| `fmt::trim_right`                  | Remove trailing whitespace (spaces/tabs)                               |
+| `fmt::trim_left`                   | Per-line: remove leading whitespace (spaces/tabs) from each line       |
+| `fmt::trim_right`                  | Per-line: remove trailing whitespace (spaces/tabs) from each line      |
 | `fmt::trim_trailing_lines`         | Trim trailing whitespace on each line                                  |
 | `fmt::collapse_blank_lines`        | Collapse consecutive blank lines into one                              |
 | `fmt::remove_blank_lines`          | Remove entirely blank (or whitespace-only) lines                       |
