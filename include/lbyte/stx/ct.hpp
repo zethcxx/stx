@@ -400,7 +400,7 @@ namespace lbyte::stx::ct
             }
         };
 
-        // --- apply flags to array (recursive materialization avoids Clang fold bug) -
+        // --- apply flags to array (recursive, auto step forces materialization) ---
         template<size_t N>
         [[nodiscard]] consteval auto apply_flags(
             std::array<char, N> data) noexcept -> std::array<char, N>
@@ -413,6 +413,23 @@ namespace lbyte::stx::ct
             auto step = F::apply(data);
             return apply_flags<Rest...>(step);
         }
+
+        // --- NTTP-based chain (forces materialization via template instantiation) -
+        template<auto Data>
+        struct apply_chain_base {
+            using type = decltype(Data);
+            static constexpr type value = Data;
+        };
+
+        template<auto Data, typename... Flags>
+        struct apply_chain;
+
+        template<auto Data>
+        struct apply_chain<Data> : apply_chain_base<Data> {};
+
+        template<auto Data, typename F, typename... Rest>
+        struct apply_chain<Data, F, Rest...>
+            : apply_chain<F::apply(Data), Rest...> {};
 
         // --- fixed_string from array ---------------------------------------------
         template<size_t N>
@@ -729,24 +746,23 @@ namespace lbyte::stx::ct
     private:
         static constexpr bool _has_args = (details::is_args<Flags>::value || ...);
 
-        template<typename... Fs>
-        static constexpr auto apply_transforms(
-            std::array<char, Str.size() + 1> data) noexcept -> std::array<char, Str.size() + 1>
-        {
-            return details::apply_flags<Fs...>(data);
+        static constexpr auto compute_initial() noexcept {
+            constexpr size_t N = Str.size() + 1;
+            std::array<char, N> arr{};
+            for (size_t i = 0; i < N; ++i)
+                arr[i] = Str.data[i];
+            return arr;
         }
 
     public:
+        static constexpr auto initial_data = compute_initial();
+
         static constexpr auto value = [] {
             if constexpr (_has_args) {
                 using ArgsT = typename details::extract_args<Flags...>::type;
                 return details::expand_format_impl<Str, ArgsT>::fill();
             } else {
-                constexpr size_t N = Str.size() + 1;
-                std::array<char, N> data{};
-                for (size_t i = 0; i < N; ++i)
-                    data[i] = Str.data[i];
-                return apply_transforms<Flags...>(data);
+                return details::apply_chain<initial_data, Flags...>::value;
             }
         }();
 
@@ -776,7 +792,7 @@ namespace lbyte::stx::ct
         template<typename... MoreFlags>
         static constexpr auto apply() noexcept {
             constexpr auto new_fs = []() {
-                constexpr auto arr = apply_transforms<MoreFlags...>(value);
+                constexpr auto arr = details::apply_chain<value, MoreFlags...>::value;
                 return details::arr_to_fs(arr);
             }();
             return str_type<new_fs, Flags..., MoreFlags...>{};
