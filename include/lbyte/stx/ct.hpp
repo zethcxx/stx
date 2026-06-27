@@ -400,13 +400,18 @@ namespace lbyte::stx::ct
             }
         };
 
-        // --- apply flags to array ------------------------------------------------
-        template<typename... Flags, size_t N>
-        [[nodiscard]] consteval auto apply_flags(std::array<char, N> data) noexcept
-            -> std::array<char, N>
+        // --- apply flags to array (recursive materialization avoids Clang fold bug) -
+        template<size_t N>
+        [[nodiscard]] consteval auto apply_flags(
+            std::array<char, N> data) noexcept -> std::array<char, N>
+        { return data; }
+
+        template<typename F, typename... Rest, size_t N>
+        [[nodiscard]] consteval auto apply_flags(
+            std::array<char, N> data) noexcept -> std::array<char, N>
         {
-            ((data = Flags::apply(data)), ...);
-            return data;
+            auto step = F::apply(data);
+            return apply_flags<Rest...>(step);
         }
 
         // --- fixed_string from array ---------------------------------------------
@@ -712,10 +717,7 @@ namespace lbyte::stx::ct
             template<size_t N>
             static consteval auto apply(std::array<char, N> data) noexcept
                 -> std::array<char, N>
-            {
-                ((data = Fs::apply(data)), ...);
-                return data;
-            }
+            { return details::apply_flags<Fs...>(data); }
         };
 
         // Preset
@@ -731,8 +733,7 @@ namespace lbyte::stx::ct
         static constexpr auto apply_transforms(
             std::array<char, Str.size() + 1> data) noexcept -> std::array<char, Str.size() + 1>
         {
-            ((data = Fs::apply(data)), ...);
-            return data;
+            return details::apply_flags<Fs...>(data);
         }
 
     public:
