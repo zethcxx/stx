@@ -755,14 +755,13 @@ namespace lbyte::stx::ct
         }
 
     public:
-        static constexpr auto initial_data = compute_initial();
-
         static constexpr auto value = [] {
             if constexpr (_has_args) {
                 using ArgsT = typename details::extract_args<Flags...>::type;
                 return details::expand_format_impl<Str, ArgsT>::fill();
             } else {
-                return details::apply_chain<initial_data, Flags...>::value;
+                constexpr auto init = compute_initial();
+                return details::apply_chain<init, Flags...>::value;
             }
         }();
 
