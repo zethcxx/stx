@@ -10,10 +10,12 @@ Compile-time string literal transformations with `static` storage.
 
 ## Overview
 
-`ct::str<"str", flags...>` transforms a raw string literal at compile time and
-exposes the result as `operator const CharT*()`, `.data()`, and `.size()`. The transformed
-data lives in a `static constexpr` member -- permanent storage duration (like a
-string literal in `.rodata`). No temporary lifetime issues.
+`ct::str<"str", CharT = char, flags...>` transforms a raw string literal at
+compile time and exposes the result as `operator const CharT*()`, `.data()`, and
+`.size()`. The second template parameter lets you choose the character type
+(default `char`). The transformed data lives in a `static constexpr` member --
+permanent storage duration (like a string literal in `.rodata`). No temporary
+lifetime issues.
 
 ```cpp
 using namespace lbyte::stx;
@@ -236,6 +238,38 @@ constexpr auto make_hex() noexcept { /* your decode logic */ }
 ```cpp
 auto x = ct::str<"hello", ct::fmt::strip>;     // no braces
 constexpr auto y = ct::str<"hello">;       // constexpr works
+```
+
+## Typed strings with custom `CharT`
+
+The second template parameter selects the output character type. This is useful
+for interop with non-`char` string types like `xmlChar`, `wchar_t`, etc.
+
+```cpp
+using namespace lbyte::stx;
+
+// Default: char
+auto a = ct::str<"hello">;
+const char* p = a;
+
+// Custom CharT
+auto b = ct::str<"hello", wchar_t>;
+const wchar_t* q = b;
+```
+
+With flags and format args:
+
+```cpp
+auto s = ct::str<"value={}", unsigned char, ct::args<42>>;
+// s.data() -> const unsigned char*
+```
+
+`str_type::apply()` preserves the `CharT`:
+
+```cpp
+using T = decltype(ct::str<"-hello-", unsigned char, ct::fmt::trim_left>);
+auto y = T::apply<ct::fmt::trim_right>();
+// y is ct::str_type<"-hello-", unsigned char, ct::fmt::trim_left, ct::fmt::trim_right>
 ```
 
 ## Format strings with `ct::args<Vs...>`

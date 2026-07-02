@@ -741,7 +741,7 @@ namespace lbyte::stx::ct
         using trim_block = chain<strip, unindent>;
     };
 
-    template<fixed_string Str, typename... Flags>
+    template<fixed_string Str, typename CharT = char, typename... Flags>
     struct str_type {
     private:
         static constexpr bool _has_args = (details::is_args<Flags>::value || ...);
@@ -754,8 +754,7 @@ namespace lbyte::stx::ct
             return arr;
         }
 
-    public:
-        static constexpr auto value = [] {
+        static constexpr auto _raw_value = [] {
             if constexpr (_has_args) {
                 using ArgsT = typename details::extract_args<Flags...>::type;
                 return details::expand_format_impl<Str, ArgsT>::fill();
@@ -765,7 +764,20 @@ namespace lbyte::stx::ct
             }
         }();
 
-        using char_type = char;
+    public:
+        static constexpr auto value = [] {
+            if constexpr (std::same_as<CharT, char>) {
+                return _raw_value;
+            } else {
+                constexpr auto& raw = _raw_value;
+                std::array<CharT, raw.size()> dst{};
+                for (size_t i = 0; i < raw.size(); ++i)
+                    dst[i] = static_cast<CharT>(raw[i]);
+                return dst;
+            }
+        }();
+
+        using char_type = CharT;
         using value_type = const char_type*;
         using view_type  = std::basic_string_view<char_type>;
 
@@ -791,15 +803,15 @@ namespace lbyte::stx::ct
         template<typename... MoreFlags>
         static constexpr auto apply() noexcept {
             constexpr auto new_fs = []() {
-                constexpr auto arr = details::apply_chain<value, MoreFlags...>::value;
+                constexpr auto arr = details::apply_chain<_raw_value, MoreFlags...>::value;
                 return details::arr_to_fs(arr);
             }();
-            return str_type<new_fs, Flags..., MoreFlags...>{};
+            return str_type<new_fs, CharT, Flags..., MoreFlags...>{};
         }
     };
 
-    template<fixed_string Str, typename... Flags>
-    constexpr str_type<Str, Flags...> str{};
+    template<fixed_string Str, typename CharT = char, typename... Flags>
+    constexpr str_type<Str, CharT, Flags...> str{};
 
     // --- istr_t (variable template with optional positional args) ------------------
     template<fixed_string Str, typename... Args>
