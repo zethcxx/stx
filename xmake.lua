@@ -36,3 +36,5 @@ target("stx")
             target:add( "cxxmodules", "modules/stx/*.cppm" )
         end
     end)
+
+includes("tests")

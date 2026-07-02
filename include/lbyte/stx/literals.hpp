@@ -1,6 +1,7 @@
 #pragma once
 #include "./mem.hpp"
 #include "./endian.hpp"
+#include "./ct.hpp"
 
 namespace lbyte::stx::literals
 {
@@ -21,6 +22,7 @@ namespace lbyte::stx::literals
     constexpr i32   operator""_i32 ( unsigned long long v ) noexcept { return static_cast<i32  >(v); }
     constexpr i64   operator""_i64 ( unsigned long long v ) noexcept { return static_cast<i64  >(v); }
     constexpr usize operator""_uz  ( unsigned long long v ) noexcept { return static_cast<usize>(v); }
+    constexpr isize operator""_iz  ( unsigned long long v ) noexcept { return static_cast<isize>(v); }
 
     // --- STRONG TYPES --------------------------------------------------------
     constexpr off_s operator""_off_s( unsigned long long v ) noexcept {
@@ -48,9 +50,33 @@ namespace lbyte::stx::literals
         return static_cast<usize>( v ) * 1024uz * 1024uz * 1024uz;
     }
 
+    constexpr usize operator""_tb( unsigned long long v ) noexcept {
+        return static_cast<usize>( v ) * 1024uz * 1024uz * 1024uz * 1024uz;
+    }
+
+    constexpr usize operator""_pb( unsigned long long v ) noexcept {
+        return static_cast<usize>( v ) * 1024uz * 1024uz * 1024uz * 1024uz * 1024uz;
+    }
+
     // --- POINTERS (default to std::byte) ------------------------------------
     constexpr ptr<std::byte> operator""_ptr( unsigned long long v ) noexcept {
         return ptr<std::byte>{ static_cast<uptr>(v) };
+    }
+
+    constexpr ptr<u8>  operator""_ptr8 ( unsigned long long v ) noexcept {
+        return ptr<u8>{ static_cast<uptr>(v) };
+    }
+
+    constexpr ptr<u16> operator""_ptr16( unsigned long long v ) noexcept {
+        return ptr<u16>{ static_cast<uptr>(v) };
+    }
+
+    constexpr ptr<u32> operator""_ptr32( unsigned long long v ) noexcept {
+        return ptr<u32>{ static_cast<uptr>(v) };
+    }
+
+    constexpr ptr<u64> operator""_ptr64( unsigned long long v ) noexcept {
+        return ptr<u64>{ static_cast<uptr>(v) };
     }
 
     // --- ENDIAN TYPES (auto-sized) -----------------------------------------
@@ -114,6 +140,48 @@ namespace lbyte::stx::literals
     template<char... Cs>
     constexpr auto operator""_be() noexcept {
         return details::deduce_be<details::uint_value<Cs...>::value>();
+    }
+
+    // --- ENDIAN TYPES (fixed-width) -----------------------------------------
+    constexpr le<u16> operator""_le16( unsigned long long v ) noexcept {
+        return le<u16>{ static_cast<u16>(v) };
+    }
+
+    constexpr le<u32> operator""_le32( unsigned long long v ) noexcept {
+        return le<u32>{ static_cast<u32>(v) };
+    }
+
+    constexpr le<u64> operator""_le64( unsigned long long v ) noexcept {
+        return le<u64>{ static_cast<u64>(v) };
+    }
+
+    constexpr be<u16> operator""_be16( unsigned long long v ) noexcept {
+        return be<u16>{ static_cast<u16>(v) };
+    }
+
+    constexpr be<u32> operator""_be32( unsigned long long v ) noexcept {
+        return be<u32>{ static_cast<u32>(v) };
+    }
+
+    constexpr be<u64> operator""_be64( unsigned long long v ) noexcept {
+        return be<u64>{ static_cast<u64>(v) };
+    }
+
+    // --- STRING -> INTEGER (ASCII pack) ------------------------------------
+    template<ct::fixed_string S>
+    constexpr auto operator""_istr() noexcept {
+        return ct::istr<S>;
+    }
+
+    template<ct::fixed_string S>
+    constexpr auto operator""_istr_be() noexcept {
+        return ct::istr<S, ct::endian::big>;
+    }
+
+    // --- STRING -> BYTE_BLOCK ----------------------------------------------
+    template<ct::fixed_string S>
+    constexpr auto operator""_vstr() noexcept {
+        return ct::vstr<S>;
     }
 }
 

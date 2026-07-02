@@ -48,9 +48,10 @@ using lbyte::stx::literals::operator""_off_s;
 
 ### Size
 
-| Suffix | Type    | Example |
-|--------|---------|---------|
-| `_uz`  | `usize` | `42_uz` |
+| Suffix | Type    | Example  |
+|--------|---------|----------|
+| `_uz`  | `usize` | `42_uz`  |
+| `_iz`  | `isize` | `-1_iz`  |
 
 ### Strong Types
 
@@ -62,17 +63,23 @@ using lbyte::stx::literals::operator""_off_s;
 
 ### Pointer Types
 
-| Suffix | Type             | Example      |
-|--------|------------------|--------------|
-| `_ptr` | `ptr<std::byte>` | `0x1000_ptr` |
+| Suffix   | Type          | Example          |
+|----------|---------------|------------------|
+| `_ptr`   | `ptr<std::byte>` | `0x1000_ptr`  |
+| `_ptr8`  | `ptr<u8>`     | `0x1000_ptr8`    |
+| `_ptr16` | `ptr<u16>`    | `0x1000_ptr16`   |
+| `_ptr32` | `ptr<u32>`    | `0x1000_ptr32`   |
+| `_ptr64` | `ptr<u64>`    | `0x1000_ptr64`   |
 
 ### Size Multiples (powers of 1024)
 
-| Suffix | Type    | Value        | Example             |
-|--------|---------|--------------|---------------------|
-| `_kb`  | `usize` | `v * 1024`   | `4_kb` = 4096       |
-| `_mb`  | `usize` | `v * 1024^2` | `2_mb` = 2097152    |
-| `_gb`  | `usize` | `v * 1024^3` | `1_gb` = 1073741824 |
+| Suffix | Type    | Value        | Example                  |
+|--------|---------|--------------|--------------------------|
+| `_kb`  | `usize` | `v * 1024`   | `4_kb` = 4096            |
+| `_mb`  | `usize` | `v * 1024^2` | `2_mb` = 2097152         |
+| `_gb`  | `usize` | `v * 1024^3` | `1_gb` = 1073741824      |
+| `_tb`  | `usize` | `v * 1024^4` | `1_tb` = 1099511627776   |
+| `_pb`  | `usize` | `v * 1024^5` | `1_pb` = 1125899906842624 |
 
 ### Endian Literals
 
@@ -96,6 +103,36 @@ Literals are implemented as template char-pack operators for compile-time value 
 template<char... Cs>
 constexpr auto operator""_le() noexcept;
 ```
+
+### Fixed-Width Endian
+
+| Suffix   | Return Type | Example       |
+|----------|-------------|---------------|
+| `_le16`  | `le<u16>`   | `0x1234_le16` |
+| `_le32`  | `le<u32>`   | `0x1234_le32` |
+| `_le64`  | `le<u64>`   | `0x1234_le64` |
+| `_be16`  | `be<u16>`   | `0x5678_be16` |
+| `_be32`  | `be<u32>`   | `0x5678_be32` |
+| `_be64`  | `be<u64>`   | `0x5678_be64` |
+
+Unlike `_le`/`_be`, these always return the specified width regardless of the value.
+
+### String → Integer (ASCII pack)
+
+| Suffix     | Return Type                         | Example              |
+|------------|-------------------------------------|----------------------|
+| `_istr`    | `u8`, `u16`, `u32` or `u64` (auto) | `"MZ"_istr` → `u16`  |
+| `_istr_be` | `u8`, `u16`, `u32` or `u64` (auto) | `"MZ"_istr_be` → `u16` |
+
+Packs ASCII characters into an unsigned integer. The size is deduced from the string length (up to 8 bytes). `_istr` packs in little-endian order, `_istr_be` in big-endian.
+
+### String → Byte Block
+
+| Suffix  | Return Type           | Example                    |
+|---------|-----------------------|----------------------------|
+| `_vstr` | `byte_block<N>`       | `"PE"_vstr` → `{'P','E'}` |
+
+Produces a `byte_block<N>` from a string literal.
 
 ## Usage Notes
 
