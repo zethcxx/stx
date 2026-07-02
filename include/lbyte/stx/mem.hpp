@@ -9,7 +9,6 @@
 #include <iterator>
 #include <span>
 #include <string_view>
-#include <memory>
 
 #if defined(__GNUC__) || defined(__clang__)
     #define STX_FORCE_INLINE [[gnu::always_inline]] inline
@@ -32,7 +31,7 @@ namespace lbyte::stx
         // SAFE MEMORY ACCESS (memcpy, well-defined, unaligned-safe) -----------------
         template<binary_readable Type, address_like Addr>
         [[nodiscard]] STX_FORCE_INLINE
-        constexpr Type read( Addr base ) noexcept
+        Type read( Addr base ) noexcept
         {
             Type value;
             std::memcpy(
@@ -52,7 +51,7 @@ namespace lbyte::stx
         }
 
         template<byte_swappable Type, address_like Addr>
-        [[nodiscard]] STX_FORCE_INLINE constexpr Type read_be( Addr base ) noexcept
+        [[nodiscard]] STX_FORCE_INLINE Type read_be( Addr base ) noexcept
         {
             using Raw = details::raw_for_endian<Type>::type;
             auto raw = read<Raw>(base);
@@ -484,7 +483,7 @@ namespace lbyte::stx
         template<typename U = T>
         STX_FORCE_INLINE
         void write( U value ) const noexcept
-            requires ( not std::is_void_v<U> && binary_readable<U> && !contiguous_buffer<U> )
+            requires ( not std::is_void_v<U> and binary_readable<U> and not contiguous_buffer<U> )
         {
             std::memcpy( rcast<std::byte*>(address), &value, sizeof(U) );
         }
@@ -522,7 +521,7 @@ namespace lbyte::stx
         template<typename U = T>
         STX_FORCE_INLINE
         ptr& push( const U& value ) noexcept
-            requires ( not std::is_void_v<U> && binary_readable<U> && !contiguous_buffer<U> )
+            requires ( not std::is_void_v<U> and binary_readable<U> and not contiguous_buffer<U> )
         {
             std::memcpy( rcast<std::byte*>(address), &value, sizeof(U) );
             address += sizeof(U);
@@ -794,7 +793,6 @@ namespace lbyte::stx
 }
 
 #include <format>
-#include <functional>
 
 template<typename T>
 struct std::hash<lbyte::stx::ptr<T>>

@@ -1,11 +1,9 @@
 #pragma once
 
-#include "../stx/core.hpp"
-#include <cassert>
+#include "core.hpp"
 
 namespace lbyte::stx
 {
-    using namespace lbyte::stx;
     namespace details
     {
         template<typename Type>
@@ -212,7 +210,8 @@ struct lbyte::stx::details::range_view
     {
         ::lbyte::stx::usize remaining = 0;
 
-        assert( step != 0 && "range: step must be non-zero" );
+        if ( step == 0 )
+            return iter_t{from, step, 0, dir_};
 
         if ( dir_ == dir::fwd )
         {

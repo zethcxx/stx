@@ -1,11 +1,10 @@
 #pragma once
 
-#include "../stx/core.hpp"
+#include "core.hpp"
 #include <chrono>
 
 namespace lbyte::stx::time
 {
-    using namespace lbyte::stx;
     // CLOCK ALIASES -------------------------------------------------------------
     using wall_clock   = std::chrono::system_clock;
     using hires_clock  = std::chrono::high_resolution_clock;

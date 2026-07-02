@@ -53,6 +53,7 @@ export namespace lbyte::stx
     using ::lbyte::stx::contiguous_buffer;
     using ::lbyte::stx::writable_buffer;
     using ::lbyte::stx::bounded_array;
+    using ::lbyte::stx::bounded_array_t;
     using ::lbyte::stx::buffer_type;
 
 

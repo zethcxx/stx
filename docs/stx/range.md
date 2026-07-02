@@ -287,7 +287,7 @@ The interval is always `[from, to)` for `range` and `[from, to]` for `irange`.
 
 Where `dist = to - from` (fwd) or `dist = from - to` (bwd).
 
-A `step == 0` triggers an assertion failure.
+A `step == 0` produces an empty range — the loop body never executes. This is safe and constexpr-friendly; no assertion or UB.
 
 ---
 

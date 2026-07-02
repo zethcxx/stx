@@ -1,6 +1,6 @@
 #pragma once
-#include "../stx/core.hpp"
-#include "../stx/endian.hpp"
+#include "core.hpp"
+#include "endian.hpp"
 #include <array>
 #include <string>
 #include <string_view>

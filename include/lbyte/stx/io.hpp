@@ -1,6 +1,6 @@
 #pragma once
-#include "./core.hpp"
-#include "./mem.hpp"
+#include "core.hpp"
+#include "mem.hpp"
 
 #include <expected>
 #include <istream>
@@ -347,14 +347,12 @@ namespace lbyte::stx
         memcur(ptr<ByteType> base, usize size, off_s pos) noexcept
             : base_(base)
             , size_(size)
-            , cur_(base + off_s{scast<off_s::value_type>(pos.get() < 0 ? 0 : pos.get())})
+            , cur_{}
         {
-            const auto position = pos.get();
-            auto target_offset = position < 0 ? 0 : position;
-
+            auto target_offset = pos.get();
+            if (target_offset < 0) target_offset = 0;
             if (target_offset > scast<off_s::value_type>(size_))
                 target_offset = scast<off_s::value_type>(size_);
-
             cur_ = base_ + off_s{target_offset};
         }
 

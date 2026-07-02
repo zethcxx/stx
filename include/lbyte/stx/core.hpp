@@ -245,9 +245,10 @@ namespace lbyte::stx
         template<typename T, usize N> struct bounded_array_impl<T[N]> {
             using type = std::array<typename bounded_array_impl<T>::type, N>;
         };
-        template<typename T>
-        using bounded_array_t = typename bounded_array_impl<T>::type;
     }
+
+    template<typename T>
+    using bounded_array_t = typename details::bounded_array_impl<T>::type;
 
     template<typename T>
     concept byte_offset
@@ -305,8 +306,8 @@ namespace lbyte::stx
     }
 
     template<class Type>
-    STX_FORCE_INLINE
-    Type ccast( auto value ) noexcept {
+    [[nodiscard]] STX_FORCE_INLINE
+    constexpr Type ccast( auto value ) noexcept {
         return const_cast<Type>( value );
     }
 
