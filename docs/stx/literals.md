@@ -70,16 +70,27 @@ using lbyte::stx::literals::operator""_off_s;
 | `_ptr16` | `ptr<u16>`    | `0x1000_ptr16`   |
 | `_ptr32` | `ptr<u32>`    | `0x1000_ptr32`   |
 | `_ptr64` | `ptr<u64>`    | `0x1000_ptr64`   |
+| `_ptrv`  | `ptr<void>`   | `0x1000_ptrv`   |
 
-### Size Multiples (powers of 1024)
+### Size Multiples (IEC binary — powers of 1024)
 
 | Suffix | Type    | Value        | Example                  |
 |--------|---------|--------------|--------------------------|
-| `_kb`  | `usize` | `v * 1024`   | `4_kb` = 4096            |
-| `_mb`  | `usize` | `v * 1024^2` | `2_mb` = 2097152         |
-| `_gb`  | `usize` | `v * 1024^3` | `1_gb` = 1073741824      |
-| `_tb`  | `usize` | `v * 1024^4` | `1_tb` = 1099511627776   |
-| `_pb`  | `usize` | `v * 1024^5` | `1_pb` = 1125899906842624 |
+| `_kib` | `usize` | `v * 1024`   | `4_kib` = 4096           |
+| `_mib` | `usize` | `v * 1024^2` | `2_mib` = 2097152        |
+| `_gib` | `usize` | `v * 1024^3` | `1_gib` = 1073741824     |
+| `_tib` | `usize` | `v * 1024^4` | `1_tib` ≈ 1.1e12         |
+| `_pib` | `usize` | `v * 1024^5` | `1_pib` ≈ 1.13e15        |
+
+### Size Multiples (SI decimal — powers of 1000)
+
+| Suffix | Type    | Value        | Example                   |
+|--------|---------|--------------|---------------------------|
+| `_kb`  | `usize` | `v * 1000`   | `4_kb` = 4000             |
+| `_mb`  | `usize` | `v * 1000^2` | `2_mb` = 2000000          |
+| `_gb`  | `usize` | `v * 1000^3` | `1_gb` = 1000000000       |
+| `_tb`  | `usize` | `v * 1000^4` | `1_tb` = 1000000000000    |
+| `_pb`  | `usize` | `v * 1000^5` | `1_pb` = 1000000000000000 |
 
 ### Endian Literals
 
@@ -119,9 +130,9 @@ Unlike `_le`/`_be`, these always return the specified width regardless of the va
 
 ### String → Integer (ASCII pack)
 
-| Suffix     | Return Type                         | Example              |
-|------------|-------------------------------------|----------------------|
-| `_istr`    | `u8`, `u16`, `u32` or `u64` (auto) | `"MZ"_istr` → `u16`  |
+| Suffix     | Return Type                         | Example               |
+|------------|-------------------------------------|-----------------------|
+| `_istr`    | `u8`, `u16`, `u32` or `u64` (auto) | `"MZ"_istr` → `u16`    |
 | `_istr_be` | `u8`, `u16`, `u32` or `u64` (auto) | `"MZ"_istr_be` → `u16` |
 
 Packs ASCII characters into an unsigned integer. The size is deduced from the string length (up to 8 bytes). `_istr` packs in little-endian order, `_istr_be` in big-endian.
@@ -130,7 +141,7 @@ Packs ASCII characters into an unsigned integer. The size is deduced from the st
 
 | Suffix  | Return Type           | Example                    |
 |---------|-----------------------|----------------------------|
-| `_vstr` | `byte_block<N>`       | `"PE"_vstr` → `{'P','E'}` |
+| `_vstr` | `byte_block<N>`       | `"PE"_vstr` → `{'P','E'}`  |
 
 Produces a `byte_block<N>` from a string literal.
 
@@ -139,8 +150,8 @@ Produces a `byte_block<N>` from a string literal.
 Because of pp-number greediness, a literal followed by a dot access requires parentheses:
 
 ```cpp
-auto x = (4_kb).align_up(...);   // OK
-// auto x = 4_kb.align_up(...);  // error: pp-number `4_kb.align_up`
+auto x = (4_kib).align_up(...);   // OK
+// auto x = 4_kib.align_up(...);  // error: pp-number `4_kib.align_up`
 ```
 
 ---
@@ -150,5 +161,5 @@ auto x = (4_kb).align_up(...);   // OK
 - All literal operators are `constexpr`.
 - No namespace pollution when unused.
 - Each suffix mirrors its corresponding type alias.
-- Size literals use 1024-based (kibibyte) convention.
+- Size literals include both IEC binary (`_kib`/`_mib`/`_gib`/`_tib`/`_pib`, 1024-base) and SI decimal (`_kb`/`_mb`/`_gb`/`_tb`/`_pb`, 1000-base) prefixes.
 

@@ -37,25 +37,46 @@ namespace lbyte::stx::literals
         return va_s{ static_cast<va_s::value_type>(v) };
     }
 
-    // --- SIZE LITERALS (powers of 1024) ------------------------------------
+    // --- SIZE LITERALS (powers of 1024, IEC binary prefixes) ---------------
+    constexpr usize operator""_kib( unsigned long long v ) noexcept {
+        return static_cast<usize>( v * 1024ULL );
+    }
+
+    constexpr usize operator""_mib( unsigned long long v ) noexcept {
+        return static_cast<usize>( v * 1024ULL * 1024ULL );
+    }
+
+    constexpr usize operator""_gib( unsigned long long v ) noexcept {
+        return static_cast<usize>( v * 1024ULL * 1024ULL * 1024ULL );
+    }
+
+    constexpr usize operator""_tib( unsigned long long v ) noexcept {
+        return static_cast<usize>( v * 1024ULL * 1024ULL * 1024ULL * 1024ULL );
+    }
+
+    constexpr usize operator""_pib( unsigned long long v ) noexcept {
+        return static_cast<usize>( v * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL );
+    }
+
+    // --- SIZE LITERALS (powers of 1000, SI decimal prefixes) ---------------
     constexpr usize operator""_kb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024uz;
+        return static_cast<usize>( v * 1000ULL );
     }
 
     constexpr usize operator""_mb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024uz * 1024uz;
+        return static_cast<usize>( v * 1000ULL * 1000ULL );
     }
 
     constexpr usize operator""_gb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024uz * 1024uz * 1024uz;
+        return static_cast<usize>( v * 1000ULL * 1000ULL * 1000ULL );
     }
 
     constexpr usize operator""_tb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024uz * 1024uz * 1024uz * 1024uz;
+        return static_cast<usize>( v * 1000ULL * 1000ULL * 1000ULL * 1000ULL );
     }
 
     constexpr usize operator""_pb( unsigned long long v ) noexcept {
-        return static_cast<usize>( v ) * 1024uz * 1024uz * 1024uz * 1024uz * 1024uz;
+        return static_cast<usize>( v * 1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL );
     }
 
     // --- POINTERS (default to std::byte) ------------------------------------
@@ -77,6 +98,10 @@ namespace lbyte::stx::literals
 
     constexpr ptr<u64> operator""_ptr64( unsigned long long v ) noexcept {
         return ptr<u64>{ static_cast<uptr>(v) };
+    }
+
+    constexpr ptr<void> operator""_ptrv( unsigned long long v ) noexcept {
+        return ptr<void>{ static_cast<uptr>(v) };
     }
 
     // --- ENDIAN TYPES (auto-sized) -----------------------------------------
@@ -183,5 +208,6 @@ namespace lbyte::stx::literals
     constexpr auto operator""_vstr() noexcept {
         return ct::vstr<S>;
     }
+
 }
 
