@@ -1,7 +1,7 @@
 #pragma once
 #include "core.hpp"
-#include "endian.hpp"
 #include <array>
+#include <tuple>
 #include <string>
 #include <string_view>
 
@@ -9,6 +9,7 @@ namespace lbyte::stx::ct
 {
     template<size_t N>
     struct fixed_string {
+        using value_type = char;
         char data[N]{};
 
         constexpr fixed_string() noexcept = default;
@@ -23,6 +24,17 @@ namespace lbyte::stx::ct
         [[nodiscard]] constexpr bool operator==(const fixed_string&) const = default;
     };
 
+    // --- byte_block --------------------------------------------------------------
+    template<size_t N>
+    struct byte_block {
+        u8 _[N];
+        [[nodiscard]] constexpr const u8* data() const noexcept { return _; }
+        [[nodiscard]] constexpr u8* data() noexcept { return _; }
+        [[nodiscard]] constexpr usize size() const noexcept { return N; }
+        [[nodiscard]] constexpr const u8& operator[](size_t i) const noexcept { return _[i]; }
+        [[nodiscard]] constexpr u8& operator[](size_t i) noexcept { return _[i]; }
+    };
+
     // --- forward decls for str_type / fmt ----------------------------------------
     template<typename T>
     struct formatter;
@@ -32,14 +44,6 @@ namespace lbyte::stx::ct
 
     template<fixed_string Str, typename... Flags>
     struct str_type;
-
-    // --- byte_block --------------------------------------------------------------
-    template<size_t N>
-    struct byte_block {
-        u8 _[N];
-        [[nodiscard]] constexpr const u8* data() const noexcept { return _; }
-        [[nodiscard]] constexpr usize size() const noexcept { return N; }
-    };
 
     // --- endian struct (enum values + type tags for template usage) --------------
     struct endian {
@@ -441,7 +445,46 @@ namespace lbyte::stx::ct
                 fs.data[i] = arr[i];
             return fs;
         }
+
     }
+
+    // --- repeat: repeat a pattern V, N times ------------------------------------
+    template<auto V, size_t Reps>
+    struct repeat_t;
+
+    template<auto V, size_t Reps>
+        requires std::is_scalar_v<std::remove_cvref_t<decltype(V)>>
+    struct repeat_t<V, Reps> {
+        using value_type = std::remove_cvref_t<decltype(V)>;
+        static constexpr std::array<value_type, Reps> value = [] {
+            std::array<value_type, Reps> a{};
+            for (size_t i = 0; i < Reps; ++i)
+                a[i] = V;
+            return a;
+        }();
+    };
+
+    template<auto V, size_t Reps>
+        requires (not std::is_scalar_v<decltype(V)>
+               && requires { typename std::remove_cvref_t<decltype(V)>::value_type; }
+               && requires { std::tuple_size<std::remove_cvref_t<decltype(V)>>{}; })
+    struct repeat_t<V, Reps> {
+        using element_type = typename std::remove_cvref_t<decltype(V)>::value_type;
+        static constexpr size_t pat_size =
+            std::tuple_size_v<std::remove_cvref_t<decltype(V)>>;
+        static constexpr size_t total = pat_size * Reps;
+        static constexpr std::array<element_type, total> value = [] {
+            std::array<element_type, total> a{};
+            for (size_t r = 0; r < Reps; ++r)
+                for (size_t i = 0; i < pat_size; ++i)
+                    a[r * pat_size + i] = V[i];
+            return a;
+        }();
+        using value_type = element_type;
+    };
+
+    template<auto V, size_t Reps>
+    constexpr auto repeat = repeat_t<V, Reps>::value;
 
     // --- fmt (compile-time string transforms) -----------------------------------
     struct fmt {
@@ -741,7 +784,7 @@ namespace lbyte::stx::ct
         using trim_block = chain<strip, unindent>;
     };
 
-    template<fixed_string Str, typename CharT = char, typename... Flags>
+    template<fixed_string Str, typename... Flags>
     struct str_type {
     private:
         static constexpr bool _has_args = (details::is_args<Flags>::value || ...);
@@ -765,30 +808,20 @@ namespace lbyte::stx::ct
         }();
 
     public:
-        static constexpr auto value = [] {
-            if constexpr (std::same_as<CharT, char>) {
-                return _raw_value;
-            } else {
-                constexpr auto& raw = _raw_value;
-                std::array<CharT, raw.size()> dst{};
-                for (size_t i = 0; i < raw.size(); ++i)
-                    dst[i] = static_cast<CharT>(raw[i]);
-                return dst;
-            }
-        }();
+        static constexpr auto value = _raw_value;
 
-        using char_type = CharT;
-        using value_type = const char_type*;
-        using view_type  = std::basic_string_view<char_type>;
+        using char_type = char;
+        using value_type = const char*;
+        using view_type  = std::string_view;
 
-        [[nodiscard]] constexpr const char_type* data() const noexcept { return value.data(); }
+        [[nodiscard]] constexpr const char* data() const noexcept { return value.data(); }
         [[nodiscard]] constexpr size_t size() const noexcept {
             size_t n = 0;
             while (n < value.size() && value[n]) ++n;
             return n;
         }
 
-        [[nodiscard]] constexpr operator const char_type*() const noexcept {
+        [[nodiscard]] constexpr operator const char*() const noexcept {
             return value.data();
         }
 
@@ -796,8 +829,8 @@ namespace lbyte::stx::ct
             return {value.data(), size()};
         }
 
-        [[nodiscard]] constexpr std::basic_string<char_type> str() const {
-            return std::basic_string<char_type>{ value.data() };
+        [[nodiscard]] constexpr std::string str() const {
+            return std::string{ value.data() };
         }
 
         template<typename... MoreFlags>
@@ -806,12 +839,12 @@ namespace lbyte::stx::ct
                 constexpr auto arr = details::apply_chain<_raw_value, MoreFlags...>::value;
                 return details::arr_to_fs(arr);
             }();
-            return str_type<new_fs, CharT, Flags..., MoreFlags...>{};
+            return str_type<new_fs, Flags..., MoreFlags...>{};
         }
     };
 
-    template<fixed_string Str, typename CharT = char, typename... Flags>
-    constexpr str_type<Str, CharT, Flags...> str{};
+    template<fixed_string Str, typename... Flags>
+    constexpr str_type<Str, Flags...> str{};
 
     // --- istr_t (variable template with optional positional args) ------------------
     template<fixed_string Str, typename... Args>

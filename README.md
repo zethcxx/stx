@@ -90,6 +90,7 @@ User-defined literals for strong types and units.
 | `ct::istr<"...", T?, Order?>`    | Integral string (auto/explicit type, little/big endian), N ≤ 8 |
 | `ct::vstr<"...">` / `vstr<"...", N>` | `byte_block<N>` with `.data()` / `.size()`, padded to N |
 | `ct::byte_block<N>`              | Raw byte array with `.data()` / `.size()`           |
+| `ct::repeat<V, Reps>`               | Repeat pattern V (scalar/array), `Reps` times → `std::array` |
 
 ### 8. Time (`time.hpp`)
 
@@ -219,9 +220,34 @@ target("myapp")
 
 ## Design Principles
 
-- Header-only, zero-runtime overhead abstractions
-- Strong typing for offsets, addresses, and function signatures
-- Explicit memory and file safety, no hidden side effects
-- C++23 constexpr-friendly, usable in compile-time contexts
-- Focused on low-level tooling, scripting, reverse engineering
+### Pay for what you use
+
+No global state, no vtable, no hidden allocations, no registration. If you don't include a header, it doesn't exist. If you include it, the cost is predictable:
+
+| Area                 | Cost model                          | Notes                                                         |
+|----------------------|-------------------------------------|---------------------------------------------------------------|
+| `ct::`               | **Zero** — compile-time only        | `constexpr` / `consteval` — disappears entirely at runtime    |
+| `mem::ptr`, `memcur` | **O(1)**, no hidden work            | Plain pointer arithmetic + `memcpy`; `constexpr`-safe helpers |
+| `mem::read / write`  | **O(1)**                            | Single `memcpy` or aligned dereference                        |
+| `io::readfs`         | **O(n)**, no heap                   | User-provided buffer, no hidden alloc                         |
+| `time::now()`        | **1 syscall**                       | Wraps `clock_gettime`                                         |
+| `range`, `fn`        | **Zero** — all `constexpr` / inline | Optimizer folds them away                                     |
+
+### Strong typing
+
+Offsets, addresses, and function signatures use distinct types — not raw integers. Impossible to accidentally pass an RVA where an offset is expected.
+
+### Explicit over implicit
+
+- `mem::read` always copies — no aliasing footguns
+- `mem::read_raw` explicitly opts into direct dereference (requires alignment)
+- Stream positioning requires an explicit direction (`beg`, `cur`, `end`)
+
+### C++23 constexpr-friendly
+
+All `ct::` and `range` components are `constexpr`. Use them in static_assert, template args, or as NTTPs.
+
+### Focus
+
+Low-level tooling, binary analysis, runtime patching, reverse engineering.
 

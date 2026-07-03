@@ -361,6 +361,15 @@ A fixed-size byte array with `.data()` and `.size()`. Useful for binary I/O.
 ct::byte_block<4> blk{};
 ```
 
+## `ct::repeat<V, Reps>` -- repeat pattern
+
+Repeats a pattern `V` (scalar or array-like with `value_type`/`tuple_size`) `Reps` times into a `std::array`.
+
+```cpp
+constexpr auto r1 = ct::repeat<u8{0xAB}, 4>;           // array<u8, 4>{0xAB,...}
+constexpr auto r2 = ct::repeat<std::array{1,2,3}, 3>;  // array<int, 9>{1,2,3,1,2,3,...}
+```
+
 ## `ct::vstr<Str>` / `ct::vstr<Str, N>` -- value string (`ct::byte_block<N>`)
 
 Packs a string into a `ct::byte_block<N>`. If `N > Str.size()`, the extra bytes

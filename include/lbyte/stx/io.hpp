@@ -403,7 +403,7 @@ namespace lbyte::stx
         }
 
         template<bounded_array U>
-        details::bounded_array_t<U> pop() noexcept {
+        bounded_array_t<U> pop() noexcept {
             return cur_.template pop<U>();
         }
 
@@ -429,7 +429,7 @@ namespace lbyte::stx
         std::span<const std::remove_all_extents_t<U>> as_view() noexcept
         {
             using element_type = std::remove_all_extents_t<U>;
-            using flat_array = details::bounded_array_t<U>;
+            using flat_array = bounded_array_t<U>;
             return std::span<const element_type>(
                 rcast<const element_type*>(cur_.addr()),
                 sizeof(flat_array) / sizeof(element_type)

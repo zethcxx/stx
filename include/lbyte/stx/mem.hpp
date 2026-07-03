@@ -406,9 +406,9 @@ namespace lbyte::stx
 
         template<bounded_array U>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read() const noexcept -> details::bounded_array_t<U>
+        auto read() const noexcept -> bounded_array_t<U>
         {
-            details::bounded_array_t<U> arr;
+            bounded_array_t<U> arr;
             std::memcpy( &arr, rcast<const std::byte*>(address), sizeof(arr) );
             return arr;
         }
@@ -442,9 +442,9 @@ namespace lbyte::stx
 
         template<bounded_array U>
         [[nodiscard]] STX_FORCE_INLINE
-        auto pop() noexcept -> details::bounded_array_t<U>
+        auto pop() noexcept -> bounded_array_t<U>
         {
-            details::bounded_array_t<U> arr;
+            bounded_array_t<U> arr;
             std::memcpy( &arr, rcast<const std::byte*>(address), sizeof(arr) );
             address += sizeof(arr);
             return arr;
@@ -568,7 +568,7 @@ namespace lbyte::stx
             -> std::span<const std::remove_all_extents_t<U>>
         {
             using element_type = std::remove_all_extents_t<U>;
-            using flat_array = details::bounded_array_t<U>;
+            using flat_array = bounded_array_t<U>;
             return std::span<const element_type>(
                 rcast<const element_type*>(address),
                 sizeof(flat_array) / sizeof(element_type)
