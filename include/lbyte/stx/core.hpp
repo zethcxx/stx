@@ -326,8 +326,9 @@ namespace lbyte::stx
         defer(const defer&) = delete;
         defer& operator=(defer&&) = delete;
         defer& operator=(const defer&) = delete;
-        ~defer() { if (armed_) fn_(); }
+        ~defer() noexcept { if (armed_) fn_(); }
         void cancel() noexcept { armed_ = false; }
+        void release() noexcept { armed_ = false; }
     };
     template<std::invocable<> F> defer(F) -> defer<F>;
 

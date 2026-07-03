@@ -34,7 +34,7 @@ namespace lbyte::stx::endian
             : store(swap_if(v))
         {}
 
-        template<compatible U>
+        template<compatible U> requires std::convertible_to<U, T>
         constexpr explicit endian_value(endian_value<U, Order> other) noexcept
             : store(swap_if(static_cast<T>(static_cast<U>(other))))
         {}
