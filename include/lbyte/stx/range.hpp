@@ -196,6 +196,7 @@ struct lbyte::stx::details::range_iter
 template<lbyte::stx::details::rangeable T>
 struct lbyte::stx::details::range_view
 {
+    using Type   = T;
     using ValueT = details::base_type_t<T>;
     using iter_t = details::range_iter<T> ;
 
@@ -206,46 +207,46 @@ struct lbyte::stx::details::range_view
     dir       dir_ ;
     range_mode mode;
 
-    constexpr auto begin() const noexcept
+    [[nodiscard]] constexpr ::lbyte::stx::usize count() const noexcept
     {
-        ::lbyte::stx::usize remaining = 0;
-
         if ( step == 0 )
-            return iter_t{from, step, 0, dir_};
+            return 0;
 
         if ( dir_ == dir::fwd )
         {
-            if ( from <= to )
-            {
-                auto dist = static_cast<::lbyte::stx::usize>( to - from );
-                auto step_u = static_cast<::lbyte::stx::usize>( step );
+            if ( from > to )
+                return 0;
 
-                if ( mode == range_mode::Exclusive )
-                    remaining = (dist + step_u - 1) / step_u;
-                else
-                    remaining = dist / step_u + 1;
-            }
+            auto dist = static_cast<::lbyte::stx::usize>( to - from );
+            auto step_u = static_cast<::lbyte::stx::usize>( step );
+
+            if ( mode == range_mode::Exclusive )
+                return dist == 0 ? 0 : (dist - 1) / step_u + 1;
+            else
+                return dist / step_u + 1;
         }
         else
         {
-            if ( from >= to )
-            {
-                auto dist = static_cast<::lbyte::stx::usize>( from - to );
-                auto step_u = static_cast<::lbyte::stx::usize>( step );
+            if ( from < to )
+                return 0;
 
-                if ( mode == range_mode::Exclusive )
-                    remaining = (dist + step_u - 1) / step_u;
-                else
-                    remaining = dist / step_u + 1;
-            }
+            auto dist = static_cast<::lbyte::stx::usize>( from - to );
+            auto step_u = static_cast<::lbyte::stx::usize>( step );
+
+            if ( mode == range_mode::Exclusive )
+                return dist == 0 ? 0 : (dist - 1) / step_u + 1;
+            else
+                return dist / step_u + 1;
         }
+    }
 
-        auto it = iter_t { from, step, remaining, dir_ };
-
-        return it;
+    constexpr auto begin() const noexcept
+    {
+        return iter_t{ from, step, count(), dir_ };
     }
 
     constexpr auto end() const noexcept {
         return details::range_sentinel{};
     }
+
 };
