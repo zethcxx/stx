@@ -193,12 +193,12 @@ them).
 
 ## Why stopwatch?
 
-| Aspect | Vanilla C++ | stx |
-|--------|-------------|-----|
-| Boilerplate | `auto t0 = high_resolution_clock::now(); ... auto dt = now() - t0;` | `stopwatch sw; ... auto ms = sw.elapsed();` — one line |
-| Lap timing | Manual `t0 = now()` in code | `sw.lap()` — returns and resets in one call |
-| Duration type | `auto ms = duration_cast<milliseconds>(dt)` | `sw.elapsed<milliseconds>()` — typed directly |
-| Readability | Chrono verbosity mixed with business logic | Chrono hidden behind intent-named API |
+| Aspect        | Vanilla C++                                                         | stx                                                    |
+|---------------|---------------------------------------------------------------------|--------------------------------------------------------|
+| Boilerplate   | `auto t0 = high_resolution_clock::now(); ... auto dt = now() - t0;` | `stopwatch sw; ... auto ms = sw.elapsed();` — one line |
+| Lap timing    | Manual `t0 = now()` in code                                         | `sw.lap()` — returns and resets in one call            |
+| Duration type | `auto ms = duration_cast<milliseconds>(dt)`                         | `sw.elapsed<milliseconds>()` — typed directly          |
+| Readability   | Chrono verbosity mixed with business logic                          | Chrono hidden behind intent-named API                  |
 
 ```cpp
 // Vanilla C++: chrono verbosity everywhere

@@ -323,11 +323,11 @@ struct ct::formatter<MyPoint> {
 
 ## C/C++ Comparison
 
-| Language | String Literal | Transform |
-|----------|---------------------------------|-----------------------------------|
-| C | `"..."` | Manual loops |
+| Language | String Literal                                            | Transform               |
+|----------|-----------------------------------------------------------|-------------------------|
+| C        | `"..."`                                                   | Manual loops            |
 | C++ (stx)| `ct::str<"...", flags>` / `ct::str<"...", ct::args<...>>` | Compile-time, `.rodata` |
-| Python | `"""..."""` + `.strip()` + `...`| Runtime |
+| Python   | `"""..."""` + `.strip()` + `...`                          | Runtime                 |
 
 ## Module
 
@@ -384,24 +384,62 @@ auto sig = ct::vstr<"PE", 4>;   // byte_block<4>{'P','E',0,0}
 auto cmd = ct::vstr<"cmd.exe">; // byte_block<7>{'c','m','d','.','e','x','e'}
 ```
 
-## Compile-time regex via CTRE (external)
+## `ct::re<Pattern>` -- compile-time regex transforms (optional)
 
-`ct::re<Pattern>` is no longer included in stx. If you need compile-time regex, use
-[CTRE](https://github.com/hanickadot/compile-time-regular-expressions) directly:
+When [CTRE](https://github.com/hanickadot/compile-time-regular-expressions) is
+available (`__has_include(<ctre.hpp>)`), `ct::re` provides compile-time regex
+replace and remove operations. They integrate with `ct::str` just like `fmt`
+transforms (including within `fmt::chain`).
+
+### `ct::re<Pattern>::replace<Replacement>`
 
 ```cpp
-#include <ctre.hpp>
-#include <lbyte/stx/ct.hpp>
-
 using namespace lbyte::stx;
 
-// Replace matches via fmt::replace_all (for fixed strings)
-auto a = ct::str<"a--b--c", ct::fmt::replace_all<"--", ".">>;
+// Basic replacement
+auto a = ct::str<"a--b--c", ct::re<R"(--)">::replace<".">>;
 std::string_view{a};            // "a.b.c"
 
-// For regex patterns at compile time, use CTRE's own facilities:
-//   ctre::search<"\n+">(str), ctre::replace<...>(str), etc.
-// See https://github.com/hanickadot/compile-time-regular-expressions
+// Regex pattern (collapse whitespace)
+auto b = ct::str<"a   b  c", ct::re<R"(\s+)">::replace<" ">>;
+std::string_view{b};            // "a b c"
+
+// Replace digits with marker
+auto c = ct::str<"abc123def456", ct::re<R"(\d+)">::replace<"#">>;
+std::string_view{c};            // "abc#def#"
 ```
+
+### `ct::re<Pattern>::remove`
+
+Removes all matches of the pattern entirely.
+
+```cpp
+auto x = ct::str<"foo_bar_baz", ct::re<R"(_)">::remove>;
+std::string_view{x};            // "foobarbaz"
 ```
+
+### Chaining with `fmt::chain`
+
+Works with other transforms in a pipeline:
+
+```cpp
+auto x = ct::str<"  hello   world  ", ct::fmt::chain<
+    ct::fmt::trim_each_line,
+    ct::re<R"(\s+)">::replace<" ">
+>>;
+std::string_view{x};            // "hello world"
+```
+
+### `constexpr` context
+
+```cpp
+constexpr auto x = ct::str<"a--b--c", ct::re<R"(--)">::replace<".">>;
+static_assert( std::string_view{x} == "a.b.c" );
+```
+
+### Availability
+
+`ct::re` is only defined when `<ctre.hpp>` is available. If you need
+compile-time regex but CTRE is not available, use `ct::fmt::replace_all` for
+fixed-string replacements, or add CTRE to your project dependencies.
 

@@ -365,14 +365,14 @@ for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
 
 # Why range<T>?
 
-| Aspect | Vanilla C++ | stx |
-|--------|-------------|-----|
-| Loop syntax | `for (int i = 0; i < n; ++i)` — verbose, error-prone | `for (auto i : range<int>(n))` — intent, not mechanics |
-| Direction | Manual `for (int i = n-1; i >= 0; --i)` — signed/unsigned pitfalls | `range<int>(n, 0)` — inferred backward, `irange<int>(n, 0)` inclusive |
-| Step | `for (int i = 0; i < n; i += 2)` — step mixed with loop header | `range<int>(0, n, 2)` — step as a parameter |
-| Enums | `for (int i = (int)First; i <= (int)Last; ++i)` — casting | `range<Enum>(first, last)` — no casts, preserves enum type |
-| Strong types | Not possible — raw integers only | `range<off_s>(from, to)` — preserves domain safety |
-| Constexpr | `for` loops are constexpr (C++23) but verbose | Same, with less boilerplate |
+| Aspect       | Vanilla C++                                                        | stx                                                                   |
+|--------------|--------------------------------------------------------------------|-----------------------------------------------------------------------|
+| Loop syntax  | `for (int i = 0; i < n; ++i)` — verbose, error-prone               | `for (auto i : range<int>(n))` — intent, not mechanics                |
+| Direction    | Manual `for (int i = n-1; i >= 0; --i)` — signed/unsigned pitfalls | `range<int>(n, 0)` — inferred backward, `irange<int>(n, 0)` inclusive |
+| Step         | `for (int i = 0; i < n; i += 2)` — step mixed with loop header     | `range<int>(0, n, 2)` — step as a parameter                           |
+| Enums        | `for (int i = (int)First; i <= (int)Last; ++i)` — casting          | `range<Enum>(first, last)` — no casts, preserves enum type            |
+| Strong types | Not possible — raw integers only                                   | `range<off_s>(from, to)` — preserves domain safety                    |
+| Constexpr    | `for` loops are constexpr (C++23) but verbose                      | Same, with less boilerplate                                           |
 
 ```cpp
 // Vanilla C++: verbose, manual bounds, direction embedded

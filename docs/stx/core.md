@@ -4,8 +4,8 @@ All examples assume `using namespace stx;` for brevity.
 
 ## `version_info` / `version`
 
-| Member | Type | Description |
-|--------|------|-------------|
+| Member          | Type  | Description   |
+|-----------------|-------|---------------|
 | `version.major` | `int` | Major version |
 | `version.minor` | `int` | Minor version |
 | `version.patch` | `int` | Patch version |
@@ -18,14 +18,14 @@ inline constexpr version_info version { 0, 2, 0 };
 
 ## Type Aliases (stx::*)
 
-| Category | Alias | Underlying |
-|----------|-------|------------|
-| Unsigned | `u8` / `u16` / `u32` / `u64` | `std::uint8_t` / `16` / `32` / `64` |
-| Signed | `i8` / `i16` / `i32` / `i64` | `std::int8_t` / `16` / `32` / `64` |
-| Float | `f32` / `f64` | `float` / `double` |
-| Pointer-width | `uptr` / `iptr` | `std::uintptr_t` / `std::intptr_t` |
-| Size/Diff | `usize` / `isize` | `std::size_t` / `std::ptrdiff_t` |
-| Char | `uchar` / `ushort` / `uint` / `ulong` / `ulonglong` | `unsigned char` / `short` / `int` / `long` / `long long` |
+| Category      | Alias                                               | Underlying                                               |
+|---------------|-----------------------------------------------------|----------------------------------------------------------|
+| Unsigned      | `u8` / `u16` / `u32` / `u64`                        | `std::uint8_t` / `16` / `32` / `64`                      |
+| Signed        | `i8` / `i16` / `i32` / `i64`                        | `std::int8_t` / `16` / `32` / `64`                       |
+| Float         | `f32` / `f64`                                       | `float` / `double`                                       |
+| Pointer-width | `uptr` / `iptr`                                     | `std::uintptr_t` / `std::intptr_t`                       |
+| Size/Diff     | `usize` / `isize`                                   | `std::size_t` / `std::ptrdiff_t`                         |
+| Char          | `uchar` / `ushort` / `uint` / `ulong` / `ulonglong` | `unsigned char` / `short` / `int` / `long` / `long long` |
 
 ```cpp
 u32 val = 0xDEADBEEF;
@@ -40,11 +40,11 @@ uptr addr = rcast<uptr>(&val);
 
 Type-safe wrappers preventing implicit mixing of semantically distinct numeric domains.
 
-| Type | Wraps | Tag | Domain |
-|------|-------|-----|--------|
-| `off_s` | `std::ptrdiff_t` | `offset_tag` | Byte offset |
-| `rva_s` | `u32` | `rva_tag` | Relative virtual address |
-| `va_s` | `uptr` | `va_tag` | Virtual address |
+| Type    | Wraps            | Tag          | Domain                   |
+|---------|------------------|--------------|--------------------------|
+| `off_s` | `std::ptrdiff_t` | `offset_tag` | Byte offset              |
+| `rva_s` | `u32`            | `rva_tag`    | Relative virtual address |
+| `va_s`  | `uptr`           | `va_tag`     | Virtual address          |
 
 ### Construction (stx::off_s, stx::rva_s, stx::va_s)
 
@@ -60,48 +60,48 @@ rva_s from_off{off};         // cross-ctor: off_s -> rva_s (same tag family)
 ### Access and Casting (stx::off_s, stx::rva_s, stx::va_s)
 
 ```cpp
-auto raw = off.get();             // std::ptrdiff_t = 128
+auto raw    = off.get();     // std::ptrdiff_t = 128
 auto as_i64 = off.as<i64>(); // static_cast
-i64 direct = off;            // explicit operator i64
+i64  direct = off;           // explicit operator i64
 ```
 
 ### Arithmetic (stx::off_s, stx::rva_s, stx::va_s)
 
-| Expression | Result type | Semantics |
-|------------|-------------|-----------|
-| `off + 32` | `off_s` | Offset + scalar |
-| `off + other` (same tag) | `off_s` | Offset + offset |
-| `va + off` (cross-tag) | `va_s` | VA + offset = VA |
-| `rva + off` (cross-tag) | `rva_s` | RVA + offset = RVA |
-| `off + rva` (cross-tag) | `rva_s` | Offset + RVA = RVA |
-| `off + va` (cross-tag) | `va_s` | Offset + VA = VA |
-| `32 + off` | `std::ptrdiff_t` | Scalar + offset value |
-| `off - other` (same tag) | `std::ptrdiff_t` | Difference (loses wrapper) |
-| `va - off` (cross-tag) | `va_s` | VA - offset = VA |
-| `rva - off` (cross-tag) | `rva_s` | RVA - offset = RVA |
-| `off - 32` | `off_s` | Offset - scalar |
-| `32 - off` | `std::ptrdiff_t` | Scalar - offset value |
-| `va += off` / `va -= off` (cross-tag) | `va_s&` | Compound with offset |
-| `rva += off` / `rva -= off` (cross-tag) | `rva_s&` | Compound with offset |
-| `off += 32` / `off -= 32` | `off_s&` | Compound with scalar |
-| `++off` / `--off` | `off_s&` | Pre-increment/decrement |
-| `off++` / `off--` | `off_s` | Post-increment/decrement |
+| Expression                              | Result type      | Semantics                  |
+|-----------------------------------------|------------------|----------------------------|
+| `off + 32`                              | `off_s`          | Offset + scalar            |
+| `off + other` (same  tag)               | `off_s`          | Offset + offset            |
+| `va + off`    (cross-tag)               | `va_s`           | VA + offset = VA           |
+| `rva + off`   (cross-tag)               | `rva_s`          | RVA + offset = RVA         |
+| `off + rva`   (cross-tag)               | `rva_s`          | Offset + RVA = RVA         |
+| `off + va`    (cross-tag)               | `va_s`           | Offset + VA = VA           |
+| `32 + off`                              | `std::ptrdiff_t` | Scalar + offset value      |
+| `off - other` (same  tag)               | `std::ptrdiff_t` | Difference (loses wrapper) |
+| `va - off`    (cross-tag)               | `va_s`           | VA - offset = VA           |
+| `rva - off`   (cross-tag)               | `rva_s`          | RVA - offset = RVA         |
+| `off - 32`                              | `off_s`          | Offset - scalar            |
+| `32 - off`                              | `std::ptrdiff_t` | Scalar - offset value      |
+| `va += off` / `va -= off` (cross-tag)   | `va_s&`          | Compound with offset       |
+| `rva += off` / `rva -= off` (cross-tag) | `rva_s&`         | Compound with offset       |
+| `off += 32` / `off -= 32`               | `off_s&`         | Compound with scalar       |
+| `++off` / `--off`                       | `off_s&`         | Pre-increment/decrement    |
+| `off++` / `off--`                       | `off_s`          | Post-increment/decrement   |
 
 ```cpp
-auto a = off + 32;                   // off_s{160}
-auto d = off_s{200} - off_s{150};    // ptrdiff_t = 50
-++off;                               // off_s{129}
-auto va = va_s{0x1000} + off_s{8};   // va_s{0x1008}
-auto va2 = va_s{0x1000} - off_s{4};  // va_s{0xFFC}
-auto rva = rva_s{0x2000} + off_s{8}; // rva_s{0x2008}
-va += off_s{16};                     // va_s{0x1018}
+auto a = off + 32;                      // off_s{160}
+auto d = off_s{200} - off_s{150};       // ptrdiff_t = 50
+++off;                                  // off_s{129}
+auto va  = va_s{0x1000} + off_s{8};     // va_s{0x1008}
+auto va2 = va_s{0x1000} - off_s{4};     // va_s{0xFFC}
+auto rva = rva_s{0x2000} + off_s{8};    // rva_s{0x2008}
+va += off_s{16};                        // va_s{0x1018}
 ```
 
 ### Comparison (stx::off_s)
 
 ```cpp
-off_s{10} < off_s{20};            // true
-off_s{10} == off_s{10};           // true
+off_s{10} <  off_s{20};    // true
+off_s{10} == off_s{10};    // true
 ```
 
 ### Usage in APIs (stx::off_s)
@@ -112,19 +112,19 @@ Strong types select overloads: `ptr::operator>>` accepts `off_s` directly
 ```cpp
 ptr<int> p{buf};
 p[2];                        // element index 2 (element-level)
-p[2, 1];                     // byte offset 2 (custom stride 1)
-auto bp = p + off_s{8}; // byte offset 8 via arithmetic
+p[2, 1];                     // byte offset 2   (custom stride 1)
+auto bp = p + off_s{8};      // byte offset 8 via arithmetic
 auto v  = (p + off_s{8}).read<u32>(); // read at byte 8
 ```
 
 ### Why strong types?
 
-| Aspect | Vanilla C++ | stx |
-|--------|-------------|-----|
-| Domain safety | `int off, rva, va` — all interchangeable by accident | `off_s`, `rva_s`, `va_s` — compiler rejects mismatches |
-| Arithmetic | `ptr + (int)offset` — no intent documented | `ptr + off_s{n}` — self-documenting, byte-level |
-| API boundary | `read(void* base, int off)` — what unit is `off`? | `read(address_like, off_s)` — type says "bytes" |
-| Format | `printf("%td", off)` | `std::print("{}", off)` — works via `operator T` |
+| Aspect        | Vanilla C++                                          | stx                                                     |
+|---------------|------------------------------------------------------|---------------------------------------------------------|
+| Domain safety | `int off, rva, va` — all interchangeable by accident | `off_s`, `rva_s`, `va_s` — compiler rejects mismatches  |
+| Arithmetic    | `ptr + (int)offset` — no intent documented           | `ptr + off_s{n}` — self-documenting, byte-level         |
+| API boundary  | `read(void* base, int off)` — what unit is `off`?    | `read(address_like, off_s)` — type says "bytes"         |
+| Format        | `printf("%td", off)`                                 | `std::print("{}", off)` — works via `operator T`        |
 
 ```cpp
 // Vanilla C++: what does this function expect?
@@ -141,9 +141,9 @@ auto p  = base + file_offset;   // meant bytes?
 auto p2 = base + rva;           // but rva is not an offset!
 
 // stx: compiler prevents mixing
-off_s file_off{0x400};
+off_s file_off {0x400};
 rva_s image_rva{0x1000};
-va_s  image_va{0x140000000};
+va_s  image_va {0x140000000};
 auto p  = base + file_off;   // ✓ byte offset
 // auto p2 = base + image_rva; // ✗ error: rva_s + ptr is not defined
 auto p2 = base + off_s{image_rva}; // ✓ explicit conversion documents intent
@@ -259,13 +259,13 @@ Used internally by `mem::read`/`mem::write` to accept any pointer-like type.
 
 ## Casting Helpers (stx::rcast, stx::scast, stx::bcast, etc.)
 
-| Helper | Equivalent to | Grep target |
-|--------|---------------|-------------|
-| `rcast<T>(v)` | `reinterpret_cast<T>(v)` | `rcast` |
-| `scast<T>(v)` | `static_cast<T>(v)` | `scast` |
-| `bcast<T>(v)` | `bit_cast<T>(v)` | `bcast` |
-| `ccast<T>(v)` | `const_cast<T>(v)` | `ccast` |
-| `dcast<T>(v)` | `dynamic_cast<T>(v)` | `dcast` |
+| Helper        | Equivalent to            | Grep target |
+|---------------|--------------------------|-------------|
+| `rcast<T>(v)` | `reinterpret_cast<T>(v)` | `rcast`     |
+| `scast<T>(v)` | `static_cast<T>(v)`      | `scast`     |
+| `bcast<T>(v)` | `bit_cast<T>(v)`         | `bcast`     |
+| `ccast<T>(v)` | `const_cast<T>(v)`       | `ccast`     |
+| `dcast<T>(v)` | `dynamic_cast<T>(v)`     | `dcast`     |
 
 ```cpp
 auto ptr = rcast<u32*>(0x140000000_uptr);
@@ -297,12 +297,12 @@ cleanup.cancel();
 
 ### Why defer?
 
-| Aspect | Vanilla C++ | stx |
-|--------|-------------|-----|
-| Early returns | Manual `free(buf);` before each `return` | `defer` runs destructor automatically |
-| Exceptions | `catch` block must free | Stack unwinding calls destructor |
-| Multiple resources | Nested `try`/`catch` pyramids | Stacked `defer` in declaration order |
-| Readability | Cleanup logic mixed with business logic | Cleanup tied to scope at allocation point |
+| Aspect             | Vanilla C++                              | stx                                       |
+|--------------------|------------------------------------------|-------------------------------------------|
+| Early returns      | Manual `free(buf);` before each `return` | `defer` runs destructor automatically     |
+| Exceptions         | `catch` block must free                  | Stack unwinding calls destructor          |
+| Multiple resources | Nested `try`/`catch` pyramids            | Stacked `defer` in declaration order      |
+| Readability        | Cleanup logic mixed with business logic  | Cleanup tied to scope at allocation point |
 
 ```cpp
 // Vanilla C++: manual cleanup on every path
@@ -384,14 +384,14 @@ if ( p ) {}          // bool conversion works too
 
 ### Why null_t?
 
-| Aspect | Vanilla C++ | stx |
-|--------|-------------|-----|
-| Discard nodiscard | `(void)pop(); (void)pop();` | `null << p.pop<u32>() << p.pop<u16>()` |
-| Generic null | `nullptr` (satisfies `address_like`) | `null` (rejected by `address_like` APIs) |
-| Smart pointer init | `unique_ptr<int>{}` or `nullptr` | `unique_ptr<int>{null}` (implicit) |
-| Pointer check | `if (p == nullptr)` | `if (p == null)` (same but explicit) |
-| Format | Manual `"null"` string | `std::print("{}", null)` → `"null"` |
-| Hash | No standard null hash | `std::hash<null_t>{}` → `0` |
+| Aspect             | Vanilla C++                          | stx                                      |
+|--------------------|--------------------------------------|------------------------------------------|
+| Discard nodiscard  | `(void)pop(); (void)pop();`          | `null << p.pop<u32>() << p.pop<u16>()`   |
+| Generic null       | `nullptr` (satisfies `address_like`) | `null` (rejected by `address_like` APIs) |
+| Smart pointer init | `unique_ptr<int>{}` or `nullptr`     | `unique_ptr<int>{null}` (implicit)       |
+| Pointer check      | `if (p == nullptr)`                  | `if (p == null)` (same but explicit)     |
+| Format             | Manual `"null"` string               | `std::print("{}", null)` → `"null"`      |
+| Hash               | No standard null hash                | `std::hash<null_t>{}` → `0`              |
 
 ```cpp
 // Vanilla C++: discard with (void)

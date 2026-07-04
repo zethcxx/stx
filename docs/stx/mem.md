@@ -42,13 +42,13 @@ p = null; // null
 
 ### Accessors (stx::ptr)
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `raw()` | `T*` | Raw pointer (mutable overload) |
-| `raw()` const | `const T*` | Raw pointer (const overload) |
-| `addr()` | `uptr` | Address as integer |
-| `operator uptr()` | `uptr` | Implicit conversion |
-| `operator bool()` | `bool` | Non-null check |
+| Method            | Returns    | Description                    |
+|-------------------|------------|--------------------------------|
+| `raw()`           | `T*`       | Raw pointer (mutable overload) |
+| `raw()` const     | `const T*` | Raw pointer (const overload)   |
+| `addr()`          | `uptr`     | Address as integer             |
+| `operator uptr()` | `uptr`     | Implicit conversion            |
+| `operator bool()` | `bool`     | Non-null check                 |
 
 ```cpp
 auto r = p.raw (); // T*
@@ -103,10 +103,10 @@ el[1];          // OK: el is an lvalue
 
 Two overloads control the addressing mode:
 
-| Expression | Step | Formula |
-|------------|------|---------|
-| `p[n]` — single integral | `sizeof(T)` (element-level) | `addr + n * sizeof(T)` |
-| `p[n, s]` — two integrals | `s` (custom byte step) | `addr + n * s` |
+| Expression                | Step                        | Formula                |
+|---------------------------|-----------------------------|------------------------|
+| `p[n]` — single integral  | `sizeof(T)` (element-level) | `addr + n * sizeof(T)` |
+| `p[n, s]` — two integrals | `s` (custom byte step)      | `addr + n * s`         |
 
 For byte-level displacement, `p + off_s{n}` is the arithmetic alternative
 to `p[n, 1]` — both give `addr + n`:
@@ -138,14 +138,14 @@ el[1];                       // lvalue [] is fine
 All arithmetic is in **bytes** — only `off_s`/`rva_s` operands are accepted
 (no raw integral arithmetic).
 
-| Expression                        | Effect                | Returns |
-|-----------------------------------|-----------------------|---------|
-| `p + off_s{n}`                    | Advance `n` bytes     | `ptr`   |
-| `p - off_s{n}`                    | Rewind `n` bytes      | `ptr`   |
-| `p += off_s{n}` / `p -= off_s{n}` | In-place              | `ptr&`  |
-| `p - q`                           | Byte difference       | `off_s` |
-| `p.diff(addr)`                    | Diff from any address (default) | `off_s` |
-| `p.diff<T>(addr)`                 | Diff from any address (explicit integral) | `T` |
+| Expression                        | Effect                                    | Returns |
+|-----------------------------------|-------------------------------------------|---------|
+| `p + off_s{n}`                    | Advance `n` bytes                         | `ptr`   |
+| `p - off_s{n}`                    | Rewind `n` bytes                          | `ptr`   |
+| `p += off_s{n}` / `p -= off_s{n}` | In-place                                  | `ptr&`  |
+| `p - q`                           | Byte difference                           | `off_s` |
+| `p.diff(addr)`                    | Diff from any address (default)           | `off_s` |
+| `p.diff<T>(addr)`                 | Diff from any address (explicit integral) | `T`     |
 
 ```cpp
 auto p1 = p + off_s{ 16 }; // ptr at address + 16
@@ -581,16 +581,16 @@ Formats as `"null"` when null, otherwise as `void*` (hex prefix + lowercase hex 
 
 ### Why ptr<T>?
 
-| Aspect | Vanilla C++ | stx |
-|--------|-------------|-----|
-| Null safety | `T* p = nullptr; if (p)` — raw unchecked | `ptr<T> p{null}; if (p)` — same, plus `== null` |
-| Arithmetic | `p + n` in bytes or elements? Unclear | `ptr + off_s{n}` — always bytes, type-documented |
-| Domain safety | `p + 5` — accidental element vs byte confusion | `p[5]` = element, `p + off_s{5}` = byte, compiler-enforced |
-| Read/write | `memcpy(&dst, p, 4); p += 4;` | `auto v = p.pop<u32>();` — type-safe, auto-advance |
-| Format | `printf("0x%" PRIxPTR, (uintptr_t)p)` or streams | `std::print("{}", p)` — `"null"` or `"0x..."` |
-| Pointer chase | `*(T**)(base + off)` — fragile cast | `p.walk<T>(off_s{8})` — documented intent |
-| Const-correct | Manual `const T*` vs `T*` | `ptr<const T>` vs `ptr<T>` — compiler tracked |
-| Hash | No standard pointer hash in `<functional>` | `std::hash<ptr<T>>` — works in unordered containers |
+| Aspect        | Vanilla C++                                      | stx                                                        |
+|---------------|--------------------------------------------------|------------------------------------------------------------|
+| Null safety   | `T* p = nullptr; if (p)` — raw unchecked         | `ptr<T> p{null}; if (p)` — same, plus `== null`            |
+| Arithmetic    | `p + n` in bytes or elements? Unclear            | `ptr + off_s{n}` — always bytes, type-documented           |
+| Domain safety | `p + 5` — accidental element vs byte confusion   | `p[5]` = element, `p + off_s{5}` = byte, compiler-enforced |
+| Read/write    | `memcpy(&dst, p, 4); p += 4;`                    | `auto v = p.pop<u32>();` — type-safe, auto-advance         |
+| Format        | `printf("0x%" PRIxPTR, (uintptr_t)p)` or streams | `std::print("{}", p)` — `"null"` or `"0x..."`              |
+| Pointer chase | `*(T**)(base + off)` — fragile cast              | `p.walk<T>(off_s{8})` — documented intent                  |
+| Const-correct | Manual `const T*` vs `T*`                        | `ptr<const T>` vs `ptr<T>` — compiler tracked              |
+| Hash          | No standard pointer hash in `<functional>`       | `std::hash<ptr<T>>` — works in unordered containers        |
 
 ```cpp
 // Vanilla C++: raw pointer arithmetic — what unit is n?
@@ -618,9 +618,9 @@ auto b = p.pop<u16>();           // read u16, advance 2
 
 Byte difference between two `address_like` addresses.
 
-| Expression                        | Returns |
-|-----------------------------------|---------|
-| `mem::diff(a, b)`                 | `off_s` |
+| Expression                        | Returns               |
+|-----------------------------------|-----------------------|
+| `mem::diff(a, b)`                 | `off_s`               |
 | `mem::diff<T>(a, b)`              | `T` (`std::integral`) |
 
 Accepts any combination of `address_like` types (raw pointers, `uptr`, `va_s`, `ptr<T>`, etc.).
