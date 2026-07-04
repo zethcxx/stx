@@ -1,4 +1,5 @@
 #pragma once
+#include "core.hpp"
 #include "mem.hpp"
 #include "endian.hpp"
 #include "ct.hpp"
