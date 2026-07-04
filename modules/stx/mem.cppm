@@ -37,18 +37,23 @@ export namespace lbyte::stx::mem
 template<typename T>
 struct std::hash<lbyte::stx::ptr<T>>
 {
-    [[nodiscard]] auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
+    [[nodiscard]] constexpr auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
         return std::hash<lbyte::stx::uptr>{}( p.addr() );
     }
 };
 
 // --- std::formatter ---------------------------------------------------------------
 
-#include <format>
+#if __has_include(<format>)
+    #include <format>
 
-template<typename T>
-struct std::formatter<lbyte::stx::ptr<T>> : std::formatter<void*> {
-    auto format(const lbyte::stx::ptr<T>& p, format_context& ctx) const {
-        return std::formatter<void*>::format(reinterpret_cast<void*>(p.addr()), ctx);
-    }
-};
+    template<typename T>
+    struct std::formatter<lbyte::stx::ptr<T>> {
+        constexpr auto parse(auto& ctx) { return ctx.begin(); }
+        auto format(const lbyte::stx::ptr<T>& p, format_context& ctx) const {
+            if (!p.addr())
+                return std::format_to(ctx.out(), "null");
+            return std::formatter<void*>{}.format(reinterpret_cast<void*>(p.addr()), ctx);
+        }
+    };
+#endif
