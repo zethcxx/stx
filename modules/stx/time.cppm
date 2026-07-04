@@ -1,4 +1,5 @@
 module;
+#define STX_MODULE_BUILD
 
 #include "lbyte/stx/time.hpp"
 

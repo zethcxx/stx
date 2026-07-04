@@ -1,5 +1,6 @@
 module;
 
+#define STX_MODULE_BUILD
 #include "lbyte/stx/bit.hpp"
 
 export module lbyte.stx.bit;

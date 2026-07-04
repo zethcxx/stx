@@ -1,4 +1,5 @@
 module;
+#define STX_MODULE_BUILD
 
 // Global module fragment
 #include "lbyte/stx/fn.hpp"

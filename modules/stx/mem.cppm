@@ -2,6 +2,10 @@ module;
 
 #define STX_MODULE_BUILD
 #include "lbyte/stx/mem.hpp"
+#include <functional>
+#if __has_include(<format>)
+    #include <format>
+#endif
 
 export module lbyte.stx.mem;
 
@@ -45,8 +49,6 @@ struct std::hash<lbyte::stx::ptr<T>>
 // --- std::formatter ---------------------------------------------------------------
 
 #if __has_include(<format>)
-    #include <format>
-
     template<typename T>
     struct std::formatter<lbyte::stx::ptr<T>> {
         constexpr auto parse(auto& ctx) { return ctx.begin(); }

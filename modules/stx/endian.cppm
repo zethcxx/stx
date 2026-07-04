@@ -2,6 +2,10 @@ module;
 
 #define STX_MODULE_BUILD
 #include "lbyte/stx/endian.hpp"
+#include <functional>
+#if __has_include(<format>)
+    #include <format>
+#endif
 
 export module lbyte.stx.endian;
 
@@ -28,8 +32,6 @@ struct std::hash<lbyte::stx::endian::endian_value<T, O>>
 // --- std::formatter ---------------------------------------------------------------
 
 #if __has_include(<format>)
-    #include <format>
-
     template<lbyte::stx::endian::compatible T, lbyte::stx::endian::order O>
     struct std::formatter<lbyte::stx::endian::endian_value<T, O>> : std::formatter<T>
     {

@@ -1,4 +1,5 @@
 export module lbyte.stx;
+#define STX_MODULE_BUILD
 
 export import lbyte.stx.core;
 export import lbyte.stx.mem;

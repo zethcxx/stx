@@ -2,6 +2,10 @@ module;
 
 #define STX_MODULE_BUILD
 #include "lbyte/stx/core.hpp"
+#include <functional>
+#if __has_include(<format>)
+    #include <format>
+#endif
 
 export module lbyte.stx.core;
 
@@ -73,8 +77,6 @@ struct std::hash<::lbyte::stx::null_t> {
 // --- std::formatter ---------------------------------------------------------------
 
 #if __has_include(<format>)
-    #include <format>
-
     template<>
     struct std::formatter<::lbyte::stx::null_t> {
         constexpr auto parse(auto& ctx) { return ctx.begin(); }
@@ -83,3 +85,4 @@ struct std::hash<::lbyte::stx::null_t> {
         }
     };
 #endif
+
