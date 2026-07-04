@@ -1,5 +1,6 @@
 module;
 
+#define STX_MODULE_BUILD
 #include "lbyte/stx/core.hpp"
 
 export module lbyte.stx.core;
@@ -62,3 +63,23 @@ export namespace lbyte::stx
     using ::lbyte::stx::null;
 }
 
+// --- std::hash --------------------------------------------------------------------
+
+template<>
+struct std::hash<::lbyte::stx::null_t> {
+    constexpr std::size_t operator()(::lbyte::stx::null_t) const noexcept { return 0; }
+};
+
+// --- std::formatter ---------------------------------------------------------------
+
+#if __has_include(<format>)
+    #include <format>
+
+    template<>
+    struct std::formatter<::lbyte::stx::null_t> {
+        constexpr auto parse(auto& ctx) { return ctx.begin(); }
+        auto format(::lbyte::stx::null_t, auto& ctx) const {
+            return std::format_to(ctx.out(), "null");
+        }
+    };
+#endif

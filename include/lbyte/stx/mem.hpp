@@ -792,6 +792,8 @@ namespace lbyte::stx
 
 }
 
+#ifndef STX_MODULE_BUILD
+
 #include <format>
 
 template<typename T>
@@ -808,5 +810,7 @@ struct std::formatter<lbyte::stx::ptr<T>> : std::formatter<void*> {
         return std::formatter<void*>::format(reinterpret_cast<void*>(p.addr()), ctx);
     }
 };
+
+#endif
 
 #undef STX_FORCE_INLINE

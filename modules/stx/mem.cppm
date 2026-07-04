@@ -1,5 +1,6 @@
 module;
 
+#define STX_MODULE_BUILD
 #include "lbyte/stx/mem.hpp"
 
 export module lbyte.stx.mem;
@@ -31,3 +32,23 @@ export namespace lbyte::stx::mem
     using ::lbyte::stx::mem::gap_v;
 }
 
+// --- std::hash --------------------------------------------------------------------
+
+template<typename T>
+struct std::hash<lbyte::stx::ptr<T>>
+{
+    [[nodiscard]] auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
+        return std::hash<lbyte::stx::uptr>{}( p.addr() );
+    }
+};
+
+// --- std::formatter ---------------------------------------------------------------
+
+#include <format>
+
+template<typename T>
+struct std::formatter<lbyte::stx::ptr<T>> : std::formatter<void*> {
+    auto format(const lbyte::stx::ptr<T>& p, format_context& ctx) const {
+        return std::formatter<void*>::format(reinterpret_cast<void*>(p.addr()), ctx);
+    }
+};

@@ -335,15 +335,53 @@ namespace lbyte::stx
     // --- null_t ----------------------------------------------------------------
 
     struct null_t {
-        constexpr operator uptr()         const noexcept { return 0; }
-        constexpr operator std::nullptr_t() const noexcept { return nullptr; }
+        constexpr explicit operator std::uintptr_t() const noexcept { return 0; }
         constexpr explicit operator bool() const noexcept { return false; }
+
+        constexpr operator std::nullptr_t() const noexcept { return nullptr; }
+
+        template<typename T>
+        requires (!std::same_as<T, std::nullptr_t>)
+        constexpr operator T*() const noexcept { return nullptr; }
+
+        template<typename T>
+        requires std::is_constructible_v<T, std::nullptr_t>
+            && (!std::is_same_v<T, bool>)
+            && (!std::is_same_v<T, std::nullptr_t>)
+            && (!std::is_pointer_v<T>)
+        constexpr operator T() const noexcept { return T(nullptr); }
+
+        auto operator<=>(const null_t&) const = default;
+
+        template<typename T> friend void operator+(null_t, T) = delete;
+        template<typename T> friend void operator-(null_t, T) = delete;
 
         friend constexpr const null_t& operator<<(const null_t& n, auto&&) noexcept { return n; }
     };
 
     inline constexpr null_t null{};
 }
+
+#ifndef STX_MODULE_BUILD
+
+template<>
+struct std::hash<::lbyte::stx::null_t> {
+    constexpr std::size_t operator()(::lbyte::stx::null_t) const noexcept { return 0; }
+};
+
+#if __has_include(<format>)
+    #include <format>
+
+    template<>
+    struct std::formatter<::lbyte::stx::null_t> {
+        constexpr auto parse(auto& ctx) { return ctx.begin(); }
+        auto format(::lbyte::stx::null_t, auto& ctx) const {
+            return std::format_to(ctx.out(), "null");
+        }
+    };
+#endif
+
+#endif
 
 #undef STX_FORCE_INLINE
 

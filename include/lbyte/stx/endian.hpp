@@ -234,6 +234,8 @@ namespace lbyte::stx::endian
 
 } // namespace lbyte::stx::endian
 
+#ifndef STX_MODULE_BUILD
+
 // --- std::hash --------------------------------------------------------------------
 
 template<lbyte::stx::endian::compatible T, lbyte::stx::endian::order O>
@@ -256,4 +258,6 @@ struct std::hash<lbyte::stx::endian::endian_value<T, O>>
             return std::formatter<T>::format(static_cast<T>(v), ctx);
         }
     };
+#endif
+
 #endif
