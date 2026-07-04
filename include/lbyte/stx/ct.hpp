@@ -24,16 +24,9 @@ namespace lbyte::stx::ct
         [[nodiscard]] constexpr bool operator==(const fixed_string&) const = default;
     };
 
-    // --- byte_block --------------------------------------------------------------
+    // --- byte_block (alias to std::array<u8, N>) ----------------------------------
     template<size_t N>
-    struct byte_block {
-        u8 _[N];
-        [[nodiscard]] constexpr const u8* data() const noexcept { return _; }
-        [[nodiscard]] constexpr u8* data() noexcept { return _; }
-        [[nodiscard]] constexpr usize size() const noexcept { return N; }
-        [[nodiscard]] constexpr const u8& operator[](size_t i) const noexcept { return _[i]; }
-        [[nodiscard]] constexpr u8& operator[](size_t i) noexcept { return _[i]; }
-    };
+    using byte_block = std::array<u8, N>;
 
     // --- forward decls for str_type / fmt ----------------------------------------
     template<typename T>
@@ -144,8 +137,6 @@ namespace lbyte::stx::ct
             }
             return result;
         }
-
-        using namespace ::lbyte::stx;
 
         template<endian::v O, std::integral T, fixed_string Str>
             requires (Str.size() > 0 && sizeof(T) <= 8 && Str.size() <= sizeof(T))
@@ -404,18 +395,13 @@ namespace lbyte::stx::ct
             }
         };
 
-        // --- apply flags to array (recursive, auto step forces materialization) ---
-        template<size_t N>
-        [[nodiscard]] consteval auto apply_flags(
-            std::array<char, N> data) noexcept -> std::array<char, N>
-        { return data; }
-
-        template<typename F, typename... Rest, size_t N>
+        // --- apply flags to array (fold over comma) ------------------------------
+        template<typename... Flags, size_t N>
         [[nodiscard]] consteval auto apply_flags(
             std::array<char, N> data) noexcept -> std::array<char, N>
         {
-            auto step = F::apply(data);
-            return apply_flags<Rest...>(step);
+            ((data = Flags::apply(data)), ...);
+            return data;
         }
 
         // --- NTTP-based chain (forces materialization via template instantiation) -
@@ -884,7 +870,7 @@ namespace lbyte::stx::ct
     constexpr byte_block<N> vstr = [] {
         byte_block<N> blk{};
         for ( size_t i = 0; i < Str.size(); ++i )
-            blk._[i] = static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) );
+            blk[i] = static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) );
         return blk;
     }();
 }
