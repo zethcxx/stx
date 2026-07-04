@@ -11,7 +11,7 @@ All examples assume `using namespace stx;` for brevity.
 | `version.patch` | `int` | Patch version |
 
 ```cpp
-inline constexpr version_info version { 1, 0, 0 };
+inline constexpr version_info version { 0, 2, 0 };
 ```
 
 ---
@@ -268,7 +268,8 @@ cleanup.cancel();
 ## `null_t` / `null` (stx::null_t, stx::null)
 
 A null constant distinct from `nullptr`. Does NOT satisfy `address_like`,
-preventing accidental API misuse.
+preventing accidental API misuse. Supports implicit conversion to any type
+constructible from `nullptr_t`.
 
 ```cpp
 inline constexpr null_t null{};
@@ -279,9 +280,29 @@ inline constexpr null_t null{};
 | Expression                          | Result                                               |
 |-------------------------------------|------------------------------------------------------|
 | `null << expr`                      | `null` (discards `expr`, suppresses `[[nodiscard]]`) |
-| `static_cast<uptr>(null)`           | `0`                                                  |
+| `static_cast<std::uintptr_t>(null)` | `0`                                                  |
 | `static_cast<bool>(null)`           | `false`                                              |
 | `static_cast<std::nullptr_t>(null)` | `nullptr`                                            |
+| `int* p = null`                     | `nullptr`                                            |
+| `std::unique_ptr<T> p = null`       | `nullptr` (via `nullptr_t` ctor)                     |
+| `std::shared_ptr<T> p = null`       | `nullptr` (via `nullptr_t` ctor)                     |
+| `p == null`                         | `true` (if `p` is null)                              |
+| `std::hash<null_t>{}(null)`         | `0`                                                  |
+| `std::format("{}", null)`           | `"null"`                                             |
+
+Deleted operators (compile-time error): `null + x`, `null - x`
+
+### Implicit conversions
+
+```cpp
+null_t n;
+
+int* raw = n;           // T* overload → nullptr
+auto up = std::unique_ptr<int>{n};   // unique_ptr from null
+auto sp = std::shared_ptr<int>{n};   // shared_ptr from null
+if (n == up) {}         // compare with unique_ptr
+if (n == sp) {}         // compare with shared_ptr
+```
 
 ### Null as discard accumulator (stx::null)
 
@@ -291,19 +312,8 @@ When calling `[[nodiscard]]` functions like `pop()`, chaining via
 ```cpp
 ptr<u8> p{data};
 
-// Without null: each pop returns a value we don't need
-// null << p.pop<u32>()   // read u32, discard, advance
-//      << p.pop<u16>();  // read u16, discard, advance
-
-struct Header {
-    u32 magic;
-    u16 version;
-};
-
-auto hdr = Header{
-    .magic   = p.pop<u32>(),   // want these
-    .version = p.pop<u16>(),
-};
+null << p.pop<u32>()   // read u32, discard, advance
+     << p.pop<u16>();  // read u16, discard, advance
 ```
 
 ### Null with `ptr` (stx::null)

@@ -355,10 +355,14 @@ Note: `ct::endian::big` and `ct::endian::little` are type tags (not enum values)
 
 ## `ct::byte_block<N>` -- raw byte array
 
-A fixed-size byte array with `.data()` and `.size()`. Useful for binary I/O.
+Alias for `std::array<u8, N>`. Provides `.data()`, `.size()`, `operator[]`,
+iteration, comparison, and all `std::array` operations. Useful for binary I/O.
 
 ```cpp
 ct::byte_block<4> blk{};
+auto p = blk.data();   // u8*
+auto n = blk.size();   // 4
+blk[0] = 0x50;         // direct indexing
 ```
 
 ## `ct::repeat<V, Reps>` -- repeat pattern

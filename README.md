@@ -89,7 +89,7 @@ User-defined literals for strong types and units.
 | `ct::str_type<N>`                | Underlying type of `ct::str` with `apply<MoreFlags...>()` |
 | `ct::istr<"...", T?, Order?>`    | Integral string (auto/explicit type, little/big endian), N ≤ 8 |
 | `ct::vstr<"...">` / `vstr<"...", N>` | `byte_block<N>` with `.data()` / `.size()`, padded to N |
-| `ct::byte_block<N>`              | Raw byte array with `.data()` / `.size()`           |
+| `ct::byte_block<N>`              | `std::array<u8, N>` (`.data()`, `.size()`, iteration) |
 | `ct::repeat<V, Reps>`               | Repeat pattern V (scalar/array), `Reps` times → `std::array` |
 
 ### 8. Time (`time.hpp`)
