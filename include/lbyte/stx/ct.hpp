@@ -5,6 +5,10 @@
 #include <string>
 #include <string_view>
 
+#if __has_include(<ctre.hpp>)
+#include <ctre.hpp>
+#endif
+
 namespace lbyte::stx::ct
 {
     template<size_t N>
@@ -861,6 +865,75 @@ namespace lbyte::stx::ct
 
     template<fixed_string Str, typename... Args>
     constexpr auto istr = istr_t<Str, Args...>::value;
+
+    // --- ct::re (CTRE-based compile-time regex, optional) -------------------------
+
+#if __has_include(<ctre.hpp>)
+    template<ctll::fixed_string Pattern>
+    struct re
+    {
+        template<fixed_string Replacement>
+        struct replace {
+            template<size_t N>
+            static consteval auto apply(std::array<char, N> data) noexcept
+                -> std::array<char, N>
+            {
+                constexpr auto repl = Replacement.data;
+                constexpr auto repl_n = Replacement.size();
+
+                size_t null_pos = 0;
+                while (null_pos < N && data[null_pos] != '\0') ++null_pos;
+                if (null_pos == 0) return data;
+
+                std::array<char, N> result{};
+                size_t dst = 0;
+
+                const char* ptr = data.data();
+                size_t remaining_size = null_pos;
+
+                while (remaining_size > 0)
+                {
+                    std::string_view current{ptr, remaining_size};
+                    auto match = ctre::search<Pattern>(current);
+                    if (!match) break;
+
+                    auto view = match.to_view();
+                    auto pos = static_cast<size_t>(view.data() - ptr);
+                    auto len = view.size();
+
+                    for (size_t i = 0; i < pos && dst < N - 1; ++i)
+                        result[dst++] = ptr[i];
+
+                    for (size_t i = 0; i < repl_n && dst < N - 1; ++i)
+                        result[dst++] = repl[i];
+
+                    if (len == 0) [[unlikely]] {
+                        if (dst < N - 1) result[dst++] = ptr[pos];
+                        ptr += pos + 1;
+                        remaining_size -= pos + 1;
+                    } else {
+                        ptr += pos + len;
+                        remaining_size -= pos + len;
+                    }
+                }
+
+                for (size_t i = 0; i < remaining_size && dst < N - 1; ++i)
+                    result[dst++] = ptr[i];
+
+                return result;
+            }
+        };
+
+        struct remove {
+            template<size_t N>
+            static consteval auto apply(std::array<char, N> data) noexcept
+                -> std::array<char, N>
+            {
+                return replace<"">::apply(data);
+            }
+        };
+    };
+#endif
 
     // --- vstr ---------------------------------------------------------------------
     //   vstr<"PE">        -> byte_block<2>
