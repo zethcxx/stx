@@ -11,7 +11,7 @@ namespace lbyte::stx
             =  std::integral<Type>
             or std::is_enum_v<Type>
             or requires { typename Type::value_type; }
-            or requires( Type t ) { { t.get() } -> std::integral; };
+            or requires( Type t ) { requires std::integral<std::remove_cvref_t<decltype(t.get())>>; };
 
         template<typename T>
         struct base_type { using type = T; };
@@ -105,7 +105,8 @@ namespace lbyte::stx
         ValueT to   = details::unwrap( Type{ _to   } );
         SignedT step = static_cast<SignedT>( _step );
         auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
-        ValueT mag = static_cast<ValueT>( step >= 0 ? step : -step );
+        using UnsignedT = std::make_unsigned_t<SignedT>;
+        ValueT mag = static_cast<ValueT>( step >= 0 ? UnsignedT(step) : -UnsignedT(step) );
         return details::range_view<Type>{ from, to, mag, d, range_mode::Exclusive };
     }
 
@@ -143,7 +144,8 @@ namespace lbyte::stx
         ValueT to   = details::unwrap( Type{ _to   } );
         SignedT step = static_cast<SignedT>( _step );
         auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
-        ValueT mag = static_cast<ValueT>( step >= 0 ? step : -step );
+        using UnsignedT = std::make_unsigned_t<SignedT>;
+        ValueT mag = static_cast<ValueT>( step >= 0 ? UnsignedT(step) : -UnsignedT(step) );
         return details::range_view<Type>{ from, to, mag, d, range_mode::Inclusive };
     }
 
