@@ -269,7 +269,7 @@ namespace lbyte::stx
           : address { rcast<::lbyte::stx::uptr>(raw_ptr) }
         {}
 
-        constexpr explicit ptr(address_like auto addr) noexcept
+        constexpr ptr(address_like auto addr) noexcept
           : address { normalize_addr( addr ) }
         {}
 
