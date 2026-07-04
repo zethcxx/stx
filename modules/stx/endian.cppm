@@ -20,7 +20,7 @@ export namespace lbyte::stx::endian
 template<lbyte::stx::endian::compatible T, lbyte::stx::endian::order O>
 struct std::hash<lbyte::stx::endian::endian_value<T, O>>
 {
-    [[nodiscard]] std::size_t operator()(const lbyte::stx::endian::endian_value<T, O>& v) const noexcept {
+    [[nodiscard]] constexpr std::size_t operator()(const lbyte::stx::endian::endian_value<T, O>& v) const noexcept {
         return std::hash<T>{}( static_cast<T>(v) );
     }
 };
