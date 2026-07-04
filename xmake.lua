@@ -18,6 +18,7 @@ target("stx")
     set_languages  ( "cxx23"  , { public = true })
     add_includedirs( "include", { public = true })
     add_headerfiles( "include/(lbyte/stx/*.hpp)" )
+    add_headerfiles( "include/(lbyte/stx/detail/*.hpp)" )
     add_headerfiles( "include/(lbyte/stx.hpp)"   )
 
     if has_config( "use_modules" ) then
@@ -38,3 +39,4 @@ target("stx")
     end)
 
 includes("tests")
+

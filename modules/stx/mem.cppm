@@ -36,26 +36,6 @@ export namespace lbyte::stx::mem
     using ::lbyte::stx::mem::gap_v;
 }
 
-// --- std::hash --------------------------------------------------------------------
+// --- std::hash + std::formatter ---------------------------------------------------
 
-template<typename T>
-struct std::hash<lbyte::stx::ptr<T>>
-{
-    [[nodiscard]] constexpr auto operator()( const lbyte::stx::ptr<T>& p ) const noexcept {
-        return std::hash<lbyte::stx::uptr>{}( p.addr() );
-    }
-};
-
-// --- std::formatter ---------------------------------------------------------------
-
-#if __has_include(<format>)
-    template<typename T>
-    struct std::formatter<lbyte::stx::ptr<T>> {
-        constexpr auto parse(auto& ctx) { return ctx.begin(); }
-        auto format(const lbyte::stx::ptr<T>& p, format_context& ctx) const {
-            if (!p.addr())
-                return std::format_to(ctx.out(), "null");
-            return std::formatter<void*>{}.format(reinterpret_cast<void*>(p.addr()), ctx);
-        }
-    };
-#endif
+#include "lbyte/stx/detail/ptr_support.hpp"

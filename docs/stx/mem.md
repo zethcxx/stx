@@ -7,9 +7,9 @@ All examples assume `using namespace stx;` for brevity.
 A non-owning pointer wrapper for typed memory access.
 Internally stores a `uptr` for arithmetic and dereference.
 
-| Parameter | Constraint | Default | Description |
-|-----------|------------|---------|-------------|
-| `T` | Any (including `void`) | — | Referenced type |
+| Parameter | Constraint             | Default | Description     |
+|-----------|------------------------|---------|-----------------|
+| `T`       | Any (including `void`) |    —    | Referenced type |
 
 ### Construction (stx::ptr)
 
@@ -567,17 +567,72 @@ Hashes the underlying address (`uptr`).
 
 ### `std::formatter<ptr<T>>`
 
-Enables formatting via `std::format` / `std::print`:
+Enables formatting via `std::format` / `std::print`. Custom format
+mini-language:
 
-```cpp
-stx::ptr<u32> p{addr};
-std::print("ptr at {}\n", p);  // e.g. "ptr at 0x7ffd12345678"
-
-stx::ptr<u32> n{null};
-std::print("ptr is {}\n", n);  // "ptr is null"
+```
+[[fill]align][width][#][type]
 ```
 
-Formats as `"null"` when null, otherwise as `void*` (hex prefix + lowercase hex digits).
+**Fill** — everything before the last `<`/`>`/`^`.
+If absent, padding uses spaces. Multi-char fill allowed:
+`{:ab>12}` → `"abababab0xFF"`.
+
+**Align** — `<` (left), `>` (right), `^` (center). If absent, default is right.
+
+**Width** — minimum field width (padding).
+
+**`#`** — prefix flag: adds `0x`/`0X`/`0b`/`0` before type.
+
+**Type** — one of:
+
+| Type      | Output (addr 0xFF) | Example           |
+|-----------|--------------------|-------------------|
+| (default) | `0xFF`             | `{}`              |
+| `P`       | `0xFF`             | `{:P}`            |
+| `p`       | `0xff`             | `{:p}`            |
+| `X`       | `FF`               | `{:X}`            |
+| `x`       | `ff`               | `{:x}`            |
+| `b`       | `11111111`         | `{:b}`            |
+| `o`       | `377`              | `{:o}`            |
+| `d`       | `255`              | `{:d}`            |
+
+With `#` prefix:
+
+| Type | Output (addr 0xFF) | Example      |
+|------|--------------------|--------------|
+| `#X` | `0xFF`             | `{:#X}`      |
+| `#x` | `0xff`             | `{:#x}`      |
+| `#b` | `0b11111111`       | `{:#b}`      |
+| `#o` | `0377`             | `{:#o}`      |
+
+```cpp
+stx::ptr<u32> p{addr};  // = 0xFF
+
+std::print("{}",   p);  // "0xFF"
+std::print("{:p}", p);  // "0xff"
+std::print("{:b}", p);  // "11111111"
+
+// Width + alignment
+std::print("{:>12}", p);  // "        0xFF"
+std::print("{:*<12}", p); // "0xFF********"
+std::print("{:^12}", p);  // "   0xFF     "
+
+// Multi-char fill pattern
+std::print("{:^^12}", p); // "^^^^0xFF^^^^"
+std::print("{:ab>12}", p); // "abababab0xFF"
+
+// # prefix + type
+std::print("{:#x}", p); // "0xff"
+std::print("{:#b}", p); // "0b11111111"
+
+// Fill + align + # + width + type
+std::print("{:#^10#X}", p); // "###0xFF###"
+
+// Null
+stx::ptr<u32> n{null};
+std::print("{}", n);  // "null"
+```
 
 ### Why ptr<T>?
 
