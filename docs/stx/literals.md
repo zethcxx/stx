@@ -53,6 +53,13 @@ using lbyte::stx::literals::operator""_off_s;
 | `_uz`  | `usize` | `42_uz`  |
 | `_iz`  | `isize` | `-1_iz`  |
 
+### Pointer-Sized Integers
+
+| Suffix  | Type   | Example      |
+|---------|--------|--------------|
+| `_uptr` | `uptr` | `0xFF_uptr`  |
+| `_iptr` | `iptr` | `-1_iptr`    |
+
 ### Strong Types
 
 | Suffix   | Type    | Example                   |

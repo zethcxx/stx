@@ -56,6 +56,23 @@ auto a = p.addr(); // uptr
 if ( p ) { /* valid */ }
 ```
 
+### Address-of operator (design pending)
+
+| Expression | Returns | Notes |
+|------------|---------|-------|
+| `&p` | `ptr<T>*` | current — may change in the future |
+| `std::addressof(p)` | `ptr<T>*` | always safe, stable |
+| `p.raw()` | `T*` | raw pointer |
+| `p.addr()` | `uptr` | address as integer |
+
+Currently `&p` returns the address of the `ptr` object on the stack
+(`ptr<T>*`). Overloading it to return `T*` (equivalent to `p.raw()`) is
+under consideration — it would be more intuitive for a low-level address
+wrapper but would sacrifice `&p` as `ptr<T>*`.
+
+**If it changes**: `std::addressof(p)` will always work to obtain
+`ptr<T>*`. Until then, use `.raw()` or `.addr()` explicitly.
+
 ### Comparison (stx::ptr)
 
 ```cpp
