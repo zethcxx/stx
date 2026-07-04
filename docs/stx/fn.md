@@ -278,6 +278,27 @@ This utility performs no runtime validation.
 
 ---
 
+## Why caller_t\<Sig\>?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Safety | `auto fn = (int(*)(int))addr;` — no signature safety | `auto fn = caller<int(int)>(addr);` — signature in type |
+| Null check | `if (fn) fn(42);` — manual | `if (fn) fn(42);` — same, via `operator bool` |
+| Address types | `uintptr_t` only — manual cast | Any `address_like` (`va_s`, `uptr`, `ptr<T>`) |
+| Intent | `reinterpret_cast` — says "cast override" | `caller<Sig>` — says "this is a function at address" |
+| Debugging | No way to grep for function pointer casts by signature | `caller<int(int)>` — signature is part of the type, greppable |
+
+```cpp
+// Vanilla C++: addr is a magic number
+using Fn = int(*)(int, int);
+auto fn = reinterpret_cast<Fn>(0x140001000);
+int r = fn(10, 20);
+
+// stx: signature is part of the type
+auto fn = caller<int(int, int)>(va_s{0x140001000});
+int r = fn(10, 20);
+```
+
 ## Summary
 
 `fn.hpp` provides:

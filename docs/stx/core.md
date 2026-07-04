@@ -117,6 +117,38 @@ auto bp = p + off_s{8}; // byte offset 8 via arithmetic
 auto v  = (p + off_s{8}).read<u32>(); // read at byte 8
 ```
 
+### Why strong types?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Domain safety | `int off, rva, va` — all interchangeable by accident | `off_s`, `rva_s`, `va_s` — compiler rejects mismatches |
+| Arithmetic | `ptr + (int)offset` — no intent documented | `ptr + off_s{n}` — self-documenting, byte-level |
+| API boundary | `read(void* base, int off)` — what unit is `off`? | `read(address_like, off_s)` — type says "bytes" |
+| Format | `printf("%td", off)` | `std::print("{}", off)` — works via `operator T` |
+
+```cpp
+// Vanilla C++: what does this function expect?
+void read_section(void* base, int offset);
+
+// stx: the type tells the story
+void read_section(address_like base, off_s offset);
+
+// Vanilla C++: accidental domain mixing
+int file_offset = 0x400;
+int rva         = 0x1000;
+int va          = 0x140000000;
+auto p  = base + file_offset;   // meant bytes?
+auto p2 = base + rva;           // but rva is not an offset!
+
+// stx: compiler prevents mixing
+off_s file_off{0x400};
+rva_s image_rva{0x1000};
+va_s  image_va{0x140000000};
+auto p  = base + file_off;   // ✓ byte offset
+// auto p2 = base + image_rva; // ✗ error: rva_s + ptr is not defined
+auto p2 = base + off_s{image_rva}; // ✓ explicit conversion documents intent
+```
+
 ---
 
 ## Concepts
@@ -263,6 +295,32 @@ defer cleanup{[buf] { free(buf); }};
 cleanup.cancel();
 ```
 
+### Why defer?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Early returns | Manual `free(buf);` before each `return` | `defer` runs destructor automatically |
+| Exceptions | `catch` block must free | Stack unwinding calls destructor |
+| Multiple resources | Nested `try`/`catch` pyramids | Stacked `defer` in declaration order |
+| Readability | Cleanup logic mixed with business logic | Cleanup tied to scope at allocation point |
+
+```cpp
+// Vanilla C++: manual cleanup on every path
+void* buf  = malloc(1024);
+void* buf2 = malloc(2048);
+if (!buf || !buf2) { free(buf); free(buf2); return; }
+if (cond())        { free(buf); free(buf2); return; }
+process(buf, buf2);
+free(buf);
+free(buf2);
+
+// stx: cleanup tied to scope
+void* buf  = malloc(1024);  defer _{[&]{ free(buf);  }};
+void* buf2 = malloc(2048);  defer _2{[&]{ free(buf2); }};
+if (cond()) return;          // auto-cleaned
+process(buf, buf2);          // auto-cleaned on exit
+```
+
 ---
 
 ## `null_t` / `null` (stx::null_t, stx::null)
@@ -322,5 +380,26 @@ null << p.pop<u32>()   // read u32, discard, advance
 ptr<int> p{null};    // null pointer
 if ( p == null ) {}  // comparison
 if ( p ) {}          // bool conversion works too
+```
+
+### Why null_t?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Discard nodiscard | `(void)pop(); (void)pop();` | `null << p.pop<u32>() << p.pop<u16>()` |
+| Generic null | `nullptr` (satisfies `address_like`) | `null` (rejected by `address_like` APIs) |
+| Smart pointer init | `unique_ptr<int>{}` or `nullptr` | `unique_ptr<int>{null}` (implicit) |
+| Pointer check | `if (p == nullptr)` | `if (p == null)` (same but explicit) |
+| Format | Manual `"null"` string | `std::print("{}", null)` → `"null"` |
+| Hash | No standard null hash | `std::hash<null_t>{}` → `0` |
+
+```cpp
+// Vanilla C++: discard with (void)
+(void)p.pop<u32>();  // easy to forget
+(void)p.pop<u16>();
+
+// stx: explicit discard chain
+null << p.pop<u32>()  // can't forget
+     << p.pop<u16>();
 ```
 

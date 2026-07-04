@@ -571,10 +571,46 @@ Enables formatting via `std::format` / `std::print`:
 
 ```cpp
 stx::ptr<u32> p{addr};
-fmtprint("ptr at {}\n", p);  // e.g. "ptr at 0x7ffd12345678"
+std::print("ptr at {}\n", p);  // e.g. "ptr at 0x7ffd12345678"
+
+stx::ptr<u32> n{null};
+std::print("ptr is {}\n", n);  // "ptr is null"
 ```
 
-Formats the stored address as `void*` (hex prefix + lowercase hex digits).
+Formats as `"null"` when null, otherwise as `void*` (hex prefix + lowercase hex digits).
+
+### Why ptr<T>?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Null safety | `T* p = nullptr; if (p)` — raw unchecked | `ptr<T> p{null}; if (p)` — same, plus `== null` |
+| Arithmetic | `p + n` in bytes or elements? Unclear | `ptr + off_s{n}` — always bytes, type-documented |
+| Domain safety | `p + 5` — accidental element vs byte confusion | `p[5]` = element, `p + off_s{5}` = byte, compiler-enforced |
+| Read/write | `memcpy(&dst, p, 4); p += 4;` | `auto v = p.pop<u32>();` — type-safe, auto-advance |
+| Format | `printf("0x%" PRIxPTR, (uintptr_t)p)` or streams | `std::print("{}", p)` — `"null"` or `"0x..."` |
+| Pointer chase | `*(T**)(base + off)` — fragile cast | `p.walk<T>(off_s{8})` — documented intent |
+| Const-correct | Manual `const T*` vs `T*` | `ptr<const T>` vs `ptr<T>` — compiler tracked |
+| Hash | No standard pointer hash in `<functional>` | `std::hash<ptr<T>>` — works in unordered containers |
+
+```cpp
+// Vanilla C++: raw pointer arithmetic — what unit is n?
+void* p = data;
+int* ip = (int*)p + 2;           // element offset 2
+int* bp = (int*)((u8*)p + 8);    // byte offset 8 — cast soup
+
+// stx: explicit element vs byte
+ptr<int> p{data};
+auto el = p[2];                  // element offset 2 (type-safe)
+auto bp = p + off_s{8};          // byte offset 8 (type-safe)
+
+// Vanilla C++: manual sequential parse
+u32 a = *(u32*)p; p = (u8*)p + 4;
+u16 b = *(u16*)p; p = (u8*)p + 2;
+
+// stx: self-documenting sequential parse
+auto a = p.pop<u32>();           // read u32, advance 4
+auto b = p.pop<u16>();           // read u16, advance 2
+```
 
 ---
 

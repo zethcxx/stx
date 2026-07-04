@@ -46,6 +46,27 @@ byte_extract<3>(x);      // 0x12 (u8)
 byte_swap<0, 3>(x);      // x → 0x78345612
 ```
 
+## Why stx bit operations?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Readability | `(x >> 4) & 0xF` — what bits? | `bit_extract<4, 4>(x)` — "extract 4 bits at position 4" |
+| Safety | `x & (1u << 31)` — shift by >= width is UB | `bit_test<31>(x)` — compile-time bounds checked |
+| Modification | `x = (x & ~0xF) \| (val & 0xF)` — mask dance | `bit_insert<0, 4>(x, val)` — insert at position |
+| Byte ops | `uint8_t b = (x >> 8) & 0xFF` | `byte_extract<1>(x)` — byte index, no magic numbers |
+
+```cpp
+// Vanilla C++: what does this do?
+u32 x = 0x12345678;
+u32 y = (x >> 4) & 0xF;          // magic numbers everywhere
+x    |= (1u << 31);               // shift? set? no intent documented
+
+// stx: intent is the name
+u32 x = 0x12345678;
+u32 y = bit_extract<4, 4>(x);    // extract nibble at position 4
+x     = bit_set<31>(x);          // test? set? the name says "set"
+```
+
 ## Compatibility
 
 - Works with `u8`, `u16`, `u32`, `u64` and any `std::unsigned_integral`

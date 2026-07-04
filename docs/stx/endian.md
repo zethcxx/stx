@@ -88,6 +88,44 @@ static_assert(!is_endian_value_v<u32>           );
 - `std::formatter<endian::le<T>>` — reuses formatter of `T` (if `<format>` is available)
 - `std::swap` — via friend `swap()`
 
+## Why endian_value / le\<T\>?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Declaration | `u32 sig;` — no endianness info | `le<u32> sig;` — self-documenting byte order |
+| Cross-platform | Manual `#ifdef` / `htole32` / `be32toh` | Same code works on LE and BE hosts |
+| Readability | `struct { u32 sig; u16 ver; }` — what endian? | `struct { le<u32> sig; le<u16> ver; }` — explicit |
+| Serialization | `hdr.sig = htole32(val); hdr.ver = htole16(val);` | `hdr.sig = val; hdr.ver = val;` — implicit conversion |
+| Format | Manual byteswap for display | `std::print("{}", le_val)` — via `formatter<T>` |
+
+```cpp
+// Vanilla C++: manual endian handling everywhere
+struct Header {
+    uint32_t sig;           // little-endian on disk
+    uint16_t ver;           // little-endian on disk
+};
+
+Header h{};
+h.sig = htole32(0x4550);
+h.ver = htole16(2);
+
+uint32_t sig = le32toh(h.sig);  // must remember to swap on read
+if (sig == 0x4550) { /* ... */ }
+
+// stx: endian-aware types do the work
+struct Header {
+    endian::le<u32> sig;
+    endian::le<u16> ver;
+};
+
+Header h{};
+h.sig = 0x4550;            // auto-converts to LE storage
+h.ver = 2;
+
+if (h.sig == 0x4550)       // auto-converts from LE to native
+    process(h);
+```
+
 ## See Also
 
 - `core.hpp` — type aliases (`u32`, `u64`, etc.)

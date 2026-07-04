@@ -337,6 +337,44 @@ if (mapping.is_alive()) {
 
 ---
 
+## Why map_file?
+
+| Aspect | Vanilla C++ (POSIX) | stx |
+|--------|---------------------|-----|
+| Open/map | `int fd = open(...); void* p = mmap(0, size, prot, flags, fd, 0); close(fd);` | `auto m = map_file::open(path);` — single call |
+| Cleanup | `munmap(p, size);` — manual, must not forget | Destructor calls `munmap` automatically |
+| Safety | Raw `void*` — no bounds, no type | `memcur` base — bounds-checked, cursor-based |
+| Error handling | Returns `MAP_FAILED` (`(void*)-1`) | Returns `std::expected` — composable errors |
+| Move | Manual `memcpy` the struct + null the source | Move semantics — safe transfer of ownership |
+
+```cpp
+// Vanilla C++ (POSIX mmap): error-prone, manual cleanup
+void load_file(const char* path) {
+    struct stat st;
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) return;
+    fstat(fd, &st);
+    void* p = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (p == MAP_FAILED) return;
+
+    auto magic = *(u32*)p;               // raw deref
+    // ... work ...
+
+    munmap(p, st.st_size);               // must not forget!
+}
+
+// stx: RAII, cursor-based, composable
+void load_file(const std::filesystem::path& path) {
+    auto m = map_file::open(path);
+    if (!m) return;                       // expected-based error
+
+    auto magic = m->pop<u32>();           // cursor reads + advances
+    auto type  = m->pop<u16>();
+    // ... work ...
+}                                         // auto-unmapped on scope exit
+```
+
 ## Deduction Guides (memcur)
 
 ```cpp

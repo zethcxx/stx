@@ -363,6 +363,39 @@ for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
 
 ---
 
+# Why range<T>?
+
+| Aspect | Vanilla C++ | stx |
+|--------|-------------|-----|
+| Loop syntax | `for (int i = 0; i < n; ++i)` — verbose, error-prone | `for (auto i : range<int>(n))` — intent, not mechanics |
+| Direction | Manual `for (int i = n-1; i >= 0; --i)` — signed/unsigned pitfalls | `range<int>(n, 0)` — inferred backward, `irange<int>(n, 0)` inclusive |
+| Step | `for (int i = 0; i < n; i += 2)` — step mixed with loop header | `range<int>(0, n, 2)` — step as a parameter |
+| Enums | `for (int i = (int)First; i <= (int)Last; ++i)` — casting | `range<Enum>(first, last)` — no casts, preserves enum type |
+| Strong types | Not possible — raw integers only | `range<off_s>(from, to)` — preserves domain safety |
+| Constexpr | `for` loops are constexpr (C++23) but verbose | Same, with less boilerplate |
+
+```cpp
+// Vanilla C++: verbose, manual bounds, direction embedded
+for (int i = 0; i < 10; ++i)      process(i);
+for (int i = 9; i >= 0; --i)      process(i);
+for (int i = 0; i < 10; i += 2)   process(i);
+
+// stx: declarative — say what, not how
+for (auto i : range<int>(10))      process(i);  // 0..9
+for (auto i : range<int>(10, 0))   process(i);  // 10..1
+for (auto i : range<int>(0, 10, 2)) process(i); // 0,2,4,6,8
+
+// Vanilla C++: enum iteration requires casts
+for (int i = (int)Color::Red; i <= (int)Color::Blue; ++i) {
+    auto c = static_cast<Color>(i);
+    draw(c);
+}
+
+// stx: enum-safe, no casts
+for (auto c : range<Color>(Color::Red, Color::Blue))
+    draw(c);                       // c is Color, not int
+```
+
 # Design Characteristics
 
 - C++23 constexpr-friendly

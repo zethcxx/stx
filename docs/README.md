@@ -79,11 +79,11 @@ auto main() -> int
 ## Additional Resources
 
 - [Main README](../README.md) - Project overview and integration guides
-- [Core API](./api/core.md) - Detailed core documentation
-- [Memory API](./api/mem.md) - Memory access, ptr
-- [Function API](./api/fn.md) - Function pointer invocations
-- [File API](./api/io.md) - Binary file stream utilities
-- [Time API](./api/stx/time.md) - UNIX time and stopwatch
-- [Range API](./api/stx/range.md) - Integer range iteration
-- [Literals API](./api/literals.md) - Literal suffixes for core types
-- [String API](./api/stx/ct.md) - Compile-time string literals
+ - [Core API](./stx/core.md) - Detailed core documentation
+- [Memory API](./stx/mem.md) - Memory access, ptr
+- [Function API](./stx/fn.md) - Function pointer invocations
+- [File API](./stx/io.md) - Binary file stream utilities
+- [Time API](./stx/time.md) - UNIX time and stopwatch
+- [Range API](./stx/range.md) - Integer range iteration
+- [Literals API](./stx/literals.md) - Literal suffixes for core types
+- [String API](./stx/ct.md) - Compile-time string literals
