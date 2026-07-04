@@ -27,6 +27,8 @@ export namespace lbyte::stx::literals
 
     using ::lbyte::stx::literals::operator""_uz;
     using ::lbyte::stx::literals::operator""_iz;
+    using ::lbyte::stx::literals::operator""_uptr;
+    using ::lbyte::stx::literals::operator""_iptr;
 
     using ::lbyte::stx::literals::operator""_off_s;
     using ::lbyte::stx::literals::operator""_rva_s;

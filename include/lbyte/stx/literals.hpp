@@ -24,6 +24,8 @@ namespace lbyte::stx::literals
     constexpr i64   operator""_i64 ( unsigned long long v ) noexcept { return static_cast<i64  >(v); }
     constexpr usize operator""_uz  ( unsigned long long v ) noexcept { return static_cast<usize>(v); }
     constexpr isize operator""_iz  ( unsigned long long v ) noexcept { return static_cast<isize>(v); }
+    constexpr uptr  operator""_uptr( unsigned long long v ) noexcept { return static_cast<uptr >(v); }
+    constexpr iptr  operator""_iptr( unsigned long long v ) noexcept { return static_cast<iptr >(v); }
 
     // --- STRONG TYPES --------------------------------------------------------
     constexpr off_s operator""_off_s( unsigned long long v ) noexcept {
