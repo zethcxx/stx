@@ -26,14 +26,14 @@ struct std::hash<lbyte::stx::ptr<T>>
             auto it = pc.begin();
             auto end = pc.end();
 
-            const char* align_pos = nullptr;
+            auto align_pos = end;
             for (auto p = it; p != end; ++p) {
                 auto c = *p;
                 if (c == '<' || c == '>' || c == '^')
                     align_pos = p;
             }
 
-            if (align_pos) {
+            if (align_pos != end) {
                 fill_len = static_cast<size_t>(align_pos - it);
                 if (fill_len > 31) fill_len = 31;
                 for (size_t i = 0; i < fill_len; ++i)
