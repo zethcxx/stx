@@ -17,6 +17,11 @@ compile time and exposes the result as `operator const CharT*()`, `.data()`, and
 permanent storage duration (like a string literal in `.rodata`). No temporary
 lifetime issues.
 
+Transforms produce an **exact-size** array: the content plus a trailing `\0`,
+with no padding. `x.size()` is the content length, and array introspection
+(`decltype(x)::value.size()`) reflects the exact content too. Use
+`fmt::pad_to<Size>` to force a fixed-size buffer.
+
 ```cpp
 using namespace lbyte::stx;
 
@@ -46,8 +51,9 @@ transforms take template arguments.
 | `fmt::remove_blank_lines`          | Remove entirely blank (or whitespace-only) lines                       |
 | `fmt::trim_each_line`              | Trim leading/trailing whitespace on each line                          |
 | `fmt::collapse_whitespace`         | Collapse horizontal whitespace (spaces/tabs) to single space           |
-| `fmt::replace_all\<"from", "to"\>` | Replace all occurrences of `from` with `to`                            |
+| `fmt::replace_all\<"from", "to"\>` | Replace all occurrences of `from` with `to` (output may grow or shrink) |
 | `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker                            |
+| `fmt::pad_to\<Size\>`             | Pad (or truncate) the result to exactly `Size` bytes, null-terminated |
 | `fmt::chain\<Fs...\>`              | Apply multiple transforms in order                                     |
 | `fmt::trim_block`                  | Preset: `chain\<strip, unindent\>`                                     |
 
@@ -154,12 +160,16 @@ std::string_view{ ct::str<"a\t\tb  c",         ct::fmt::collapse_whitespace> } /
 
 ## replace_all
 
-Replaces all occurrences of `From` with `To`. Requires `To.size() <= From.size()`
-to guarantee in-place safety at compile time.
+Replaces all occurrences of `From` with `To`. The output may grow or shrink, so
+`To` is not limited to `From`'s size. `From` must be non-empty.
 
 ```cpp
 std::string_view{ ct::str<"a-b-c", ct::fmt::replace_all<"-", "_">> }
 // "a_b_c"
+
+// Growing replacement
+std::string_view{ ct::str<"a.b", ct::fmt::replace_all<".", " ==> ">> }
+// "a ==> b"
 ```
 
 ## strip_line_comments
@@ -192,6 +202,23 @@ std::string_view{ ct::str<"\n  e asm.nbytes      = 16\n  e scr.color       = 1\n
 // "e asm.nbytes=16;e scr.color=1"
 ```
 
+## pad_to
+
+Forces the result to a fixed-size buffer of exactly `Size` bytes (including the
+trailing `\0`). If the content is shorter it is null-padded; if it is longer it
+is truncated to `Size - 1` characters. Use it last to fix the final layout.
+
+```cpp
+std::string_view{ ct::str<"hello", ct::fmt::pad_to<8>> }
+// "hello"   (value is a std::array<char, 8>, null-padded)
+
+decltype(ct::str<"hello world", ct::fmt::pad_to<8>>)::value.size()
+// 8, content truncated to "hello w"
+
+std::string_view{ ct::str<"  hello  \n", ct::fmt::trim_block, ct::fmt::pad_to<12>> }
+// "hello  "
+```
+
 ## `constexpr` context
 
 ```cpp
@@ -202,11 +229,12 @@ static_assert( std::string_view{x} == "hello\nworld" );
 ## `str_type::apply<MoreFlags...>()` -- chaining transforms on computed values
 
 Apply additional transforms to an already-transformed `str_type`. Returns a new
-`str_type` with the combined flag list.
+`str_type` holding the fully transformed result; transforms are applied exactly
+once (no re-running of the original flags).
 
 ```cpp
-constexpr auto x = ct::str<"-hello-", ct::fmt::trim_left>;
-// x == "hello-"
+constexpr auto x = ct::str<"  hello  ", ct::fmt::trim_left>;
+// x == "hello  "
 constexpr auto y = decltype(x)::apply<ct::fmt::trim_right>();
 // y == "hello"
 ```

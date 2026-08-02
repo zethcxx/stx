@@ -37,7 +37,7 @@ namespace lbyte::stx::ct
     struct formatter;
 
     template<auto... Vs>
-    struct args;
+    struct args {};
 
     template<fixed_string Str, typename... Flags>
     struct str_type;
@@ -229,13 +229,14 @@ namespace lbyte::stx::ct
             fmt_spec spec;
             if (sv.empty()) return spec;
             size_t i = 0;
-            if (sv.size() >= 2 && (sv[1] == '<' || sv[1] == '>' || sv[1] == '^')) {
-                spec.fill = sv[0];
-                spec.align = sv[1];
-                i = 2;
-            } else if (sv[0] == '<' || sv[0] == '>' || sv[0] == '^') {
-                spec.align = sv[0];
-                i = 1;
+            if (sv[0] == ':') ++i; // format separator, not a fill char
+            if (i + 1 < sv.size() && (sv[i + 1] == '<' || sv[i + 1] == '>' || sv[i + 1] == '^')) {
+                spec.fill = sv[i];
+                spec.align = sv[i + 1];
+                i += 2;
+            } else if (i < sv.size() && (sv[i] == '<' || sv[i] == '>' || sv[i] == '^')) {
+                spec.align = sv[i];
+                ++i;
             }
             while (i < sv.size() && sv[i] >= '0' && sv[i] <= '9') {
                 spec.width = spec.width * 10 + static_cast<size_t>(sv[i] - '0');
@@ -292,8 +293,8 @@ namespace lbyte::stx::ct
 
         template<std::integral T>
         struct fmt_helper<T> {
-            static consteval size_t expanded_size(const fmt_spec& spec) noexcept {
-                return fmt_arg_size(T{}, spec);
+            static consteval size_t expanded_size(const fmt_spec& spec, T v) noexcept {
+                return fmt_arg_size(v, spec);
             }
             static consteval void write_to(char* buf, T v, const fmt_spec& spec) noexcept {
                 fmt_arg_write(buf, v, spec);
@@ -302,7 +303,7 @@ namespace lbyte::stx::ct
 
         template<size_t N>
         struct fmt_helper<fixed_string<N>> {
-            static consteval size_t expanded_size(const fmt_spec&) noexcept {
+            static consteval size_t expanded_size(const fmt_spec&, auto) noexcept {
                 return N;
             }
             static consteval void write_to(char* buf, fixed_string<N> v, const fmt_spec&) noexcept {
@@ -312,7 +313,7 @@ namespace lbyte::stx::ct
 
         template<size_t N>
         struct fmt_helper<std::array<char, N>> {
-            static consteval size_t expanded_size(const fmt_spec&) noexcept {
+            static consteval size_t expanded_size(const fmt_spec&, auto) noexcept {
                 return N;
             }
             static consteval void write_to(char* buf, const std::array<char, N>& arr, const fmt_spec&) noexcept {
@@ -325,11 +326,10 @@ namespace lbyte::stx::ct
         [[nodiscard]] consteval size_t compute_expanded_size(const args<Vs...>&) noexcept {
             constexpr auto sv = std::string_view{Str.data, Str.size()};
             size_t total = 0;
-            size_t ai = 0;
+            size_t ph = 0;
             auto expand_one = [&](auto v, auto spec) {
                 using VT = decltype(v);
-                total += fmt_helper<VT>::expanded_size(spec);
-                ++ai;
+                total += fmt_helper<VT>::expanded_size(spec, v);
             };
             for (size_t i = 0; i < sv.size(); ) {
                 if (sv[i] == '{' && i + 1 < sv.size() && sv[i + 1] == '{') {
@@ -341,8 +341,9 @@ namespace lbyte::stx::ct
                     auto spec_str = sv.substr(i + 1, end - i - 1);
                     auto spec = parse_spec(spec_str);
                     [&]<size_t... Is>(std::index_sequence<Is...>) {
-                        ((ai == Is ? (expand_one(std::get<Is>(std::tuple<decltype(Vs)...>{}), spec), 0) : 0), ...);
+                        ((ph == Is ? (expand_one(std::get<Is>(std::tuple{Vs...}), spec), 0) : 0), ...);
                     }(std::make_index_sequence<sizeof...(Vs)>{});
+                    ++ph;
                     i = end + 1;
                 } else {
                     total += 1; ++i;
@@ -359,12 +360,11 @@ namespace lbyte::stx::ct
             constexpr auto sv = std::string_view{Str.data, Str.size()};
             std::array<char, TotalSize> result{};
             size_t dst = 0;
-            size_t ai = 0;
+            size_t ph = 0;
             auto write_one = [&](auto v, auto spec) {
                 using VT = decltype(v);
                 fmt_helper<VT>::write_to(result.data() + dst, v, spec);
-                dst += fmt_helper<VT>::expanded_size(spec);
-                ++ai;
+                dst += fmt_helper<VT>::expanded_size(spec, v);
             };
             for (size_t i = 0; i < sv.size(); ) {
                 if (sv[i] == '{' && i + 1 < sv.size() && sv[i + 1] == '{') {
@@ -376,8 +376,9 @@ namespace lbyte::stx::ct
                     auto spec_str = sv.substr(i + 1, end - i - 1);
                     auto spec = parse_spec(spec_str);
                     [&]<size_t... Is>(std::index_sequence<Is...>) {
-                        ((ai == Is ? (write_one(std::get<Is>(std::tuple<decltype(Vs)...>{}), spec), 0) : 0), ...);
+                        ((ph == Is ? (write_one(std::get<Is>(std::tuple{Vs...}), spec), 0) : 0), ...);
                     }(std::make_index_sequence<sizeof...(Vs)>{});
+                    ++ph;
                     i = end + 1;
                 } else {
                     result[dst++] = sv[i++];
@@ -399,13 +400,21 @@ namespace lbyte::stx::ct
             }
         };
 
-        // --- apply flags to array (fold over comma) ------------------------------
-        template<typename... Flags, size_t N>
-        [[nodiscard]] consteval auto apply_flags(
-            std::array<char, N> data) noexcept -> std::array<char, N>
+        // --- apply flags to array (recursive; size may change per step) ----------
+        template<size_t N>
+        [[nodiscard]] consteval auto apply_flags(std::array<char, N> data) noexcept
         {
-            ((data = Flags::apply(data)), ...);
             return data;
+        }
+
+        template<typename F, typename... Rest, size_t N>
+        [[nodiscard]] consteval auto apply_flags(std::array<char, N> data) noexcept
+        {
+            auto r = F::apply(data);
+            if constexpr (sizeof...(Rest) == 0)
+                return r;
+            else
+                return apply_flags<Rest...>(r);
         }
 
         // --- NTTP-based chain (forces materialization via template instantiation) -
@@ -434,6 +443,39 @@ namespace lbyte::stx::ct
             for (size_t i = 0; i < N; ++i)
                 fs.data[i] = arr[i];
             return fs;
+        }
+
+        // --- exact-size / pad helpers --------------------------------------------
+        template<size_t N>
+        [[nodiscard]] constexpr size_t arr_content_len(const std::array<char, N>& data) noexcept {
+            size_t n = 0;
+            while (n < N && data[n] != '\0') ++n;
+            return n;
+        }
+
+        // Shrink a null-terminated array to exactly its content (content + '\0').
+        template<auto Data>
+        [[nodiscard]] consteval auto shrink_nttp() noexcept {
+            constexpr size_t len = arr_content_len(Data);
+            std::array<char, len + 1> out{};
+            for (size_t i = 0; i < len; ++i)
+                out[i] = Data[i];
+            return out;
+        }
+
+        // Pad (or truncate) an array to exactly Size bytes: content capped at
+        // Size - 1, always null-terminated, remaining bytes zeroed.
+        template<size_t Size, size_t N>
+        [[nodiscard]] consteval auto pad_to_arr(std::array<char, N> data) noexcept
+            -> std::array<char, Size>
+        {
+            static_assert(Size >= 1, "ct::fmt::pad_to requires Size >= 1");
+            std::array<char, Size> out{};
+            size_t len = arr_content_len(data);
+            for (size_t i = 0; i < len && i < Size - 1; ++i)
+                out[i] = data[i];
+            out[Size - 1] = '\0';
+            return out;
         }
 
     }
@@ -698,17 +740,16 @@ namespace lbyte::stx::ct
         };
 
         template<fixed_string From, fixed_string To>
-            requires (To.size() <= From.size())
+            requires (From.size() > 0)
         struct replace_all {
             template<size_t N>
             static consteval auto apply(std::array<char, N> data) noexcept
-                -> std::array<char, N>
             {
                 constexpr auto from_n = From.size();
                 constexpr auto to_n   = To.size();
                 size_t null_pos = 0;
                 while (null_pos < N && data[null_pos] != '\0') ++null_pos;
-                std::array<char, N> result{};
+                std::array<char, N * (to_n > 0 ? to_n : 1)> result{};
                 size_t dst = 0;
                 for (size_t i = 0; i < null_pos; ) {
                     bool match = (i + from_n <= null_pos);
@@ -727,6 +768,16 @@ namespace lbyte::stx::ct
                 }
                 return result;
             }
+        };
+
+        // Pad (or truncate) the result to exactly Size bytes. Terminal flag:
+        // use it last, otherwise its size persists only if no later flag resizes.
+        template<size_t Size>
+        struct pad_to {
+            template<size_t N>
+            static consteval auto apply(std::array<char, N> data) noexcept
+                -> std::array<char, Size>
+            { return details::pad_to_arr<Size>(data); }
         };
 
         template<fixed_string Marker>
@@ -766,7 +817,6 @@ namespace lbyte::stx::ct
         struct chain {
             template<size_t N>
             static consteval auto apply(std::array<char, N> data) noexcept
-                -> std::array<char, N>
             { return details::apply_flags<Fs...>(data); }
         };
 
@@ -774,10 +824,26 @@ namespace lbyte::stx::ct
         using trim_block = chain<strip, unindent>;
     };
 
+    namespace details
+    {
+        // Detect pad_to (top-level flag or nested inside a chain)
+        template<typename F>
+        struct is_pad_to : std::false_type {};
+        template<size_t Size>
+        struct is_pad_to<::lbyte::stx::ct::fmt::pad_to<Size>> : std::true_type {};
+        template<typename... Fs>
+        struct is_pad_to<::lbyte::stx::ct::fmt::chain<Fs...>>
+            : std::bool_constant<(is_pad_to<Fs>::value || ...)> {};
+
+        template<typename... Flags>
+        constexpr bool has_pad_to_v = (is_pad_to<Flags>::value || ...);
+    }
+
     template<fixed_string Str, typename... Flags>
     struct str_type {
     private:
         static constexpr bool _has_args = (details::is_args<Flags>::value || ...);
+        static constexpr bool _has_pad  = details::has_pad_to_v<Flags...>;
 
         static constexpr auto compute_initial() noexcept {
             constexpr size_t N = Str.size() + 1;
@@ -790,10 +856,14 @@ namespace lbyte::stx::ct
         static constexpr auto _raw_value = [] {
             if constexpr (_has_args) {
                 using ArgsT = typename details::extract_args<Flags...>::type;
-                return details::expand_format_impl<Str, ArgsT>::fill();
+                return details::shrink_nttp<details::expand_format_impl<Str, ArgsT>::fill()>();
             } else {
                 constexpr auto init = compute_initial();
-                return details::apply_chain<init, Flags...>::value;
+                constexpr auto full = details::apply_chain<init, Flags...>::value;
+                if constexpr (_has_pad)
+                    return full;
+                else
+                    return details::shrink_nttp<full>();
             }
         }();
 
@@ -825,11 +895,18 @@ namespace lbyte::stx::ct
 
         template<typename... MoreFlags>
         static constexpr auto apply() noexcept {
+            constexpr bool more_pad = details::has_pad_to_v<MoreFlags...>;
             constexpr auto new_fs = []() {
-                constexpr auto arr = details::apply_chain<_raw_value, MoreFlags...>::value;
-                return details::arr_to_fs(arr);
+                constexpr auto full = details::apply_chain<_raw_value, MoreFlags...>::value;
+                if constexpr (more_pad)
+                    return details::arr_to_fs(full);
+                else
+                    return details::arr_to_fs(details::shrink_nttp<full>());
             }();
-            return str_type<new_fs, Flags..., MoreFlags...>{};
+            if constexpr (more_pad)
+                return str_type<new_fs, fmt::pad_to<new_fs.size() + 1>>{};
+            else
+                return str_type<new_fs>{};
         }
     };
 
