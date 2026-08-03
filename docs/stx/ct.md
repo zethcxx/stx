@@ -21,7 +21,9 @@ Transforms produce an **exact-size** array: the content plus a trailing `\0`,
 with no padding. `x.size()` is the content length, and array introspection
 (`decltype(x)::value.size()`) reflects the exact content too. Use
 `fmt::fixed<Size>` to force a fixed-size buffer or `fmt::pad_end<N>` to grow
-the buffer with trailing zero bytes.
+the buffer with trailing zero bytes. For multi-line text, `ct::eraw<R"(...)"...>`
+(or `fmt::unescape`) reinterprets a raw string as a normal literal so escapes
+like `\n` and `\033` work inside it.
 
 ```cpp
 using namespace lbyte::stx;
@@ -58,6 +60,7 @@ transforms take template arguments.
 | `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker                            |
 | `fmt::fixed\<Size\>`               | Force the result to exactly `Size` bytes, null-terminated               |
 | `fmt::pad_end\<N\>`               | Append `N` zero bytes after the `\0`, grow only (never truncates)        |
+| `fmt::unescape`                   | Reinterpret a raw string as a normal literal (interpret escapes)         |
 | `fmt::chain\<Fs...\>`              | Apply multiple transforms in order                                     |
 | `fmt::trim_block`                  | Preset: `chain\<strip, unindent\>`                                     |
 
@@ -244,6 +247,68 @@ ct::str<"...", ct::fmt::pad_end>      // N = 1
 Typical use: a long string that must sit in a fixed-size field of a binary
 layout, where you want a zeroed region after the text without having to count
 the exact length (`fixed` would truncate if you undershoot).
+
+## unescape
+
+Reinterprets a **raw string** the way a normal C++ string literal would be
+parsed: escape sequences become the actual characters. Normal literals do not
+need this (the compiler already interprets `\n`); the point is that raw
+literals cannot be multi-line without escapes, so writing
+
+```cpp
+"line1\n"
+"line2"
+// or
+"line1\n\
+line2"
+```
+
+is replaced by the comfortable form
+
+```cpp
+ct::str<R"(
+line1
+line2
+)", ct::fmt::unescape, ct::fmt::strip>
+// "line1\nline2"
+```
+
+Recognized sequences:
+
+| Sequence       | Meaning                                                  |
+|----------------|----------------------------------------------------------|
+| `\n \t \r`     | newline, tab, carriage return                            |
+| `\a \b \f \v`  | bell, backspace, form feed, vertical tab                 |
+| `\' \" \? \\`  | the literal character                                    |
+| `\NNN`         | octal (1-3 digits); `\0` ends the content                |
+| `\xNN`         | hex (1+ digits), low byte kept                           |
+| `\` + newline  | line continuation: both removed (also handles CRLF)      |
+
+Anything else -- `\q`, `\u`/`\U` unicode names, a lone trailing `\` -- is kept
+literally. ANSI codes need no special support: `\033[31m` becomes a single ESC
+byte (`\033` octal) followed by the literal `[31m`.
+
+```cpp
+ct::str<R"(say \"hi\" \\ bye)", ct::fmt::unescape>  // say "hi" \ bye
+ct::str<R"(\101\x41)",          ct::fmt::unescape>  // "AA"
+ct::str<R"(\033[31m)",          ct::fmt::unescape>  // ESC + "[31m"
+ct::str<R"(a\
+b)",                            ct::fmt::unescape>  // "ab"
+```
+
+## eraw
+
+Shorthand for `str<..., fmt::unescape, ...>`: reinterprets the raw literal and
+then applies any remaining flags.
+
+```cpp
+ct::eraw<R"(line1\n\tline2)">           // "line1\n\tline2"
+ct::eraw<R"(  hi\n  )", ct::fmt::trim_block>  // "hi"
+```
+
+Note: `unescape`/`eraw` do not combine with `ct::args` (the args path ignores
+flags). For a one-off ANSI or escape string you can also just use a normal
+literal, which the compiler already decodes: `ct::str<"\033[31m">`.
 
 ## Conversions
 

@@ -827,6 +827,104 @@ namespace lbyte::stx::ct
             }
         };
 
+        // Reinterpret a raw string as a normal C++ literal: convert escape
+        // sequences to the actual characters. Handles the simple escapes, octal
+        // \NNN and hex \xNN, and backslash-newline line continuation. A `\0`
+        // escape ends the content. Unknown sequences (`\q`, `\u`, `\U`) and a
+        // lone trailing backslash are preserved literally.
+        struct unescape {
+            template<size_t N>
+            static consteval auto apply(std::array<char, N> data) noexcept
+                -> std::array<char, N>
+            {
+                size_t null_pos = 0;
+                while (null_pos < N && data[null_pos] != '\0') ++null_pos;
+                std::array<char, N> result{};
+                size_t dst = 0;
+                for (size_t i = 0; i < null_pos; ++i) {
+                    if (data[i] != '\\') {
+                        result[dst++] = data[i];
+                        continue;
+                    }
+                    if (i + 1 >= null_pos) {          // lone trailing backslash
+                        result[dst++] = '\\';
+                        break;
+                    }
+                    char e = data[i + 1];
+                    switch (e) {
+                        case '\'': result[dst++] = '\''; ++i; break;
+                        case '"':  result[dst++] = '"';  ++i; break;
+                        case '?':  result[dst++] = '?';  ++i; break;
+                        case '\\': result[dst++] = '\\'; ++i; break;
+                        case 'a':  result[dst++] = '\a'; ++i; break;
+                        case 'b':  result[dst++] = '\b'; ++i; break;
+                        case 'f':  result[dst++] = '\f'; ++i; break;
+                        case 'n':  result[dst++] = '\n'; ++i; break;
+                        case 'r':  result[dst++] = '\r'; ++i; break;
+                        case 't':  result[dst++] = '\t'; ++i; break;
+                        case 'v':  result[dst++] = '\v'; ++i; break;
+                        case '\n': ++i; break;        // line continuation
+                        case '\r':                    // CRLF line continuation
+                            if (i + 2 < null_pos && data[i + 2] == '\n') {
+                                i += 2;
+                                break;
+                            }
+                            result[dst++] = '\\';
+                            result[dst++] = '\r';
+                            ++i;
+                            break;
+                        case 'x': {
+                            size_t j = i + 2;
+                            int val = 0;
+                            bool any = false;
+                            while (j < null_pos) {
+                                char h = data[j];
+                                int d;
+                                if (h >= '0' && h <= '9')       d = h - '0';
+                                else if (h >= 'a' && h <= 'f')  d = h - 'a' + 10;
+                                else if (h >= 'A' && h <= 'F')  d = h - 'A' + 10;
+                                else break;
+                                val = (val * 16 + d) & 0xFF;
+                                ++j;
+                                any = true;
+                            }
+                            if (!any) {
+                                result[dst++] = '\\';
+                                result[dst++] = 'x';
+                                ++i;
+                                break;
+                            }
+                            result[dst++] = static_cast<char>(val);
+                            i = j - 1;
+                            break;
+                        }
+                        default:
+                            if (e >= '0' && e <= '7') {   // octal (includes \0)
+                                size_t j = i + 1;
+                                int val = 0;
+                                int digits = 0;
+                                while (j < null_pos && digits < 3) {
+                                    char o = data[j];
+                                    if (o < '0' || o > '7') break;
+                                    val = (val * 8 + (o - '0')) & 0xFF;
+                                    ++j;
+                                    ++digits;
+                                }
+                                result[dst++] = static_cast<char>(val);
+                                i = j - 1;
+                                break;
+                            }
+                            result[dst++] = '\\';          // unknown: keep as-is
+                            result[dst++] = e;
+                            ++i;
+                            break;
+                    }
+                }
+                result[dst] = '\0';
+                return result;
+            }
+        };
+
         template<typename... Fs>
         struct chain {
             template<size_t N>
@@ -940,6 +1038,11 @@ namespace lbyte::stx::ct
 
     template<fixed_string Str, typename... Flags>
     constexpr str_type<Str, Flags...> str{};
+
+    // eraw: reinterpret the raw literal as a normal string (escapes converted),
+    // then apply the remaining flags.
+    template<fixed_string Str, typename... Flags>
+    constexpr auto eraw = str<Str, fmt::unescape, Flags...>;
 
     // --- istr_t (variable template with optional positional args) ------------------
     template<fixed_string Str, typename... Args>
