@@ -11,5 +11,6 @@ export import lbyte.stx.literals;
 export import lbyte.stx.ct;
 export import lbyte.stx.time;
 export import lbyte.stx.range;
+export import lbyte.stx.cycle;
 
 export namespace lbyte::stx {}

@@ -38,6 +38,7 @@ if ( LBYTE_STX_USE_MODULES )
         modules/stx/ct.cppm
         modules/stx/time.cppm
         modules/stx/range.cppm
+        modules/stx/cycle.cppm
         modules/stx/stx.cppm
     )
 else()

@@ -14,6 +14,7 @@
 | File | `io.hpp` | Binary file stream utilities |
 | Time | `time.hpp` | UNIX time and stopwatch utilities |
 | Range | `range.hpp` | Integer range iteration |
+| Cycle | `cycle.hpp` | Infinite / bounded range cycling ([docs](./stx/cycle.md)) |
 | Literals | `literals.hpp` | Literal suffixes for all core types ([docs](./api/literals.md)) |
 | String   | `ct.hpp`       | Compile-time string transforms ([docs](./stx/ct.md)) |
 
@@ -85,5 +86,6 @@ auto main() -> int
 - [File API](./stx/io.md) - Binary file stream utilities
 - [Time API](./stx/time.md) - UNIX time and stopwatch
 - [Range API](./stx/range.md) - Integer range iteration
+- [Cycle API](./stx/cycle.md) - Infinite / bounded range cycling
 - [Literals API](./stx/literals.md) - Literal suffixes for core types
 - [String API](./stx/ct.md) - Compile-time string literals

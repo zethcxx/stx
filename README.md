@@ -113,6 +113,15 @@ User-defined literals for strong types and units.
 
 Supports forward/backward, custom step, enums, strong types.
 
+### 10. Cycle (`cycle.hpp`)
+
+| Component          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| `cycle(r)`         | Infinite repetition — `break` or compose to stop         |
+| `cycle(r, n)`      | Exactly `n` passes over the underlying range             |
+
+Sentinel-based, `constexpr`, works with `range` and standard containers. Nothing in C++23/26; proposed for C++29 (`views::cycle`).
+
 ---
 
 ## Integration
@@ -231,7 +240,8 @@ No global state, no vtable, no hidden allocations, no registration. If you don't
 | `mem::read / write`  | **O(1)**                            | Single `memcpy` or aligned dereference                        |
 | `io::readfs`         | **O(n)**, no heap                   | User-provided buffer, no hidden alloc                         |
 | `time::now()`        | **1 syscall**                       | Wraps `clock_gettime`                                         |
-| `range`, `fn`        | **Zero** — all `constexpr` / inline | Optimizer folds them away                                     |
+| `range`, `fn`        | **Zero** — all `constexpr` / inline | Optimizer folds them away                     |
+| `cycle`              | **Zero** — all `constexpr` / inline | Iterators + pass counter, inlined             |
 
 ### Strong typing
 

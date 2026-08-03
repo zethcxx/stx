@@ -10,4 +10,5 @@
 #include "./stx/ct.hpp"      // IWYU pragma: export
 #include "./stx/time.hpp"    // IWYU pragma: export
 #include "./stx/range.hpp"   // IWYU pragma: export
+#include "./stx/cycle.hpp"   // IWYU pragma: export
 
