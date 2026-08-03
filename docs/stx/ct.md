@@ -20,7 +20,8 @@ lifetime issues.
 Transforms produce an **exact-size** array: the content plus a trailing `\0`,
 with no padding. `x.size()` is the content length, and array introspection
 (`decltype(x)::value.size()`) reflects the exact content too. Use
-`fmt::fixed<Size>` to force a fixed-size buffer.
+`fmt::fixed<Size>` to force a fixed-size buffer or `fmt::pad_end<N>` to grow
+the buffer with trailing zero bytes.
 
 ```cpp
 using namespace lbyte::stx;
@@ -56,6 +57,7 @@ transforms take template arguments.
 | `fmt::replace_all\<"from", "to"\>` | Replace all occurrences of `from` with `to` (output may grow or shrink) |
 | `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker                            |
 | `fmt::fixed\<Size\>`               | Force the result to exactly `Size` bytes, null-terminated               |
+| `fmt::pad_end\<N\>`               | Append `N` zero bytes after the `\0`, grow only (never truncates)        |
 | `fmt::chain\<Fs...\>`              | Apply multiple transforms in order                                     |
 | `fmt::trim_block`                  | Preset: `chain\<strip, unindent\>`                                     |
 
@@ -220,6 +222,28 @@ decltype(ct::str<"hello world", ct::fmt::fixed<8>>)::value.size()
 std::string_view{ ct::str<"  hello  \n", ct::fmt::trim_block, ct::fmt::fixed<12>> }
 // "hello  "
 ```
+
+## pad_end
+
+Appends `N` zero bytes after the trailing `\0`, growing the buffer. Unlike
+`fixed`, it **never truncates**: the content is always kept whole, so there is
+no size to count. The extra zeros live in the backing array (`value`) but stay
+invisible to `size()`, `string_view`, `format` and `operator const char*`
+(which still stop at the first `\0`). `N` defaults to `1`.
+
+```cpp
+decltype(ct::str<"hello", ct::fmt::pad_end<2>>)::value.size()  // 8
+// value bytes: h e l l o \0 \0 \0
+
+std::string_view{ ct::str<"hello", ct::fmt::pad_end<2>> }      // "hello"
+decltype(ct::str<"hello", ct::fmt::pad_end<2>>)::size()        // 5
+
+ct::str<"...", ct::fmt::pad_end>      // N = 1
+```
+
+Typical use: a long string that must sit in a fixed-size field of a binary
+layout, where you want a zeroed region after the text without having to count
+the exact length (`fixed` would truncate if you undershoot).
 
 ## Conversions
 

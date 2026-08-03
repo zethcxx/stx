@@ -777,6 +777,23 @@ namespace lbyte::stx::ct
             { return details::fixed_arr<Size>(data); }
         };
 
+        // Append N zero bytes after the terminator, growing the buffer.
+        // Never truncates, so there is no size to count. Like fixed, this is
+        // a layout flag: the extra zeros survive the final shrink.
+        template<size_t N = 1>
+        struct pad_end {
+            static_assert(N >= 1, "ct::fmt::pad_end requires N >= 1");
+            template<size_t M>
+            static consteval auto apply(std::array<char, M> data) noexcept
+                -> std::array<char, M + N>
+            {
+                std::array<char, M + N> out{};
+                for (size_t i = 0; i < M; ++i)
+                    out[i] = data[i];
+                return out;
+            }
+        };
+
         template<fixed_string Marker>
         struct strip_line_comments {
             template<size_t N>
@@ -823,24 +840,26 @@ namespace lbyte::stx::ct
 
     namespace details
     {
-        // Detect fixed (top-level flag or nested inside a chain)
+        // Detect layout flags (fixed / pad_end): top-level or nested inside a chain
         template<typename F>
-        struct is_fixed : std::false_type {};
+        struct is_layout : std::false_type {};
         template<size_t Size>
-        struct is_fixed<::lbyte::stx::ct::fmt::fixed<Size>> : std::true_type {};
+        struct is_layout<::lbyte::stx::ct::fmt::fixed<Size>> : std::true_type {};
+        template<size_t N>
+        struct is_layout<::lbyte::stx::ct::fmt::pad_end<N>> : std::true_type {};
         template<typename... Fs>
-        struct is_fixed<::lbyte::stx::ct::fmt::chain<Fs...>>
-            : std::bool_constant<(is_fixed<Fs>::value || ...)> {};
+        struct is_layout<::lbyte::stx::ct::fmt::chain<Fs...>>
+            : std::bool_constant<(is_layout<Fs>::value || ...)> {};
 
         template<typename... Flags>
-        constexpr bool has_fixed_v = (is_fixed<Flags>::value || ...);
+        constexpr bool has_layout_v = (is_layout<Flags>::value || ...);
     }
 
     template<fixed_string Str, typename... Flags>
     struct str_type {
     private:
         static constexpr bool _has_args = (details::is_args<Flags>::value || ...);
-        static constexpr bool _has_fixed = details::has_fixed_v<Flags...>;
+        static constexpr bool _has_layout = details::has_layout_v<Flags...>;
 
         static constexpr auto compute_initial() noexcept {
             constexpr size_t N = Str.size() + 1;
@@ -857,7 +876,7 @@ namespace lbyte::stx::ct
             } else {
                 constexpr auto init = compute_initial();
                 constexpr auto full = details::apply_chain<init, Flags...>::value;
-                if constexpr (_has_fixed)
+                if constexpr (_has_layout)
                     return full;
                 else
                     return details::shrink_nttp<full>();
@@ -904,15 +923,15 @@ namespace lbyte::stx::ct
 
         template<typename... MoreFlags>
         static constexpr auto apply() noexcept {
-            constexpr bool more_fixed = details::has_fixed_v<MoreFlags...>;
+            constexpr bool more_layout = details::has_layout_v<MoreFlags...>;
             constexpr auto new_fs = []() {
                 constexpr auto full = details::apply_chain<_raw_value, MoreFlags...>::value;
-                if constexpr (more_fixed)
+                if constexpr (more_layout)
                     return details::arr_to_fs(full);
                 else
                     return details::arr_to_fs(details::shrink_nttp<full>());
             }();
-            if constexpr (more_fixed)
+            if constexpr (more_layout)
                 return str_type<new_fs, fmt::fixed<new_fs.size() + 1>>{};
             else
                 return str_type<new_fs>{};
