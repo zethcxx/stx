@@ -20,15 +20,17 @@ lifetime issues.
 Transforms produce an **exact-size** array: the content plus a trailing `\0`,
 with no padding. `x.size()` is the content length, and array introspection
 (`decltype(x)::value.size()`) reflects the exact content too. Use
-`fmt::pad_to<Size>` to force a fixed-size buffer.
+`fmt::fixed<Size>` to force a fixed-size buffer.
 
 ```cpp
 using namespace lbyte::stx;
 
 auto x = ct::str<"hello">;
-const char* p = x;         // operator const CharT* -- always valid, .rodata
-auto len = x.size();       // 5
-std::string s = x.str();   // owned copy
+const char* p = x;              // operator const char* -- always valid, .rodata
+auto len = x.size();            // 5
+std::string s = x;              // implicit operator std::string
+auto [cstr, n] = ct::str<"42">; // structured binding: const char* + size_t
+std::string v = std::format("[{}]", x);  // std::formatter support
 
 // works with mem::write (range overload via contiguous_buffer)
 mem::write(buf, off_s{0}, x);
@@ -53,7 +55,7 @@ transforms take template arguments.
 | `fmt::collapse_whitespace`         | Collapse horizontal whitespace (spaces/tabs) to single space           |
 | `fmt::replace_all\<"from", "to"\>` | Replace all occurrences of `from` with `to` (output may grow or shrink) |
 | `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker                            |
-| `fmt::pad_to\<Size\>`             | Pad (or truncate) the result to exactly `Size` bytes, null-terminated |
+| `fmt::fixed\<Size\>`               | Force the result to exactly `Size` bytes, null-terminated               |
 | `fmt::chain\<Fs...\>`              | Apply multiple transforms in order                                     |
 | `fmt::trim_block`                  | Preset: `chain\<strip, unindent\>`                                     |
 
@@ -202,22 +204,61 @@ std::string_view{ ct::str<"\n  e asm.nbytes      = 16\n  e scr.color       = 1\n
 // "e asm.nbytes=16;e scr.color=1"
 ```
 
-## pad_to
+## fixed
 
-Forces the result to a fixed-size buffer of exactly `Size` bytes (including the
-trailing `\0`). If the content is shorter it is null-padded; if it is longer it
-is truncated to `Size - 1` characters. Use it last to fix the final layout.
+Forces the result to a buffer of exactly `Size` bytes (including the trailing
+`\0`). If the content is shorter it is null-padded; if it is longer it is
+truncated to `Size - 1` characters. Use it last to fix the final layout.
 
 ```cpp
-std::string_view{ ct::str<"hello", ct::fmt::pad_to<8>> }
+std::string_view{ ct::str<"hello", ct::fmt::fixed<8>> }
 // "hello"   (value is a std::array<char, 8>, null-padded)
 
-decltype(ct::str<"hello world", ct::fmt::pad_to<8>>)::value.size()
+decltype(ct::str<"hello world", ct::fmt::fixed<8>>)::value.size()
 // 8, content truncated to "hello w"
 
-std::string_view{ ct::str<"  hello  \n", ct::fmt::trim_block, ct::fmt::pad_to<12>> }
+std::string_view{ ct::str<"  hello  \n", ct::fmt::trim_block, ct::fmt::fixed<12>> }
 // "hello  "
 ```
+
+## Conversions
+
+`str_type` converts directly to the common string views and to an owned copy,
+with no lifetime concerns (data lives in `.rodata`):
+
+```cpp
+auto x = ct::str<"hello">;
+
+const char* p = x;                 // operator const char*  -- null-terminated
+std::string_view sv = x;           // operator std::string_view -- content only
+std::string s = x;                 // operator std::string  -- owned copy
+auto [cstr, len] = x;              // structured binding: const char* + size_t
+                                   // cstr == x.data(), len == x.size()
+std::string same = x.str();        // explicit owned copy
+```
+
+`std::string s = x` and `x.str()` are equivalent; both copy exactly the content
+length (`x.size()`), not the backing array.
+
+### `std::format` / `std::println`
+
+`str_type` has a `std::formatter` specialization (whenever `<format>` is
+available) that delegates to `std::formatter<std::string_view>`, so the full
+string mini-language works: fill, alignment, width, precision.
+
+```cpp
+std::format("{}", ct::str<"hello">);        // "hello"
+std::format("[{:>10}]", ct::str<"hello">);  // "[     hello]"
+std::println("{}", ct::str<"  hi  ", ct::fmt::trim_block>);
+```
+
+> **C++20 modules:** a `std::formatter` specialization cannot be exported from a
+> module (it lives in `namespace std`), so it is *not* visible through
+> `import lbyte.stx.ct;` alone — `std::format`/`std::println` on `str_type` would
+> report "formatter must be specialized". When using modules, `#include
+> <lbyte/stx/ct.hpp>` in the importing translation unit (global module
+> fragment). This is ODR-safe: the module compiles the same header, so `str_type`
+> is the same entity in both.
 
 ## `constexpr` context
 

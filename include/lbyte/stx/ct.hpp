@@ -33,9 +33,6 @@ namespace lbyte::stx::ct
     using byte_block = std::array<u8, N>;
 
     // --- forward decls for str_type / fmt ----------------------------------------
-    template<typename T>
-    struct formatter;
-
     template<auto... Vs>
     struct args {};
 
@@ -463,13 +460,13 @@ namespace lbyte::stx::ct
             return out;
         }
 
-        // Pad (or truncate) an array to exactly Size bytes: content capped at
-        // Size - 1, always null-terminated, remaining bytes zeroed.
+        // Force exactly Size bytes: content capped at Size - 1, always
+        // null-terminated, remaining bytes zeroed.
         template<size_t Size, size_t N>
-        [[nodiscard]] consteval auto pad_to_arr(std::array<char, N> data) noexcept
+        [[nodiscard]] consteval auto fixed_arr(std::array<char, N> data) noexcept
             -> std::array<char, Size>
         {
-            static_assert(Size >= 1, "ct::fmt::pad_to requires Size >= 1");
+            static_assert(Size >= 1, "ct::fmt::fixed requires Size >= 1");
             std::array<char, Size> out{};
             size_t len = arr_content_len(data);
             for (size_t i = 0; i < len && i < Size - 1; ++i)
@@ -770,14 +767,14 @@ namespace lbyte::stx::ct
             }
         };
 
-        // Pad (or truncate) the result to exactly Size bytes. Terminal flag:
-        // use it last, otherwise its size persists only if no later flag resizes.
+        // Force the result to exactly Size bytes. Terminal flag: use it last,
+        // otherwise its size persists only if no later flag resizes.
         template<size_t Size>
-        struct pad_to {
+        struct fixed {
             template<size_t N>
             static consteval auto apply(std::array<char, N> data) noexcept
                 -> std::array<char, Size>
-            { return details::pad_to_arr<Size>(data); }
+            { return details::fixed_arr<Size>(data); }
         };
 
         template<fixed_string Marker>
@@ -826,24 +823,24 @@ namespace lbyte::stx::ct
 
     namespace details
     {
-        // Detect pad_to (top-level flag or nested inside a chain)
+        // Detect fixed (top-level flag or nested inside a chain)
         template<typename F>
-        struct is_pad_to : std::false_type {};
+        struct is_fixed : std::false_type {};
         template<size_t Size>
-        struct is_pad_to<::lbyte::stx::ct::fmt::pad_to<Size>> : std::true_type {};
+        struct is_fixed<::lbyte::stx::ct::fmt::fixed<Size>> : std::true_type {};
         template<typename... Fs>
-        struct is_pad_to<::lbyte::stx::ct::fmt::chain<Fs...>>
-            : std::bool_constant<(is_pad_to<Fs>::value || ...)> {};
+        struct is_fixed<::lbyte::stx::ct::fmt::chain<Fs...>>
+            : std::bool_constant<(is_fixed<Fs>::value || ...)> {};
 
         template<typename... Flags>
-        constexpr bool has_pad_to_v = (is_pad_to<Flags>::value || ...);
+        constexpr bool has_fixed_v = (is_fixed<Flags>::value || ...);
     }
 
     template<fixed_string Str, typename... Flags>
     struct str_type {
     private:
         static constexpr bool _has_args = (details::is_args<Flags>::value || ...);
-        static constexpr bool _has_pad  = details::has_pad_to_v<Flags...>;
+        static constexpr bool _has_fixed = details::has_fixed_v<Flags...>;
 
         static constexpr auto compute_initial() noexcept {
             constexpr size_t N = Str.size() + 1;
@@ -860,7 +857,7 @@ namespace lbyte::stx::ct
             } else {
                 constexpr auto init = compute_initial();
                 constexpr auto full = details::apply_chain<init, Flags...>::value;
-                if constexpr (_has_pad)
+                if constexpr (_has_fixed)
                     return full;
                 else
                     return details::shrink_nttp<full>();
@@ -890,21 +887,33 @@ namespace lbyte::stx::ct
         }
 
         [[nodiscard]] constexpr std::string str() const {
-            return std::string{ value.data() };
+            return std::string{ value.data(), size() };
+        }
+
+        [[nodiscard]] constexpr operator std::string() const {
+            return std::string{ value.data(), size() };
+        }
+
+        // Structured binding: auto [cstr, len] = ct::str<...>;
+        template<size_t I>
+            requires (I < 2)
+        [[nodiscard]] constexpr auto get() const noexcept {
+            if constexpr (I == 0) return value.data();
+            else                  return size();
         }
 
         template<typename... MoreFlags>
         static constexpr auto apply() noexcept {
-            constexpr bool more_pad = details::has_pad_to_v<MoreFlags...>;
+            constexpr bool more_fixed = details::has_fixed_v<MoreFlags...>;
             constexpr auto new_fs = []() {
                 constexpr auto full = details::apply_chain<_raw_value, MoreFlags...>::value;
-                if constexpr (more_pad)
+                if constexpr (more_fixed)
                     return details::arr_to_fs(full);
                 else
                     return details::arr_to_fs(details::shrink_nttp<full>());
             }();
-            if constexpr (more_pad)
-                return str_type<new_fs, fmt::pad_to<new_fs.size() + 1>>{};
+            if constexpr (more_fixed)
+                return str_type<new_fs, fmt::fixed<new_fs.size() + 1>>{};
             else
                 return str_type<new_fs>{};
         }
@@ -1024,3 +1033,6 @@ namespace lbyte::stx::ct
         return blk;
     }();
 }
+
+#include "detail/str_support.hpp"
+

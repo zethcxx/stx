@@ -16,7 +16,6 @@ export namespace lbyte::stx::ct
     using ::lbyte::stx::ct::str;
 
     using ::lbyte::stx::ct::args;
-    using ::lbyte::stx::ct::formatter;
     using ::lbyte::stx::ct::istr_t;
     using ::lbyte::stx::ct::istr;
     using ::lbyte::stx::ct::vstr;
