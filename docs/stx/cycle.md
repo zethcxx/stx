@@ -9,7 +9,7 @@ It supports:
 - Infinite repetition (`cycle(r)`) — terminates with `break` or composition
 - Bounded repetition (`cycle(r, n)`) — exactly `n` passes
 - Interop with `stx::range` / `irange` and standard containers (`vector`, `span`, `array`, `string`)
-- Sentinel-based iteration, no `std::ranges` dependency
+- Sentinel-based iteration, models `std::ranges::input_range` / `view` and composes with `std::views` adaptors (`views::zip`, ...)
 - No dynamic allocation, no vtable, all `constexpr`
 
 Nothing in the C++ standard (C++23 or C++26) provides this facility; the proposal for standard `views::cycle` is targeted at C++29.
@@ -148,6 +148,12 @@ Empty tag; an iterator compares equal when the cycle is exhausted.
 template<typename It, typename End>
 struct cycle_iter
 {
+    using iterator_concept  = std::input_iterator_tag;
+    using iterator_category = std::input_iterator_tag;
+    using value_type        = std::iter_value_t<It>;
+    using reference         = std::iter_reference_t<It>;
+    using difference_type   = std::iter_difference_t<It>;
+
     It    first_      ;
     It    cur_        ;
     End   end_        ;
@@ -155,7 +161,8 @@ struct cycle_iter
 
     constexpr decltype(auto) operator*() const noexcept;
     constexpr cycle_iter&    operator++() noexcept;
-    constexpr bool operator==(cycle_sentinel) const noexcept;
+    constexpr cycle_iter     operator++(int) noexcept;
+    // hidden friends: i == s, s == i, i != s, s != i
 };
 ```
 
@@ -196,7 +203,7 @@ struct cycle_view
 
 - C++23 constexpr-friendly
 - No dynamic allocation
-- No `std::ranges` dependency
+- Models `std::ranges::input_range` / `view` — composes with `std::views` adaptors
 - Sentinel-based iteration (works with sentinel-terminated ranges)
 - Works with `stx::range` and standard containers
 - Empty ranges are safe (empty cycle, no UB)

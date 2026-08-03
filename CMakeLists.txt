@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project( stx
-    VERSION 0.2.0
+    VERSION 0.2.1
     LANGUAGES CXX
     DESCRIPTION "Modern C++23 header-only systems toolbelt for low-level binary analysis, memory manipulation, and security research."
 )
@@ -13,6 +13,10 @@ option( LBYTE_STX_USE_MODULES "Enable C++20 modules support" OFF )
 # ═══════════════════════════════════════════════════════════════════════════════
 
 if ( LBYTE_STX_USE_MODULES )
+    if ( NOT CMAKE_GENERATOR MATCHES "Ninja|Visual Studio" )
+        message( FATAL_ERROR "LBYTE_STX_USE_MODULES requires a module-capable generator: use -G Ninja (or a Visual Studio generator on Windows)" )
+    endif()
+
     add_library( stx STATIC )
     target_compile_features( stx PUBLIC cxx_std_23 )
 
@@ -61,7 +65,7 @@ add_library(lbyte::stx ALIAS stx)
 if ( LBYTE_STX_USE_MODULES )
     install(TARGETS stx
         EXPORT stxTargets
-        CXX_MODULES_SET CXX_MODULES DESTINATION lib/stx/modules
+        FILE_SET CXX_MODULES DESTINATION lib/stx/modules
         INCLUDES DESTINATION include
     )
 else()

@@ -1,7 +1,7 @@
 # STX — C++23 Systems Toolbelt
 > Disclaimer: This project is intended for personal use and experimentation. Users are free to fork or modify it, but all usage is at their own risk. The author provides no guarantees regarding functionality, security, or safety.
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 
 A header-only C++23 library for low-level systems programming, binary analysis, and runtime instrumentation. Includes compile-time string literals, time utilities, and integer ranges.
 
@@ -120,7 +120,7 @@ Supports forward/backward, custom step, enums, strong types.
 | `cycle(r)`         | Infinite repetition — `break` or compose to stop         |
 | `cycle(r, n)`      | Exactly `n` passes over the underlying range             |
 
-Sentinel-based, `constexpr`, works with `range` and standard containers. Nothing in C++23/26; proposed for C++29 (`views::cycle`).
+Sentinel-based, `constexpr`, works with `range` and standard containers; models `std::ranges::view` / `input_range`, so it composes with `std::views` adaptors like `views::zip`. Nothing in C++23/26; proposed for C++29 (`views::cycle`).
 
 ---
 
@@ -153,7 +153,7 @@ include(FetchContent)
 FetchContent_Declare(
     stx
     GIT_REPOSITORY https://github.com/zethcxx/stx.git
-    GIT_TAG        v0.2.0
+    GIT_TAG        v0.2.1
 )
 FetchContent_MakeAvailable(stx)
 target_link_libraries(<target> PRIVATE lbyte::stx)
@@ -173,6 +173,7 @@ package("lbyte.stx")
     add_versions("main", "main")
     add_versions("v0.1.0", "v0.1.0")
     add_versions("v0.2.0", "v0.2.0")
+    add_versions("v0.2.1", "v0.2.1")
 
     add_configs("use_modules",  { description = "Build C++ modules", default = false, type = "boolean" })
 

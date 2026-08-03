@@ -2,6 +2,9 @@
 
 #include "core.hpp"
 
+#include <iterator>
+#include <ranges>
+
 namespace lbyte::stx
 {
     namespace details
@@ -11,6 +14,12 @@ namespace lbyte::stx
         template<typename It, typename End>
         struct cycle_iter
         {
+            using difference_type = ::std::iter_difference_t<It>;
+            using value_type      = ::std::iter_value_t<It>;
+            using reference       = ::std::iter_reference_t<It>;
+            using iterator_concept  = ::std::input_iterator_tag;
+            using iterator_category = ::std::input_iterator_tag;
+
             It    first_      ;
             It    cur_        ;
             End   end_        ;
@@ -47,9 +56,31 @@ namespace lbyte::stx
                 return *this;
             }
 
-            [[nodiscard]] constexpr bool operator==( cycle_sentinel ) const noexcept
+            [[nodiscard]] constexpr cycle_iter operator++( int ) noexcept
             {
-                return passes_left_ == 0;
+                auto copy = *this;
+                ++*this;
+                return copy;
+            }
+
+            [[nodiscard]] friend constexpr bool operator==( cycle_iter const& i, cycle_sentinel ) noexcept
+            {
+                return i.passes_left_ == 0;
+            }
+
+            [[nodiscard]] friend constexpr bool operator==( cycle_sentinel, cycle_iter const& i ) noexcept
+            {
+                return i.passes_left_ == 0;
+            }
+
+            [[nodiscard]] friend constexpr bool operator!=( cycle_iter const& i, cycle_sentinel ) noexcept
+            {
+                return i.passes_left_ != 0;
+            }
+
+            [[nodiscard]] friend constexpr bool operator!=( cycle_sentinel, cycle_iter const& i ) noexcept
+            {
+                return i.passes_left_ != 0;
             }
         };
 
@@ -110,3 +141,13 @@ namespace lbyte::stx
         return details::cycle_view{ first, end, passes };
     }
 }
+
+// std::ranges conformance ---------------------------------------------------
+// `cycle_view` is a `view`: it copies the underlying iterators at construction
+// and owns no elements, so it is safe to pass as a prvalue to range adaptors
+// (`std::views::zip`, ...). It is intentionally NOT a `borrowed_range` — an
+// rvalue view is only valid while its copied iterators are (same lifetime
+// contract as standard views).
+
+template<typename It, typename End>
+inline constexpr bool std::ranges::enable_view<::lbyte::stx::details::cycle_view<It, End>> = true;

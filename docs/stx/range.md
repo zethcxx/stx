@@ -245,6 +245,12 @@ Iterator implementation using a count-based approach (avoids underflow with unsi
 template<rangeable Type>
 struct range_iter
 {
+    using iterator_concept  = std::input_iterator_tag;
+    using iterator_category = std::input_iterator_tag;
+    using value_type        = Type;
+    using reference         = Type;
+    using difference_type   = std::ptrdiff_t;
+
     ValueT cur;
     ValueT step;
     usize  remaining;
@@ -253,7 +259,8 @@ struct range_iter
 
     constexpr Type operator*() const noexcept;
     constexpr range_iter& operator++() noexcept;
-    constexpr bool operator==(range_sentinel) const noexcept;
+    constexpr range_iter  operator++(int) noexcept;
+    // hidden friends: i == s, s == i, i != s, s != i
 };
 ```
 
@@ -401,6 +408,7 @@ for (auto c : range<Color>(Color::Red, Color::Blue))
 - C++23 constexpr-friendly
 - No dynamic allocation
 - Sentinel-based iteration
+- Models `std::ranges::input_range` / `view` — composes with `std::views` adaptors
 - Strong type safe
 - Direction inferred (no `dir` parameter in public API)
 - Compile-time narrowing check on `auto` → `Type` conversion

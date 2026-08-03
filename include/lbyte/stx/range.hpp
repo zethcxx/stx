@@ -2,6 +2,9 @@
 
 #include "core.hpp"
 
+#include <iterator>
+#include <ranges>
+
 namespace lbyte::stx
 {
     namespace details
@@ -158,6 +161,12 @@ struct lbyte::stx::details::range_iter
 {
     using ValueT = base_type_t<Type>;
 
+    using difference_type = ::std::ptrdiff_t;
+    using value_type      = Type;
+    using reference       = Type;
+    using iterator_concept  = ::std::input_iterator_tag;
+    using iterator_category = ::std::input_iterator_tag;
+
     ValueT cur ;
     ValueT step;
 
@@ -188,9 +197,31 @@ struct lbyte::stx::details::range_iter
         return *this;
     }
 
-    constexpr bool operator==( range_sentinel ) const noexcept
+    [[nodiscard]] constexpr range_iter operator++( int ) noexcept
     {
-        return remaining == 0;
+        auto copy = *this;
+        ++*this;
+        return copy;
+    }
+
+    [[nodiscard]] friend constexpr bool operator==( range_iter const& i, range_sentinel ) noexcept
+    {
+        return i.remaining == 0;
+    }
+
+    [[nodiscard]] friend constexpr bool operator==( range_sentinel, range_iter const& i ) noexcept
+    {
+        return i.remaining == 0;
+    }
+
+    [[nodiscard]] friend constexpr bool operator!=( range_iter const& i, range_sentinel ) noexcept
+    {
+        return i.remaining != 0;
+    }
+
+    [[nodiscard]] friend constexpr bool operator!=( range_sentinel, range_iter const& i ) noexcept
+    {
+        return i.remaining != 0;
     }
 };
 
@@ -252,3 +283,12 @@ struct lbyte::stx::details::range_view
     }
 
 };
+
+// std::ranges conformance ---------------------------------------------------
+// `range_view` is a `view`: it owns only its scalar state and yields computed
+// values, so it is safe to pass as a prvalue to range adaptors
+// (`std::views::zip`, ...). It is intentionally NOT a `borrowed_range` — the
+// view owns its bounds/step state, so an rvalue must not outlive itself.
+
+template<lbyte::stx::details::rangeable T>
+inline constexpr bool std::ranges::enable_view<lbyte::stx::details::range_view<T>> = true;
