@@ -4,6 +4,7 @@
 #include <tuple>
 #include <string>
 #include <string_view>
+#include <concepts>
 
 #if __has_include(<ctre.hpp>)
 #include <ctre.hpp>
@@ -36,7 +37,7 @@ namespace lbyte::stx::ct
     template<auto... Vs>
     struct args {};
 
-    template<fixed_string Str, typename... Flags>
+    template<fixed_string Str, typename CharT, typename... Flags>
     struct str_type;
 
     // --- endian struct (enum values + type tags for template usage) --------------
@@ -951,13 +952,41 @@ namespace lbyte::stx::ct
 
         template<typename... Flags>
         constexpr bool has_layout_v = (is_layout<Flags>::value || ...);
+
+        // Character types that can be selected as the str output CharT. Any
+        // other type in that slot is treated as a legacy first flag.
+        template<typename T>
+        struct is_char_type : std::false_type {};
+        template<> struct is_char_type<char>          : std::true_type {};
+        template<> struct is_char_type<signed char>   : std::true_type {};
+        template<> struct is_char_type<unsigned char> : std::true_type {};
+        template<> struct is_char_type<wchar_t>       : std::true_type {};
+        template<> struct is_char_type<char8_t>       : std::true_type {};
+        template<> struct is_char_type<char16_t>      : std::true_type {};
+        template<> struct is_char_type<char32_t>      : std::true_type {};
     }
 
-    template<fixed_string Str, typename... Flags>
+    template<fixed_string Str, typename CharT = char, typename... Flags>
     struct str_type {
     private:
-        static constexpr bool _has_args = (details::is_args<Flags>::value || ...);
-        static constexpr bool _has_layout = details::has_layout_v<Flags...>;
+        // The second template slot is the output CharT, but legacy call style
+        // `ct::str<"x", ct::fmt::strip>` (or `ct::str<"{}", ct::args<...>>`)
+        // put the first flag there because there was no CharT parameter.
+        // Detect any non-character type in that slot and fold it back into
+        // the flag pack, keeping char as the output type.
+        static constexpr bool _second_is_flag = !details::is_char_type<CharT>::value;
+
+        using _char_type = std::conditional_t<_second_is_flag, char, CharT>;
+
+        template<typename... Fs>
+        static constexpr bool _any_args_v = (details::is_args<Fs>::value || ...);
+        template<typename... Fs>
+        static constexpr bool _any_layout_v = details::has_layout_v<Fs...>;
+
+        static constexpr bool _has_args =
+            _second_is_flag ? _any_args_v<CharT, Flags...> : _any_args_v<Flags...>;
+        static constexpr bool _has_layout =
+            _second_is_flag ? _any_layout_v<CharT, Flags...> : _any_layout_v<Flags...>;
 
         static constexpr auto compute_initial() noexcept {
             constexpr size_t N = Str.size() + 1;
@@ -967,35 +996,61 @@ namespace lbyte::stx::ct
             return arr;
         }
 
+        template<typename... Fs>
+        static consteval auto _expanded() {
+            using ArgsT = typename details::extract_args<Fs...>::type;
+            return details::shrink_nttp<details::expand_format_impl<Str, ArgsT>::fill()>();
+        }
+
         static constexpr auto _raw_value = [] {
             if constexpr (_has_args) {
-                using ArgsT = typename details::extract_args<Flags...>::type;
-                return details::shrink_nttp<details::expand_format_impl<Str, ArgsT>::fill()>();
+                if constexpr (_second_is_flag)
+                    return _expanded<CharT, Flags...>();
+                else
+                    return _expanded<Flags...>();
             } else {
                 constexpr auto init = compute_initial();
-                constexpr auto full = details::apply_chain<init, Flags...>::value;
-                if constexpr (_has_layout)
-                    return full;
-                else
-                    return details::shrink_nttp<full>();
+                if constexpr (_second_is_flag) {
+                    constexpr auto full = details::apply_flags<CharT, Flags...>(init);
+                    if constexpr (_has_layout)
+                        return full;
+                    else
+                        return details::shrink_nttp<full>();
+                } else {
+                    constexpr auto full = details::apply_flags<Flags...>(init);
+                    if constexpr (_has_layout)
+                        return full;
+                    else
+                        return details::shrink_nttp<full>();
+                }
             }
         }();
 
     public:
-        static constexpr auto value = _raw_value;
+        static constexpr auto value = [] {
+            if constexpr (std::same_as<_char_type, char>) {
+                return _raw_value;
+            } else {
+                constexpr auto& raw = _raw_value;
+                std::array<_char_type, raw.size()> dst{};
+                for (size_t i = 0; i < raw.size(); ++i)
+                    dst[i] = static_cast<_char_type>(raw[i]);
+                return dst;
+            }
+        }();
 
-        using char_type = char;
-        using value_type = const char*;
-        using view_type  = std::string_view;
+        using char_type = _char_type;
+        using value_type = const char_type*;
+        using view_type  = std::basic_string_view<char_type>;
 
-        [[nodiscard]] constexpr const char* data() const noexcept { return value.data(); }
+        [[nodiscard]] constexpr const char_type* data() const noexcept { return value.data(); }
         [[nodiscard]] constexpr size_t size() const noexcept {
             size_t n = 0;
             while (n < value.size() && value[n]) ++n;
             return n;
         }
 
-        [[nodiscard]] constexpr operator const char*() const noexcept {
+        [[nodiscard]] constexpr operator const char_type*() const noexcept {
             return value.data();
         }
 
@@ -1003,12 +1058,12 @@ namespace lbyte::stx::ct
             return {value.data(), size()};
         }
 
-        [[nodiscard]] constexpr std::string str() const {
-            return std::string{ value.data(), size() };
+        [[nodiscard]] constexpr std::basic_string<char_type> str() const {
+            return std::basic_string<char_type>{ value.data(), size() };
         }
 
-        [[nodiscard]] constexpr operator std::string() const {
-            return std::string{ value.data(), size() };
+        [[nodiscard]] constexpr operator std::basic_string<char_type>() const {
+            return std::basic_string<char_type>{ value.data(), size() };
         }
 
         // Structured binding: auto [cstr, len] = ct::str<...>;
@@ -1023,26 +1078,32 @@ namespace lbyte::stx::ct
         static constexpr auto apply() noexcept {
             constexpr bool more_layout = details::has_layout_v<MoreFlags...>;
             constexpr auto new_fs = []() {
-                constexpr auto full = details::apply_chain<_raw_value, MoreFlags...>::value;
+                constexpr auto full = details::apply_flags<MoreFlags...>(_raw_value);
                 if constexpr (more_layout)
                     return details::arr_to_fs(full);
                 else
                     return details::arr_to_fs(details::shrink_nttp<full>());
             }();
             if constexpr (more_layout)
-                return str_type<new_fs, fmt::fixed<new_fs.size() + 1>>{};
+                return str_type<new_fs, _char_type, fmt::fixed<new_fs.size() + 1>>{};
             else
-                return str_type<new_fs>{};
+                return str_type<new_fs, _char_type>{};
         }
     };
 
-    template<fixed_string Str, typename... Flags>
-    constexpr str_type<Str, Flags...> str{};
+    template<fixed_string Str, typename CharT = char, typename... Flags>
+    constexpr str_type<Str, CharT, Flags...> str{};
 
     // eraw: reinterpret the raw literal as a normal string (escapes converted),
-    // then apply the remaining flags.
-    template<fixed_string Str, typename... Flags>
-    constexpr auto eraw = str<Str, fmt::unescape, Flags...>;
+    // then apply the remaining flags. The unescape step always runs first, so
+    // a legacy flag in the second slot is pushed after it.
+    template<fixed_string Str, typename T2 = char, typename... Flags>
+    constexpr auto eraw = [] {
+        if constexpr (details::is_char_type<T2>::value)
+            return str_type<Str, T2, fmt::unescape, Flags...>{};
+        else
+            return str_type<Str, char, fmt::unescape, T2, Flags...>{};
+    }();
 
     // --- istr_t (variable template with optional positional args) ------------------
     template<fixed_string Str, typename... Args>

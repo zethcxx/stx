@@ -18,7 +18,7 @@
 namespace lbyte::stx
 {
     struct version_info { int major, minor, patch; };
-    inline constexpr version_info version { 0, 2, 0 };
+    inline constexpr version_info version { 0, 2, 1 };
 
     using u8        = std::uint8_t      ;
     using u16       = std::uint16_t     ;
