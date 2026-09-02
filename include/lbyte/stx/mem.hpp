@@ -255,6 +255,11 @@ namespace lbyte::stx
     } // namespace mem
 
 
+    template<typename T, typename = void>
+    struct ptr_char { using type = std::remove_cv_t<T>; };
+    template<typename T>
+    struct ptr_char<T, std::enable_if_t<std::is_void_v<std::remove_cv_t<T>>>> { using type = char; };
+
     template<typename T>
     class ptr
     {
@@ -262,6 +267,8 @@ namespace lbyte::stx
 
     public:
         using value_type = T;
+        using char_type = typename ptr_char<T>::type;
+        using view_type = std::basic_string_view<char_type>;
 
         constexpr ptr() noexcept = default;
 
@@ -630,6 +637,27 @@ namespace lbyte::stx
         {
             U v = value;
             return std::memcmp( rcast<const void*>(address), &v, sizeof(U) );
+        }
+
+        // ---- STRING VIEW (zero-copy) ------------------------------
+        // Interpret the pointed-to bytes as a character string. The element
+        // type determines the view's char type (ptr<char> -> string_view,
+        // ptr<wchar_t> -> wstring_view, ptr<void> -> string_view).
+
+        // Null-terminated: scans until the first 0 (expensive; bounded by
+        // the actual string length). Returns a view of the content.
+        [[nodiscard]] STX_FORCE_INLINE
+        view_type read_strv() const noexcept
+        {
+            const char_type* p = rcast<const char_type*>(address);
+            return view_type( p, std::char_traits<char_type>::length( p ));
+        }
+
+        // Sized: zero-copy view of exactly count elements. No scan.
+        [[nodiscard]] STX_FORCE_INLINE
+        view_type read_strv( usize count ) const noexcept
+        {
+            return view_type( rcast<const char_type*>(address), count );
         }
 
         // ---- UNSAFE (direct deref) --------------------------------
