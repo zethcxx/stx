@@ -325,6 +325,24 @@ namespace lbyte::stx
         [[nodiscard]] constexpr bool operator==(null_t) const noexcept { return address == 0; }
         [[nodiscard]] constexpr bool operator!=(null_t) const noexcept { return address != 0; }
 
+        // Element-level comparison: compares sizeof(T) bytes of pointed-to
+        // content against a T value. Only for non-void element types and
+        // non-ptr values; the address-level `operator==(const ptr&)` above
+        // still compares locations.
+        template<typename U = T>
+            requires ( not std::is_void_v<U>
+                   and not std::same_as<std::remove_cvref_t<U>, ptr> )
+        [[nodiscard]] constexpr bool operator==( const U& value ) const noexcept {
+            return *rcast<const U*>(address) == value;
+        }
+
+        template<typename U = T>
+            requires ( not std::is_void_v<U>
+                   and not std::same_as<std::remove_cvref_t<U>, ptr> )
+        [[nodiscard]] constexpr bool operator!=( const U& value ) const noexcept {
+            return !( *this == value );
+        }
+
         // ---- DEREFERENCE ------------------------------------------
 
         [[nodiscard]]
@@ -580,6 +598,38 @@ namespace lbyte::stx
         auto as_view( usize count ) const noexcept -> std::span<const U>
         {
             return std::span<const U>( rcast<const U*>( address ), count );
+        }
+
+        // ---- CONTENT COMPARE (no advance) -------------------------
+        // Semantics like std::memcmp: returns 0 if equal, <0 if this is
+        // lexicographically "less", >0 if "greater". In a boolean context
+        // `if (p.cmp(...))` is true when the buffers differ.
+
+        [[nodiscard]] STX_FORCE_INLINE
+        int cmp( const void* data, usize len ) const noexcept
+        {
+            return std::memcmp( rcast<const void*>(address), data, len );
+        }
+
+        template<contiguous_buffer R>
+        [[nodiscard]] STX_FORCE_INLINE
+        int cmp( const R& range ) const noexcept
+        {
+            auto const bytes = std::size(range) * sizeof(*std::data(range));
+            return std::memcmp(
+                rcast<const void*>(address),
+                std::data(range),
+                static_cast<usize>(bytes)
+            );
+        }
+
+        // Compare against a scalar value's bytes (e.g. ct::istr<"...">).
+        template<std::integral U>
+        [[nodiscard]] STX_FORCE_INLINE
+        int cmp( const U value ) const noexcept
+        {
+            U v = value;
+            return std::memcmp( rcast<const void*>(address), &v, sizeof(U) );
         }
 
         // ---- UNSAFE (direct deref) --------------------------------
