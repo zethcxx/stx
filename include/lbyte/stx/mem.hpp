@@ -589,22 +589,27 @@ namespace lbyte::stx
         template<bounded_array U>
         [[nodiscard]] STX_FORCE_INLINE
         auto as_view() const noexcept
-            -> std::span<const std::remove_all_extents_t<U>>
         {
-            using element_type = std::remove_all_extents_t<U>;
+            using base = std::remove_cv_t<std::remove_all_extents_t<U>>;
+            using elem = std::conditional_t<
+                (std::is_const_v<std::remove_all_extents_t<U>> || std::is_const_v<T>),
+                const base, base>;
             using flat_array = bounded_array_t<U>;
-            return std::span<const element_type>(
-                rcast<const element_type*>(address),
-                sizeof(flat_array) / sizeof(element_type)
+            return std::span<elem>(
+                rcast<elem*>(address),
+                sizeof(flat_array) / sizeof(base)
             );
         }
 
         template<typename U = T>
-            requires ( not std::is_void_v<U> && binary_readable<U> )
+            requires ( not std::is_void_v<U> && binary_readable<std::remove_cv_t<U>> )
         [[nodiscard]] STX_FORCE_INLINE
-        auto as_view( usize count ) const noexcept -> std::span<const U>
+        auto as_view( usize count ) const noexcept
         {
-            return std::span<const U>( rcast<const U*>( address ), count );
+            using base = std::remove_cv_t<U>;
+            using elem = std::conditional_t<
+                (std::is_const_v<U> || std::is_const_v<T>), const base, base>;
+            return std::span<elem>( rcast<elem*>( address ), count );
         }
 
         // ---- CONTENT COMPARE (no advance) -------------------------
