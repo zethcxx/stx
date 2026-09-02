@@ -9,14 +9,14 @@ It supports:
 - Forward and backward iteration
 - Inclusive and exclusive bounds
 - Custom step values
-- Compatibility with integral types and `strong_type`
+- Compatibility with integral types and `newtype`
 - Zero dynamic allocation
 - Sentinel-based iteration
 
 The design enables domain-safe iteration over:
 
 - Raw integral values
-- `stx::strong_type` wrappers (e.g., `off_s`, `rva_s`)
+- `stx::newtype` wrappers (e.g., `off_s`, `rva_s`)
 - Enum types
 
 ---
@@ -44,7 +44,7 @@ concept rangeable =
     };
 ```
 
-This allows seamless integration with `strong_type` and enum types.
+This allows seamless integration with `newtype` and enum types.
 
 ---
 
@@ -57,7 +57,7 @@ template<typename T>
 struct base_type { using type = T; };
 
 template<typename T, typename Tag>
-struct base_type<strong_type<T, Tag>> { using type = T; };
+struct base_type<newtype<T, Tag>> { using type = T; };
 
 template<typename T> requires std::is_enum_v<T>
 struct base_type<T> { using type = std::underlying_type_t<T>; };

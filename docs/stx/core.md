@@ -149,6 +149,74 @@ auto p  = base + file_off;   // ✓ byte offset
 auto p2 = base + off_s{image_rva}; // ✓ explicit conversion documents intent
 ```
 
+### Defining your own strong types (stx::newtype)
+
+`newtype<Type, Tag>` is the public building block behind `off_s`/`rva_s`/`va_s`.
+It is a distinct type with the same runtime representation as `Type`,
+discriminated at compile time by `Tag`. External projects can define their
+own strong types without editing this header.
+
+```cpp
+template<typename Type, typename Tag> class newtype;
+```
+
+A user-defined type is declared with an explicit tag — two lines:
+
+```cpp
+struct user_id_tag {};
+using user_id_s = stx::newtype<stx::u64, user_id_tag>;
+```
+
+- `user_id_s` is **distinct** from both `u64` and from any other `newtype`
+  (it never collides with `off_s`/`rva_s`/`va_s` because every tag is unique).
+- Conversion from the backing type is `explicit`; the values do not mix with
+  raw integrals.
+- Full arithmetic, `get()`/`as<T>()`, comparisons and `operator T` are
+  available exactly like the built-in types.
+
+#### Byte offsets for external types (stx::offset_s)
+
+The convenient way to make a newtype an **offset-like** type — one that
+qualifies for byte-level `ptr<T>[N]`, `ptr + off`, `gap_v`, etc. — is the
+`offset_s<Type>` alias. It reuses the built-in `offset_tag`, so it is
+mutually convertible with `off_s`/`rva_s`:
+
+```cpp
+template<typename Type> using offset_s = newtype<Type, details::offset_tag>;
+
+// 32-bit offsets that are NOT rva's:
+using off32_s = stx::offset_s<stx::u32>;
+
+ptr<u8> p{buf};
+auto q = p[off32_s{4}];   // byte-level displacement (no * sizeof)
+```
+
+#### Custom tag via the is_offset_tag hook
+
+When you need a fully custom tag rather than reusing `offset_tag`, specialize
+the public trait `stx::is_offset_tag` to opt a tag into offset-like behaviour
+(which also enables the cross-tag offset conversion). By default a tag is NOT
+offset-like:
+
+```cpp
+template<typename Tag> struct is_offset_tag : std::false_type {};
+
+struct file_tag {};
+template<> struct stx::is_offset_tag<file_tag> : std::true_type {};  // opt in
+
+using file_s = stx::newtype<stx::i64, file_tag>;
+static_assert(stx::byte_offset<file_s>);   // works with ptr<T>[N]
+```
+
+Concepts that honour this hook:
+
+```cpp
+template<typename T>
+concept byte_offset
+    =  requires { typename std::remove_cvref_t<T>::tag_type; }
+    and is_offset_tag<typename std::remove_cvref_t<T>::tag_type>::value;
+```
+
 ---
 
 ## Concepts

@@ -50,32 +50,40 @@ namespace lbyte::stx
         struct offset_tag {};
         struct rva_tag    {};
         struct va_tag     {};
+    }
 
-        template<typename Tag>
-        struct is_offset_tag : std::false_type {};
-        template<> struct is_offset_tag<offset_tag> : std::true_type {};
-        template<> struct is_offset_tag<rva_tag>    : std::true_type {};
+    // Hook (extensible): a tag is "offset-like" when it can be added to /
+    // subtracted from addresses like a byte offset. Built-in tags are
+    // offset_tag (off_s) and rva_tag (rva_s); user tags may specialize this
+    // trait to opt into byte_offset behaviour.
+    template<typename Tag>
+    struct is_offset_tag : std::false_type {};
+    template<> struct is_offset_tag<details::offset_tag> : std::true_type {};
+    template<> struct is_offset_tag<details::rva_tag>    : std::true_type {};
 
-        template< typename Type, typename Tag >
-        class strong_type
-        {
+    // Public newtype: a distinct type with the same runtime representation as
+    // its backing `Type`, discriminated by `Tag`. Allows external projects to
+    // define their own strong types (e.g. off32_s) without editing this header.
+    template< typename Type, typename Tag >
+    class newtype
+    {
             public:
                 using value_type = Type;
                 using tag_type   = Tag ;
 
-                constexpr strong_type() noexcept = default;
-                constexpr explicit strong_type( value_type _value ) noexcept
+                constexpr newtype() noexcept = default;
+                constexpr explicit newtype( value_type _value ) noexcept
                     : value { _value }
                 {}
 
                 template<std::integral U>
-                constexpr explicit strong_type( U v ) noexcept
+                constexpr explicit newtype( U v ) noexcept
                     : value( static_cast<value_type>( v ) )
                 {}
 
                 template<typename U, typename Tag2>
                     requires (is_offset_tag<Tag>::value && is_offset_tag<Tag2>::value)
-                constexpr explicit strong_type( strong_type<U, Tag2> other ) noexcept
+                constexpr explicit newtype( newtype<U, Tag2> other ) noexcept
                     : value( static_cast<value_type>( other.get() ) )
                 {}
 
@@ -94,96 +102,101 @@ namespace lbyte::stx
                     return static_cast<U>( get() );
                 }
 
-                constexpr strong_type& operator++()    noexcept { ++value; return *this; }
-                constexpr strong_type  operator++(int) noexcept { auto t{*this}; ++value; return t; }
-                constexpr strong_type& operator--()    noexcept { --value; return *this; }
-                constexpr strong_type  operator--(int) noexcept { auto t{*this}; --value; return t; }
+                constexpr newtype& operator++()    noexcept { ++value; return *this; }
+                constexpr newtype  operator++(int) noexcept { auto t{*this}; ++value; return t; }
+                constexpr newtype& operator--()    noexcept { --value; return *this; }
+                constexpr newtype  operator--(int) noexcept { auto t{*this}; --value; return t; }
 
-                constexpr strong_type& operator+=( Type rhs ) noexcept {
+                constexpr newtype& operator+=( Type rhs ) noexcept {
                     value += rhs;
                     return *this;
                 }
-                constexpr strong_type& operator+=( strong_type rhs ) noexcept {
+                constexpr newtype& operator+=( newtype rhs ) noexcept {
                     value += rhs.value;
                     return *this;
                 }
                 template<typename T2, typename Tag2>
                     requires ( not std::same_as<Tag, Tag2> )
-                constexpr strong_type& operator+=( strong_type<T2, Tag2> rhs ) noexcept {
+                constexpr newtype& operator+=( newtype<T2, Tag2> rhs ) noexcept {
                     value += static_cast<Type>( rhs.get() );
                     return *this;
                 }
 
-                friend constexpr strong_type operator+( strong_type lhs, Type rhs ) noexcept {
+                friend constexpr newtype operator+( newtype lhs, Type rhs ) noexcept {
                     lhs.value += rhs;
                     return lhs;
                 }
 
-                friend constexpr strong_type operator+( strong_type lhs, strong_type rhs ) noexcept {
+                friend constexpr newtype operator+( newtype lhs, newtype rhs ) noexcept {
                     return lhs += rhs.value;
                 }
 
                 template<typename T2, typename Tag2>
                     requires ( not std::same_as<Tag, Tag2> )
-                friend constexpr strong_type operator+( strong_type lhs, strong_type<T2, Tag2> rhs ) noexcept {
+                friend constexpr newtype operator+( newtype lhs, newtype<T2, Tag2> rhs ) noexcept {
                     lhs.value += static_cast<Type>( rhs.get() );
                     return lhs;
                 }
 
-                friend constexpr Type operator+( Type lhs, strong_type rhs ) noexcept {
+                friend constexpr Type operator+( Type lhs, newtype rhs ) noexcept {
                     return lhs + rhs.value ;
                 }
 
-                constexpr strong_type& operator-=( Type rhs ) noexcept {
+                constexpr newtype& operator-=( Type rhs ) noexcept {
                     value -= rhs;
                     return *this;
                 }
-                constexpr strong_type& operator-=( strong_type rhs ) noexcept {
+                constexpr newtype& operator-=( newtype rhs ) noexcept {
                     value -= rhs.value;
                     return *this;
                 }
                 template<typename T2, typename Tag2>
                     requires ( not std::same_as<Tag, Tag2> )
-                constexpr strong_type& operator-=( strong_type<T2, Tag2> rhs ) noexcept {
+                constexpr newtype& operator-=( newtype<T2, Tag2> rhs ) noexcept {
                     value -= static_cast<Type>( rhs.get() );
                     return *this;
                 }
 
-                friend constexpr Type operator-( strong_type lhs, strong_type rhs ) noexcept {
+                friend constexpr Type operator-( newtype lhs, newtype rhs ) noexcept {
                     return lhs.get() - rhs.get();
                 }
 
-                friend constexpr strong_type operator-( strong_type lhs, Type rhs ) noexcept {
+                friend constexpr newtype operator-( newtype lhs, Type rhs ) noexcept {
                     lhs.value -= rhs;
                     return lhs;
                 }
 
-                friend constexpr Type operator-( Type lhs, strong_type rhs ) noexcept {
+                friend constexpr Type operator-( Type lhs, newtype rhs ) noexcept {
                     return lhs - rhs.value;
                 }
 
                 template<typename T2, typename Tag2>
                     requires ( not std::same_as<Tag, Tag2> )
-                friend constexpr strong_type operator-( strong_type lhs, strong_type<T2, Tag2> rhs ) noexcept {
+                friend constexpr newtype operator-( newtype lhs, newtype<T2, Tag2> rhs ) noexcept {
                     lhs.value -= static_cast<Type>( rhs.get() );
                     return lhs;
                 }
 
-                friend constexpr strong_type operator-( strong_type value ) noexcept {
-                    return strong_type{ -value.value };
+                friend constexpr newtype operator-( newtype value ) noexcept {
+                    return newtype{ -value.value };
                 }
 
                 friend constexpr auto
-                operator<=>(const strong_type&, const strong_type&) = default;
+                operator<=>(const newtype&, const newtype&) = default;
 
             private:
                 Type value{};
         };
-    }
 
-    using off_s = details::strong_type<std::ptrdiff_t, details::offset_tag>;
-    using rva_s = details::strong_type<u32  , details::rva_tag   >;
-    using va_s  = details::strong_type<uptr , details::va_tag    >;
+    // Convenient offset-like alias: any integral backing type becomes a byte
+    // offset newtype reusing the built-in offset_tag (so it is mutually
+    // convertible with off_s/rva_s and works with ptr<T>[N]).
+    template<typename Type>
+    using offset_s = newtype<Type, details::offset_tag>;
+
+    using off_s = newtype<std::ptrdiff_t, details::offset_tag>;
+    using rva_s = newtype<u32  , details::rva_tag   >;
+    using va_s  = newtype<uptr , details::va_tag    >;
 
     template<typename Type>
     concept address_like
@@ -251,10 +264,13 @@ namespace lbyte::stx
     template<typename T>
     using bounded_array_t = typename details::bounded_array_impl<T>::type;
 
+    // A byte offset is any newtype whose tag is "offset-like" (see
+    // is_offset_tag). Built-ins off_s/rva_s qualify; external types such as
+    // off32_s qualify by using offset_s<Type> or specializing is_offset_tag.
     template<typename T>
     concept byte_offset
-        =  std::same_as<std::remove_cvref_t<T>, off_s>
-        or std::same_as<std::remove_cvref_t<T>, rva_s>;
+        =  requires { typename std::remove_cvref_t<T>::tag_type; }
+        and is_offset_tag<typename std::remove_cvref_t<T>::tag_type>::value;
 
     template<address_like Addr> [[nodiscard]]
     constexpr uptr normalize_addr( Addr base ) noexcept

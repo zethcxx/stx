@@ -38,6 +38,9 @@ export namespace lbyte::stx
 
     using ::lbyte::stx::version_info;
     using ::lbyte::stx::version;
+    using ::lbyte::stx::newtype;
+    using ::lbyte::stx::offset_s;
+    using ::lbyte::stx::is_offset_tag;
     using ::lbyte::stx::off_s;
     using ::lbyte::stx::rva_s;
     using ::lbyte::stx::va_s;

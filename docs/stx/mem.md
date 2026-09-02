@@ -598,8 +598,8 @@ auto p = mem::read_be<Proto>(packet);                     // through underlying 
 template<std::unsigned_integral T> constexpr T align_up  (T value, T alignment) noexcept;
 template<std::unsigned_integral T> constexpr T align_down(T value, T alignment) noexcept;
 
-template<typename T, typename Tag, std::integral U> constexpr auto align_up  (details::strong_type<T, Tag> st, U alignment) noexcept;
-template<typename T, typename Tag, std::integral U> constexpr auto align_down(details::strong_type<T, Tag> st, U alignment) noexcept;
+template<typename T, typename Tag, std::integral U> constexpr auto align_up  (newtype<T, Tag> st, U alignment) noexcept;
+template<typename T, typename Tag, std::integral U> constexpr auto align_down(newtype<T, Tag> st, U alignment) noexcept;
 ```
 
 ```cpp

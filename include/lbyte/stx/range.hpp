@@ -20,7 +20,7 @@ namespace lbyte::stx
         struct base_type { using type = T; };
 
         template<typename T, typename Tag>
-        struct base_type<::lbyte::stx::details::strong_type<T, Tag>> { using type = T; };
+        struct base_type<::lbyte::stx::newtype<T, Tag>> { using type = T; };
 
         template<typename T> requires std::is_enum_v<T>
         struct base_type<T> { using type = std::underlying_type_t<T>; };
