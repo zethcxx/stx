@@ -88,6 +88,49 @@ if ( p <  q    ) {}
 if ( p == null ) {}
 ```
 
+### Content Comparison (stx::ptr::cmp)
+
+Compares the bytes **pointed to** with the bytes of another buffer or value,
+using `std::memcmp` semantics:
+
+- returns `0`  → equal
+- returns `<0` → this is lexicographically "less"
+- returns `>0` → this is lexicographically "greater"
+- in a boolean context, `if (p.cmp(...))` is **true when the buffers differ**
+
+`cmp` never advances the pointer.
+
+```cpp
+int cmp( const void* data, usize len ) const noexcept;  // raw bytes
+int cmp( const R&    range  ) const noexcept;           // contiguous_buffer
+int cmp( const U     value  ) const noexcept;           // scalar's bytes
+```
+
+`contiguous_buffer` includes `std::span`, `std::string_view`,
+`std::array`, `T[]`, and `ct::str_type`. The scalar overload compares against
+the raw bytes of an integral value (e.g. `ct::istr<"...">`), useful for
+checking magic/file signatures.
+
+```cpp
+// Check a 4-byte signature at the current address.
+if ( p.cmp("MZ\x90\x00", 4) == 0 ) {}          // equal
+if ( p.cmp( ct::str<"PK\x03\x04"> ) == 0 ) {}  // equal (compile-time signature)
+if ( p.cmp( ct::istr<"ABCD"> ))          {}    // memcmp ... != 0 → differs (truthy if not equal)
+```
+
+The element-level `operator==` / `operator!=` also compare **content** against
+a single `T` value (they do not compare addresses):
+
+```cpp
+template<typename U = T> constexpr bool operator==( const U& value ) const noexcept;
+template<typename U = T> constexpr bool operator!=( const U& value ) const noexcept;
+
+if ( p == 0x5A4D ) {}   // the pointed-to u16 equals 0x5A4D
+```
+
+These require a non-void element type and a non-`ptr` argument; address
+comparison is handled by the `operator==(const ptr&)` / `operator<=>` set above.
+
 ### Dereference (stx::ptr)
 
 ```cpp
