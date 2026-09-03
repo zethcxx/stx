@@ -29,9 +29,66 @@ arr<off_t,4> c{};            // value-initialized (matches legacy off_t)
 
 ```cpp
 template<typename Type, usize N> constexpr arr<Type, N> arr_of( Type (&&)[N] );
+template<typename Type, usize N> constexpr arr<Type, N> arr_of( const Type (&)[N] ); // lvalue C-array
 
 auto offs = arr_of<off_t>({ 0x00, 0x40, 0x80, 0xC0 });  // arr<off_t, 4>
 auto vals = arr_of({ 7, 8, 9 });                        // arr<int, 3> (deduced)
+```
+
+The rvalue overload handles a brace array in a single call; the lvalue overload
+accepts a **named C-array**, which is what lets C array-designators seed a typed
+`arr` (see "Seeding an indexed table" below).
+
+## Seeding an indexed table
+
+Use `arr` with an `enum class` index as a typed, compile-time lookup table. Two
+equivalent idioms, both evaluated entirely at compile time:
+
+### 1. Constexpr IIFE (one expression, warning-free)
+
+```cpp
+enum class kind : u8 { small, medium, large, huge, count };
+constexpr usize kKinds = 5;
+
+inline constexpr auto limit = [] {
+    arr<u64, kKinds> a{};
+    using enum kind;
+    a[small ] = 8;
+    a[medium] = 64;
+    a[large ] = 512;
+    a[huge  ] = 4096;
+    return a;
+}();                                  // -> arr<u64, kKinds>
+```
+
+A *Immediately-Invoked Function Expression*: the anonymous lambda runs at the
+`()` and its result is `limit`. `using enum kind` brings the enumerators into
+scope, so no casts are needed. Single declaration, no warnings.
+
+### 2. C-array designators + `arr_of` (keeps `[kind::X] = v` literal)
+
+Array designators `[N] = v` are only valid in a C-array (not in a class), so
+they live in a typed C-array and are lifted by `arr_of`:
+
+```cpp
+inline constexpr u64 raw[kKinds] = {
+    [(u32)kind::small ] = 8,
+    [(u32)kind::medium] = 64,
+    [(u32)kind::large ] = 512,
+    [(u32)kind::huge  ] = 4096,
+};
+inline constexpr auto limit = arr_of(raw);   // arr<u64, kKinds>
+```
+
+This preserves the exact `[kind::X] = v` notation. It needs the C-array `raw`
+(compiler emits a C99-designator warning) and a cast on each index.
+
+Both produce an `arr<u64, kKinds>` that is indexed by enum and usable as a
+compile-time constant:
+
+```cpp
+static_assert( limit[kind::large] == 512 );   // compile-time lookup
+u64 budget = limit[kind::medium];             // runtime friendly read
 ```
 
 ## Indexing

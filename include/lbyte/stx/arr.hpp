@@ -132,13 +132,24 @@ namespace lbyte::stx
     arr( Type, Us... ) -> arr<Type, 1 + sizeof...( Us )>;
 
     // ---- arr_of factory (std::to_array style) --------------------------------
-    // Deduces Type and N from a (brace) array; `arr_of<off_t>({...})` and
-    // `arr_of({...})` both work.
+    // Deduces Type and N from a brace array: `arr_of<T>({...})` (rvalue temp)
+    // and `arr_of({...})` both work. An lvalue C-array overload accepts named
+    // arrays, which is what lets C array-designators `[idx] = v` (valid only in
+    // a C-array, not in a class) seed a typed arr in a single constexpr:
+    //     inline constexpr u64 raw[k] = { [0]=1, [1]=2 };
+    //     inline constexpr auto a = arr_of( raw );   // arr<u64, k>
 
     template<typename Type, usize N>
     [[nodiscard]] constexpr auto arr_of( Type (&& source)[N] ) noexcept
         -> arr<Type, N>
     {
         return arr<Type, N>{ std::to_array( std::move( source ) ) };
+    }
+
+    template<typename Type, usize N>
+    [[nodiscard]] constexpr auto arr_of( Type const ( &source )[N] ) noexcept
+        -> arr<Type, N>
+    {
+        return arr<Type, N>{ std::to_array( source ) };
     }
 }
