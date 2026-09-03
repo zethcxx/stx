@@ -8,6 +8,7 @@
 
 | Module | Header | Description |
 |--------|--------|-------------|
+| Array | `arr.hpp` | Modern std::array: enum/offset indexing, `arr_of` ([docs](./stx/arr.md)) |
 | Core | `core.hpp` | Fundamental types, strong types, concepts |
 | Memory | `mem.hpp` | Low-level memory access, `ptr<T>` |
 | Function | `fn.hpp` | Function pointer abstractions |
@@ -81,6 +82,7 @@ auto main() -> int
 
 - [Main README](../README.md) - Project overview and integration guides
  - [Core API](./stx/core.md) - Detailed core documentation
+- [Array API](./stx/arr.md) - Modern std::array with enum/offset indexing
 - [Memory API](./stx/mem.md) - Memory access, ptr
 - [Function API](./stx/fn.md) - Function pointer invocations
 - [File API](./stx/io.md) - Binary file stream utilities

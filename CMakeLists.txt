@@ -32,6 +32,7 @@ if ( LBYTE_STX_USE_MODULES )
     TYPE CXX_MODULES
     BASE_DIRS modules/stx
     FILES
+        modules/stx/arr.cppm
         modules/stx/core.cppm
         modules/stx/mem.cppm
         modules/stx/fn.cppm
