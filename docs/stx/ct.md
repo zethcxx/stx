@@ -542,6 +542,20 @@ auto sig = ct::vstr<"PE", 4>;   // byte_block<4>{'P','E',0,0}
 auto cmd = ct::vstr<"cmd.exe">; // byte_block<7>{'c','m','d','.','e','x','e'}
 ```
 
+## `ct::vstr_of<Str, Type>` -- typed value string
+
+Packs a string into a fixed container of your choice (`std::array`,
+`ct::byte_block`, ...). The element type and size come from `Type` (must expose
+`value_type` + `std::tuple_size`). If the string is shorter than the container
+it is zero-padded; if longer, it is truncated.
+
+```cpp
+using magic_type = std::array<char, 8>;
+constexpr auto magic = ct::vstr_of<"EMOJIDAT", magic_type>;       // {'E','M','O','J','I','D','A','T'}
+constexpr auto pe    = ct::vstr_of<"PE", std::array<char, 4>>;    // {'P','E',0,0}
+constexpr auto sig   = ct::vstr_of<"PE", ct::byte_block<4>>;      // {0x50,0x45,0,0}
+```
+
 ## `ct::re<Pattern>` -- compile-time regex transforms (optional)
 
 When [CTRE](https://github.com/hanickadot/compile-time-regular-expressions) is
