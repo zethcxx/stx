@@ -673,6 +673,38 @@ namespace lbyte::stx
             return std::memcmp( rcast<const void*>(address), &v, sizeof(U) );
         }
 
+        // ---- CONTENT EQUALITY (bool, no advance) ------------------
+        // `eq` is the readable boolean form of `cmp(...) == 0`; the element
+        // type is deduced (or explicit, e.g. eq<u32>) from the argument.
+        // `if (base[off].eq(var))` reads naturally, unlike the memcmp-style
+        // int of cmp. cmp() remains for those needing the <-/-> ordering.
+
+        [[nodiscard]] STX_FORCE_INLINE
+        bool eq( const void* data, usize len ) const noexcept
+        {
+            return std::memcmp( rcast<const void*>(address), data, len ) == 0;
+        }
+
+        template<contiguous_buffer R>
+        [[nodiscard]] STX_FORCE_INLINE
+        bool eq( const R& range ) const noexcept
+        {
+            auto const bytes = std::size(range) * sizeof(*std::data(range));
+            return std::memcmp(
+                rcast<const void*>(address),
+                std::data(range),
+                static_cast<usize>(bytes)
+            ) == 0;
+        }
+
+        template<std::integral U>
+        [[nodiscard]] STX_FORCE_INLINE
+        bool eq( const U value ) const noexcept
+        {
+            U v = value;
+            return std::memcmp( rcast<const void*>(address), &v, sizeof(U) ) == 0;
+        }
+
         // ---- STRING VIEW (zero-copy) ------------------------------
         // Interpret the pointed-to bytes as a character string. The element
         // type determines the view's char type (ptr<char> -> string_view,

@@ -118,6 +118,26 @@ if ( p.cmp( ct::str<"PK\x03\x04"> ) == 0 ) {}  // equal (compile-time signature)
 if ( p.cmp( ct::istr<"ABCD"> ))          {}    // memcmp ... != 0 → differs (truthy if not equal)
 ```
 
+### Content Equality (stx::ptr::eq)
+
+`eq` is the readable boolean form of `cmp(...) == 0`. It returns `true` when
+the buffers are identical, `false` otherwise. The element type is deduced from
+the argument (or made explicit with `eq<u32>(...)`).
+
+```cpp
+bool eq( const void* data, usize len ) const noexcept;  // raw bytes
+bool eq( const R&    range  ) const noexcept;             // contiguous_buffer
+bool eq( const U     value  ) const noexcept;             // scalar's bytes
+```
+
+```cpp
+if ( p.eq("EMOJIDAT", 8) ) {}               // true if equal
+if ( base[off].eq(var) )     {}              // natural read
+if ( pu.eq<u32>(0xDEADBEEF)) {}              // explicit element type
+```
+
+`eq` never advances the pointer.
+
 The element-level `operator==` / `operator!=` also compare **content** against
 a single `T` value (they do not compare addresses):
 
