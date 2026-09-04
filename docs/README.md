@@ -6,18 +6,18 @@
 
 ## Module Index
 
-| Module | Header | Description |
-|--------|--------|-------------|
-| Array | `arr.hpp` | Modern std::array: enum/offset indexing, `arr_of` ([docs](./stx/arr.md)) |
-| Core | `core.hpp` | Fundamental types, strong types, concepts |
-| Memory | `mem.hpp` | Low-level memory access, `ptr<T>` |
-| Function | `fn.hpp` | Function pointer abstractions |
-| File | `io.hpp` | Binary file stream utilities |
-| Time | `time.hpp` | UNIX time and stopwatch utilities |
-| Range | `range.hpp` | Integer range iteration |
-| Cycle | `cycle.hpp` | Infinite / bounded range cycling ([docs](./stx/cycle.md)) |
-| Literals | `literals.hpp` | Literal suffixes for all core types ([docs](./api/literals.md)) |
-| String   | `ct.hpp`       | Compile-time string transforms ([docs](./stx/ct.md)) |
+| Module   | Header         | Description                                                              |
+| -------- | -------------- | ------------------------------------------------------------------------ |
+| Array    | `arr.hpp`      | Modern std::array: enum/offset indexing, `arr_of` ([docs](./stx/arr.md)) |
+| Core     | `core.hpp`     | Fundamental types, strong types, concepts                                |
+| Memory   | `mem.hpp`      | Low-level memory access, `ptr<T>`                                        |
+| Function | `fn.hpp`       | Function pointer abstractions                                            |
+| File     | `io.hpp`       | Binary file stream utilities                                             |
+| Time     | `time.hpp`     | UNIX time and stopwatch utilities                                        |
+| Range    | `range.hpp`    | Integer range iteration                                                  |
+| Cycle    | `cycle.hpp`    | Infinite / bounded range cycling ([docs](./stx/cycle.md))                |
+| Literals | `literals.hpp` | Literal suffixes for all core types ([docs](./api/literals.md))          |
+| String   | `ct.hpp`       | Compile-time string transforms ([docs](./stx/ct.md))                     |
 
 ---
 
@@ -25,18 +25,18 @@
 
 ### Strong Types
 
-| Type | Underlying | Purpose |
-|------|------------|---------|
+| Type    | Underlying  | Purpose                                 |
+| ------- | ----------- | --------------------------------------- |
 | `off_s` | `ptrdiff_t` | Strong offset (replaces legacy `off_t`) |
-| `rva_s` | `u32` | Relative virtual address |
-| `va_s` | `uptr` | Absolute virtual address |
+| `rva_s` | `u32`       | Relative virtual address                |
+| `va_s`  | `uptr`      | Absolute virtual address                |
 
 ### Pointer Wrappers
 
-| Type | Description |
-|------|-------------|
+| Type     | Description                                                                                                 |
+| -------- | ----------------------------------------------------------------------------------------------------------- |
 | `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `addr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator>>`, `read/write<T>`, `align_up/down` |
+| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator>>`, `read/write<T>`, `align_up/down`                     |
 
 ### Fundamental Aliases
 
@@ -48,11 +48,11 @@ Floating: `f32`, `f64`
 
 ## Concepts
 
-| Concept | Description |
-|--------|-------------|
-| `address_like` | Types usable as memory addresses |
-| `binary_readable` | Types safe for raw binary deserialization (excluding pointers) |
-| `byte_swappable` | Types suitable for byte swapping (integral + enum, excluding char types) |
+| Concept           | Description                                                              |
+| ----------------- | ------------------------------------------------------------------------ |
+| `address_like`    | Types usable as memory addresses                                         |
+| `binary_readable` | Types safe for raw binary deserialization (excluding pointers)           |
+| `byte_swappable`  | Types suitable for byte swapping (integral + enum, excluding char types) |
 
 ---
 

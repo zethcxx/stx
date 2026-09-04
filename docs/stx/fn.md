@@ -48,21 +48,21 @@ struct caller_t<Ret(Args...)>
 
 ## Design Characteristics
 
-| Property                  | Description                         |
-|---------------------------|-------------------------------------|
-| Zero abstraction overhead | Wraps raw function pointer          |
-| Strong signature binding  | Signature enforced at compile time  |
-| Explicit validity check   | `operator bool()` verifies non-null |
+| Property                  | Description                                                        |
+| ------------------------- | ------------------------------------------------------------------ |
+| Zero abstraction overhead | Wraps raw function pointer                                         |
+| Strong signature binding  | Signature enforced at compile time                                 |
+| Explicit validity check   | `operator bool()` verifies non-null                                |
 | `constexpr` friendly      | Fully usable in constant evaluation contexts (if address is valid) |
-| Conditional `noexcept`    | Inherited from target function      |
+| Conditional `noexcept`    | Inherited from target function                                     |
 
 ---
 
 ## Member: `fn`
 
-| Member | Type                  | Description          |
-|--------|-----------------------|----------------------|
-| `fn`   | `Ret (*)(Args...)`    | Raw function pointer |
+| Member | Type               | Description          |
+| ------ | ------------------ | -------------------- |
+| `fn`   | `Ret (*)(Args...)` | Raw function pointer |
 
 No ownership semantics. No lifetime guarantees. No validation beyond null check.
 
@@ -150,14 +150,14 @@ return caller_t<Sig>( addr );
 
 Because it uses `address_like`, the following are valid inputs:
 
-| Type              | Accepted |
-|-------------------|----------|
-| Raw pointer       | Yes      |
-| `std::uintptr_t`  | Yes      |
-| `std::intptr_t`   | Yes      |
-| `stx::va_s`       | Yes      |
-| `stx::rva_s`      | No       |
-| `stx::off_s`      | No       |
+| Type             | Accepted |
+| ---------------- | -------- |
+| Raw pointer      | Yes      |
+| `std::uintptr_t` | Yes      |
+| `std::intptr_t`  | Yes      |
+| `stx::va_s`      | Yes      |
+| `stx::rva_s`     | No       |
+| `stx::off_s`     | No       |
 
 ---
 
@@ -255,13 +255,13 @@ Reason:
 
 ## Safety Considerations
 
-| Risk                              | Explanation                 |
-|-----------------------------------|-----------------------------|
-| Signature mismatch                | Leads to undefined behavior |
-| Invalid memory address            | Undefined behavior          |
-| Calling convention mismatch       | Undefined behavior          |
-| Incorrect alignment               | Undefined behavior          |
-| Non-static member functions       | Not supported               |
+| Risk                        | Explanation                 |
+| --------------------------- | --------------------------- |
+| Signature mismatch          | Leads to undefined behavior |
+| Invalid memory address      | Undefined behavior          |
+| Calling convention mismatch | Undefined behavior          |
+| Incorrect alignment         | Undefined behavior          |
+| Non-static member functions | Not supported               |
 
 This utility performs no runtime validation.
 
@@ -281,7 +281,7 @@ This utility performs no runtime validation.
 ## Why caller_t\<Sig\>?
 
 | Aspect        | Vanilla C++                                            | stx                                                           |
-|---------------|--------------------------------------------------------|---------------------------------------------------------------|
+| ------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
 | Safety        | `auto fn = (int(*)(int))addr;` — no signature safety   | `auto fn = caller<int(int)>(addr);` — signature in type       |
 | Null check    | `if (fn) fn(42);` — manual                             | `if (fn) fn(42);` — same, via `operator bool`                 |
 | Address types | `uintptr_t` only — manual cast                         | Any `address_like` (`va_s`, `uptr`, `ptr<T>`)                 |

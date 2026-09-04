@@ -69,7 +69,7 @@ using base_type_t = typename base_type<T>::type;
 For example:
 
 | Type                      | `base_type_t<Type>` |
-|---------------------------|---------------------|
+| ------------------------- | ------------------- |
 | `u32`                     | `u32`               |
 | `i64`                     | `i64`               |
 | `off_s`                   | `ptrdiff_t`         |
@@ -84,10 +84,10 @@ For example:
 
 Boundary inclusion policy.
 
-| Enumerator   | Meaning            |
-|--------------|--------------------|
-| `Inclusive`  | End value included |
-| `Exclusive`  | End value excluded |
+| Enumerator  | Meaning            |
+| ----------- | ------------------ |
+| `Inclusive` | End value included |
+| `Exclusive` | End value excluded |
 
 ```cpp
 enum class range_mode : u8 {
@@ -107,7 +107,7 @@ All functions require an explicit `Type` template argument. The direction of ite
 - Step is stored as an absolute magnitude; the sign only selects direction.
 
 | Example                 | Direction | Values             |
-|-------------------------|-----------|--------------------|
+| ----------------------- | --------- | ------------------ |
 | `range<int>(5)`         | fwd       | `0, 1, 2, 3, 4`    |
 | `range<int>(5, 0)`      | bwd       | `5, 4, 3, 2, 1`    |
 | `range<int>(0, 10, 2)`  | fwd       | `0, 2, 4, 6, 8`    |
@@ -167,7 +167,7 @@ This provides a safety net against accidental truncation.
 ## Direction Rules Summary
 
 | Overload                    | Step          | Direction Source    |
-|-----------------------------|---------------|---------------------|
+| --------------------------- | ------------- | ------------------- |
 | `range<T>(to)`              | `+1`          | `to >= 0     → fwd` |
 | `range<T>(from, to)`        | `+1`          | `to >= from  → fwd` |
 | `range<T>(from, to, step)`  | user-provided | `step >= 0   → fwd` |
@@ -268,29 +268,29 @@ struct range_iter
 
 The interval is always `[from, to)` for `range` and `[from, to]` for `irange`.
 
-| Direction | Mode       | Interval     | First Value  | Last Value  | Example                               |
-|-----------|------------|--------------|--------------|-------------|---------------------------------------|
-| fwd       | Exclusive  | `[from, to)` | `from`       | `to - step` | `range<int> (0, 5)` → `{0,1,2,3,4}`   |
-| fwd       | Inclusive  | `[from, to]` | `from`       | `to`        | `irange<int>(0, 5)` → `{0,1,2,3,4,5}` |
-| bwd       | Exclusive  | `[from, to)` | `from`       | `to + step` | `range<int> (5, 0)` → `{5,4,3,2,1}`   |
-| bwd       | Inclusive  | `[from, to]` | `from`       | `to`        | `irange<int>(5, 0)` → `{5,4,3,2,1,0}` |
+| Direction | Mode      | Interval     | First Value | Last Value  | Example                               |
+| --------- | --------- | ------------ | ----------- | ----------- | ------------------------------------- |
+| fwd       | Exclusive | `[from, to)` | `from`      | `to - step` | `range<int> (0, 5)` → `{0,1,2,3,4}`   |
+| fwd       | Inclusive | `[from, to]` | `from`      | `to`        | `irange<int>(0, 5)` → `{0,1,2,3,4,5}` |
+| bwd       | Exclusive | `[from, to)` | `from`      | `to + step` | `range<int> (5, 0)` → `{5,4,3,2,1}`   |
+| bwd       | Inclusive | `[from, to]` | `from`      | `to`        | `irange<int>(5, 0)` → `{5,4,3,2,1,0}` |
 
 #### With `step > 1`
 
 | Example                  | Full Progression        | Exclusive Result   |
-|--------------------------|-------------------------|--------------------|
+| ------------------------ | ----------------------- | ------------------ |
 | `range<int>( 0, 10,  3)` | `0, 3, 6, 9`            | `{0, 3, 6, 9}`     |
 | `range<int>(10,  0, -3)` | `10, 7, 4, 1`           | `{10, 7, 4, 1}`    |
 | `range<int>(30,  0, -3)` | `30, 27, 24, ..., 3, 0` | `{30, 27, ..., 3}` |
 
 #### `remaining` computation at `begin()`:
 
-| Direction | Mode       | Remaining Count                       |
-|-----------|------------|---------------------------------------|
-| fwd       | Exclusive  | `(dist + step - 1) / step` (ceiling)  |
-| fwd       | Inclusive  | `dist / step + 1`                     |
-| bwd       | Exclusive  | `(dist + step - 1) / step` (ceiling)  |
-| bwd       | Inclusive  | `dist / step + 1`                     |
+| Direction | Mode      | Remaining Count                      |
+| --------- | --------- | ------------------------------------ |
+| fwd       | Exclusive | `(dist + step - 1) / step` (ceiling) |
+| fwd       | Inclusive | `dist / step + 1`                    |
+| bwd       | Exclusive | `(dist + step - 1) / step` (ceiling) |
+| bwd       | Inclusive | `dist / step + 1`                    |
 
 Where `dist = to - from` (fwd) or `dist = from - to` (bwd).
 
@@ -373,7 +373,7 @@ for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
 # Why range<T>?
 
 | Aspect       | Vanilla C++                                                        | stx                                                                   |
-|--------------|--------------------------------------------------------------------|-----------------------------------------------------------------------|
+| ------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | Loop syntax  | `for (int i = 0; i < n; ++i)` — verbose, error-prone               | `for (auto i : range<int>(n))` — intent, not mechanics                |
 | Direction    | Manual `for (int i = n-1; i >= 0; --i)` — signed/unsigned pitfalls | `range<int>(n, 0)` — inferred backward, `irange<int>(n, 0)` inclusive |
 | Step         | `for (int i = 0; i < n; i += 2)` — step mixed with loop header     | `range<int>(0, n, 2)` — step as a parameter                           |

@@ -8,8 +8,8 @@ A non-owning pointer wrapper for typed memory access.
 Internally stores a `uptr` for arithmetic and dereference.
 
 | Parameter | Constraint             | Default | Description     |
-|-----------|------------------------|---------|-----------------|
-| `T`       | Any (including `void`) |    —    | Referenced type |
+| --------- | ---------------------- | ------- | --------------- |
+| `T`       | Any (including `void`) | —       | Referenced type |
 
 ### Construction (stx::ptr)
 
@@ -43,7 +43,7 @@ p = null; // null
 ### Accessors (stx::ptr)
 
 | Method            | Returns    | Description                    |
-|-------------------|------------|--------------------------------|
+| ----------------- | ---------- | ------------------------------ |
 | `raw()`           | `T*`       | Raw pointer (mutable overload) |
 | `raw()` const     | `const T*` | Raw pointer (const overload)   |
 | `addr()`          | `uptr`     | Address as integer             |
@@ -58,12 +58,12 @@ if ( p ) { /* valid */ }
 
 ### Address-of operator (design pending)
 
-| Expression | Returns | Notes |
-|------------|---------|-------|
-| `&p` | `ptr<T>*` | current — may change in the future |
-| `std::addressof(p)` | `ptr<T>*` | always safe, stable |
-| `p.raw()` | `T*` | raw pointer |
-| `p.addr()` | `uptr` | address as integer |
+| Expression          | Returns   | Notes                              |
+| ------------------- | --------- | ---------------------------------- |
+| `&p`                | `ptr<T>*` | current — may change in the future |
+| `std::addressof(p)` | `ptr<T>*` | always safe, stable                |
+| `p.raw()`           | `T*`      | raw pointer                        |
+| `p.addr()`          | `uptr`    | address as integer                 |
 
 Currently `&p` returns the address of the `ptr` object on the stack
 (`ptr<T>*`). Overloading it to return `T*` (equivalent to `p.raw()`) is
@@ -113,8 +113,8 @@ checking magic/file signatures.
 
 ```cpp
 // Check a 4-byte signature at the current address.
-if ( p.cmp("MZ\x90\x00", 4) == 0 ) {}          // equal
-if ( p.cmp( ct::str<"PK\x03\x04"> ) == 0 ) {}  // equal (compile-time signature)
+if ( p.cmp("\x01\x02\x03\x04", 4) == 0 ) {}          // equal
+if ( p.cmp( ct::str<"\x05\x06\x07\x08"> ) == 0 ) {}  // equal (compile-time signature)
 if ( p.cmp( ct::istr<"ABCD"> ))          {}    // memcmp ... != 0 → differs (truthy if not equal)
 ```
 
@@ -131,9 +131,9 @@ bool eq( const U     value  ) const noexcept;             // scalar's bytes
 ```
 
 ```cpp
-if ( p.eq("EMOJIDAT", 8) ) {}               // true if equal
-if ( base[off].eq(var) )     {}              // natural read
-if ( pu.eq<u32>(0xDEADBEEF)) {}              // explicit element type
+if ( p.eq("ABCDEFGH", 8) ) {}        // true if equal
+if ( base[off].eq(var) )     {}      // natural read
+if ( pu.eq<u32>(0xDEADBEEF)) {}      // explicit element type
 ```
 
 `eq` never advances the pointer.
@@ -184,7 +184,7 @@ el[1];          // OK: el is an lvalue
 Two overloads control the addressing mode:
 
 | Expression                | Step                        | Formula                |
-|---------------------------|-----------------------------|------------------------|
+| ------------------------- | --------------------------- | ---------------------- |
 | `p[n]` — single integral  | `sizeof(T)` (element-level) | `addr + n * sizeof(T)` |
 | `p[n, s]` — two integrals | `s` (custom byte step)      | `addr + n * s`         |
 
@@ -192,7 +192,7 @@ For byte-level displacement, `p + off_s{n}` is the arithmetic alternative
 to `p[n, 1]` — both give `addr + n`:
 
 | Form           | Returns  | Formula               |
-|----------------|----------|-----------------------|
+| -------------- | -------- | --------------------- |
 | `p[n, 1]`      | `ptr<T>` | `addr + n` (via `[]`) |
 | `p + off_s{n}` | `ptr<T>` | `addr + n` (via `+` ) |
 
@@ -219,7 +219,7 @@ All arithmetic is in **bytes** — only `off_s`/`rva_s` operands are accepted
 (no raw integral arithmetic).
 
 | Expression                        | Effect                                    | Returns |
-|-----------------------------------|-------------------------------------------|---------|
+| --------------------------------- | ----------------------------------------- | ------- |
 | `p + off_s{n}`                    | Advance `n` bytes                         | `ptr`   |
 | `p - off_s{n}`                    | Rewind `n` bytes                          | `ptr`   |
 | `p += off_s{n}` / `p -= off_s{n}` | In-place                                  | `ptr&`  |
@@ -305,22 +305,22 @@ auto v = (p + off_s{8}).read<u32>();
 the fixed-size, enum-indexable counterpart to `read<U[N]>()`. Two forms:
 
 ```cpp
-// N deduced from the C-array bound -> stx::arr<EmojiSection, kSections>
-auto table = p.read_arr<EmojiSection[kSections]>();
+// N deduced from the C-array bound -> stx::arr<Entry, kCount>
+auto table = p.read_arr<Entry[kCount]>();
 
 // N explicit as a template parameter (same result)
-auto table = p.read_arr<EmojiSection, kSections>();
+auto table = p.read_arr<Entry, kCount>();
 ```
 
 Both give a zero-overhead compile-time copy, indexable by enum, offset newtype,
 or raw integral — no separate span + manual fill loop:
 
 ```cpp
-enum class sec : u8 { arena, stream, font };
-arr<EmojiSection, kSections> table = p.read_arr<EmojiSection[kSections]>();
+enum class kind : u8 { first, second, third };
+arr<Entry, kCount> table = p.read_arr<Entry[kCount]>();
 
-table[sec::stream].count += 1;   // mutable, enum-indexed
-if (table[sec::arena].count > limit) ...
+table[kind::second].count += 1;   // mutable, enum-indexed
+if (table[kind::first].count > limit) ...
 ```
 
 Like `read`, a `const` pointer copies to a non-`const` `arr`; it never advances.
@@ -638,7 +638,7 @@ auto p = mem::read_be<Proto>(packet);                     // through underlying 
 ## `mem::align_up` / `mem::align_down`
 
 | Function           | Effect                     | Example              |
-|--------------------|----------------------------|----------------------|
+| ------------------ | -------------------------- | -------------------- |
 | `align_up(v, a)`   | Round up to `a` boundary   | `1 → 16` (align 16)  |
 | `align_down(v, a)` | Round down to `a` boundary | `17 → 16` (align 16) |
 
@@ -694,25 +694,25 @@ If absent, padding uses spaces. Multi-char fill allowed:
 
 **Type** — one of:
 
-| Type      | Output (addr 0xFF) | Example           |
-|-----------|--------------------|-------------------|
-| (default) | `0xFF`             | `{}`              |
-| `P`       | `0xFF`             | `{:P}`            |
-| `p`       | `0xff`             | `{:p}`            |
-| `X`       | `FF`               | `{:X}`            |
-| `x`       | `ff`               | `{:x}`            |
-| `b`       | `11111111`         | `{:b}`            |
-| `o`       | `377`              | `{:o}`            |
-| `d`       | `255`              | `{:d}`            |
+| Type      | Output (addr 0xFF) | Example |
+| --------- | ------------------ | ------- |
+| (default) | `0xFF`             | `{}`    |
+| `P`       | `0xFF`             | `{:P}`  |
+| `p`       | `0xff`             | `{:p}`  |
+| `X`       | `FF`               | `{:X}`  |
+| `x`       | `ff`               | `{:x}`  |
+| `b`       | `11111111`         | `{:b}`  |
+| `o`       | `377`              | `{:o}`  |
+| `d`       | `255`              | `{:d}`  |
 
 With `#` prefix:
 
-| Type | Output (addr 0xFF) | Example      |
-|------|--------------------|--------------|
-| `#X` | `0xFF`             | `{:#X}`      |
-| `#x` | `0xff`             | `{:#x}`      |
-| `#b` | `0b11111111`       | `{:#b}`      |
-| `#o` | `0377`             | `{:#o}`      |
+| Type | Output (addr 0xFF) | Example |
+| ---- | ------------------ | ------- |
+| `#X` | `0xFF`             | `{:#X}` |
+| `#x` | `0xff`             | `{:#x}` |
+| `#b` | `0b11111111`       | `{:#b}` |
+| `#o` | `0377`             | `{:#o}` |
 
 ```cpp
 stx::ptr<u32> p{addr};  // = 0xFF
@@ -745,7 +745,7 @@ std::print("{}", n);  // "null"
 ### Why ptr<T>?
 
 | Aspect        | Vanilla C++                                      | stx                                                        |
-|---------------|--------------------------------------------------|------------------------------------------------------------|
+| ------------- | ------------------------------------------------ | ---------------------------------------------------------- |
 | Null safety   | `T* p = nullptr; if (p)` — raw unchecked         | `ptr<T> p{null}; if (p)` — same, plus `== null`            |
 | Arithmetic    | `p + n` in bytes or elements? Unclear            | `ptr + off_s{n}` — always bytes, type-documented           |
 | Domain safety | `p + 5` — accidental element vs byte confusion   | `p[5]` = element, `p + off_s{5}` = byte, compiler-enforced |
@@ -781,10 +781,10 @@ auto b = p.pop<u16>();           // read u16, advance 2
 
 Byte difference between two `address_like` addresses.
 
-| Expression                        | Returns               |
-|-----------------------------------|-----------------------|
-| `mem::diff(a, b)`                 | `off_s`               |
-| `mem::diff<T>(a, b)`              | `T` (`std::integral`) |
+| Expression           | Returns               |
+| -------------------- | --------------------- |
+| `mem::diff(a, b)`    | `off_s`               |
+| `mem::diff<T>(a, b)` | `T` (`std::integral`) |
 
 Accepts any combination of `address_like` types (raw pointers, `uptr`, `va_s`, `ptr<T>`, etc.).
 

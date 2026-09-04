@@ -5,7 +5,7 @@ All examples assume `using namespace stx;` for brevity.
 ## `version_info` / `version`
 
 | Member          | Type  | Description   |
-|-----------------|-------|---------------|
+| --------------- | ----- | ------------- |
 | `version.major` | `int` | Major version |
 | `version.minor` | `int` | Minor version |
 | `version.patch` | `int` | Patch version |
@@ -19,7 +19,7 @@ inline constexpr version_info version { 0, 2, 0 };
 ## Type Aliases (stx::*)
 
 | Category      | Alias                                               | Underlying                                               |
-|---------------|-----------------------------------------------------|----------------------------------------------------------|
+| ------------- | --------------------------------------------------- | -------------------------------------------------------- |
 | Unsigned      | `u8` / `u16` / `u32` / `u64`                        | `std::uint8_t` / `16` / `32` / `64`                      |
 | Signed        | `i8` / `i16` / `i32` / `i64`                        | `std::int8_t` / `16` / `32` / `64`                       |
 | Float         | `f32` / `f64`                                       | `float` / `double`                                       |
@@ -41,7 +41,7 @@ uptr addr = rcast<uptr>(&val);
 Type-safe wrappers preventing implicit mixing of semantically distinct numeric domains.
 
 | Type    | Wraps            | Tag          | Domain                   |
-|---------|------------------|--------------|--------------------------|
+| ------- | ---------------- | ------------ | ------------------------ |
 | `off_s` | `std::ptrdiff_t` | `offset_tag` | Byte offset              |
 | `rva_s` | `u32`            | `rva_tag`    | Relative virtual address |
 | `va_s`  | `uptr`           | `va_tag`     | Virtual address          |
@@ -68,7 +68,7 @@ i64  direct = off;           // explicit operator i64
 ### Arithmetic (stx::off_s, stx::rva_s, stx::va_s)
 
 | Expression                              | Result type      | Semantics                  |
-|-----------------------------------------|------------------|----------------------------|
+| --------------------------------------- | ---------------- | -------------------------- |
 | `off + 32`                              | `off_s`          | Offset + scalar            |
 | `off + other` (same  tag)               | `off_s`          | Offset + offset            |
 | `va + off`    (cross-tag)               | `va_s`           | VA + offset = VA           |
@@ -119,12 +119,12 @@ auto v  = (p + off_s{8}).read<u32>(); // read at byte 8
 
 ### Why strong types?
 
-| Aspect        | Vanilla C++                                          | stx                                                     |
-|---------------|------------------------------------------------------|---------------------------------------------------------|
-| Domain safety | `int off, rva, va` — all interchangeable by accident | `off_s`, `rva_s`, `va_s` — compiler rejects mismatches  |
-| Arithmetic    | `ptr + (int)offset` — no intent documented           | `ptr + off_s{n}` — self-documenting, byte-level         |
-| API boundary  | `read(void* base, int off)` — what unit is `off`?    | `read(address_like, off_s)` — type says "bytes"         |
-| Format        | `printf("%td", off)`                                 | `std::print("{}", off)` — works via `operator T`        |
+| Aspect        | Vanilla C++                                          | stx                                                    |
+| ------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| Domain safety | `int off, rva, va` — all interchangeable by accident | `off_s`, `rva_s`, `va_s` — compiler rejects mismatches |
+| Arithmetic    | `ptr + (int)offset` — no intent documented           | `ptr + off_s{n}` — self-documenting, byte-level        |
+| API boundary  | `read(void* base, int off)` — what unit is `off`?    | `read(address_like, off_s)` — type says "bytes"        |
+| Format        | `printf("%td", off)`                                 | `std::print("{}", off)` — works via `operator T`       |
 
 ```cpp
 // Vanilla C++: what does this function expect?
@@ -328,7 +328,7 @@ Used internally by `mem::read`/`mem::write` to accept any pointer-like type.
 ## Casting Helpers (stx::rcast, stx::scast, stx::bcast, etc.)
 
 | Helper        | Equivalent to            | Grep target |
-|---------------|--------------------------|-------------|
+| ------------- | ------------------------ | ----------- |
 | `rcast<T>(v)` | `reinterpret_cast<T>(v)` | `rcast`     |
 | `scast<T>(v)` | `static_cast<T>(v)`      | `scast`     |
 | `bcast<T>(v)` | `bit_cast<T>(v)`         | `bcast`     |
@@ -366,7 +366,7 @@ cleanup.cancel();
 ### Why defer?
 
 | Aspect             | Vanilla C++                              | stx                                       |
-|--------------------|------------------------------------------|-------------------------------------------|
+| ------------------ | ---------------------------------------- | ----------------------------------------- |
 | Early returns      | Manual `free(buf);` before each `return` | `defer` runs destructor automatically     |
 | Exceptions         | `catch` block must free                  | Stack unwinding calls destructor          |
 | Multiple resources | Nested `try`/`catch` pyramids            | Stacked `defer` in declaration order      |
@@ -404,7 +404,7 @@ inline constexpr null_t null{};
 ### Key properties (stx::null_t)
 
 | Expression                          | Result                                               |
-|-------------------------------------|------------------------------------------------------|
+| ----------------------------------- | ---------------------------------------------------- |
 | `null << expr`                      | `null` (discards `expr`, suppresses `[[nodiscard]]`) |
 | `static_cast<std::uintptr_t>(null)` | `0`                                                  |
 | `static_cast<bool>(null)`           | `false`                                              |
@@ -453,7 +453,7 @@ if ( p ) {}          // bool conversion works too
 ### Why null_t?
 
 | Aspect             | Vanilla C++                          | stx                                      |
-|--------------------|--------------------------------------|------------------------------------------|
+| ------------------ | ------------------------------------ | ---------------------------------------- |
 | Discard nodiscard  | `(void)pop(); (void)pop();`          | `null << p.pop<u32>() << p.pop<u16>()`   |
 | Generic null       | `nullptr` (satisfies `address_like`) | `null` (rejected by `address_like` APIs) |
 | Smart pointer init | `unique_ptr<int>{}` or `nullptr`     | `unique_ptr<int>{null}` (implicit)       |

@@ -7,7 +7,7 @@
 #include <concepts>
 
 #if __has_include(<ctre.hpp>)
-#include <ctre.hpp>
+    #include <ctre.hpp>
 #endif
 
 namespace lbyte::stx::ct
@@ -1136,77 +1136,76 @@ namespace lbyte::stx::ct
     constexpr auto istr = istr_t<Str, Args...>::value;
 
     // --- ct::re (CTRE-based compile-time regex, optional) -------------------------
-
-#if __has_include(<ctre.hpp>)
-    template<ctll::fixed_string Pattern>
-    struct re
-    {
-        template<fixed_string Replacement>
-        struct replace {
-            template<size_t N>
-            static consteval auto apply(std::array<char, N> data) noexcept
-                -> std::array<char, N>
-            {
-                constexpr auto repl = Replacement.data;
-                constexpr auto repl_n = Replacement.size();
-
-                size_t null_pos = 0;
-                while (null_pos < N && data[null_pos] != '\0') ++null_pos;
-                if (null_pos == 0) return data;
-
-                std::array<char, N> result{};
-                size_t dst = 0;
-
-                const char* ptr = data.data();
-                size_t remaining_size = null_pos;
-
-                while (remaining_size > 0)
+    #if __has_include(<ctre.hpp>)
+        template<ctll::fixed_string Pattern>
+        struct re
+        {
+            template<fixed_string Replacement>
+            struct replace {
+                template<size_t N>
+                static consteval auto apply(std::array<char, N> data) noexcept
+                    -> std::array<char, N>
                 {
-                    std::string_view current{ptr, remaining_size};
-                    auto match = ctre::search<Pattern>(current);
-                    if (!match) break;
+                    constexpr auto repl = Replacement.data;
+                    constexpr auto repl_n = Replacement.size();
 
-                    auto view = match.to_view();
-                    auto pos = static_cast<size_t>(view.data() - ptr);
-                    auto len = view.size();
+                    size_t null_pos = 0;
+                    while (null_pos < N && data[null_pos] != '\0') ++null_pos;
+                    if (null_pos == 0) return data;
 
-                    for (size_t i = 0; i < pos && dst < N - 1; ++i)
+                    std::array<char, N> result{};
+                    size_t dst = 0;
+
+                    const char* ptr = data.data();
+                    size_t remaining_size = null_pos;
+
+                    while (remaining_size > 0)
+                    {
+                        std::string_view current{ptr, remaining_size};
+                        auto match = ctre::search<Pattern>(current);
+                        if (!match) break;
+
+                        auto view = match.to_view();
+                        auto pos = static_cast<size_t>(view.data() - ptr);
+                        auto len = view.size();
+
+                        for (size_t i = 0; i < pos && dst < N - 1; ++i)
+                            result[dst++] = ptr[i];
+
+                        for (size_t i = 0; i < repl_n && dst < N - 1; ++i)
+                            result[dst++] = repl[i];
+
+                        if (len == 0) [[unlikely]] {
+                            if (dst < N - 1) result[dst++] = ptr[pos];
+                            ptr += pos + 1;
+                            remaining_size -= pos + 1;
+                        } else {
+                            ptr += pos + len;
+                            remaining_size -= pos + len;
+                        }
+                    }
+
+                    for (size_t i = 0; i < remaining_size && dst < N - 1; ++i)
                         result[dst++] = ptr[i];
 
-                    for (size_t i = 0; i < repl_n && dst < N - 1; ++i)
-                        result[dst++] = repl[i];
-
-                    if (len == 0) [[unlikely]] {
-                        if (dst < N - 1) result[dst++] = ptr[pos];
-                        ptr += pos + 1;
-                        remaining_size -= pos + 1;
-                    } else {
-                        ptr += pos + len;
-                        remaining_size -= pos + len;
-                    }
+                    return result;
                 }
+            };
 
-                for (size_t i = 0; i < remaining_size && dst < N - 1; ++i)
-                    result[dst++] = ptr[i];
-
-                return result;
-            }
+            struct remove {
+                template<size_t N>
+                static consteval auto apply(std::array<char, N> data) noexcept
+                    -> std::array<char, N>
+                {
+                    return replace<"">::apply(data);
+                }
+            };
         };
-
-        struct remove {
-            template<size_t N>
-            static consteval auto apply(std::array<char, N> data) noexcept
-                -> std::array<char, N>
-            {
-                return replace<"">::apply(data);
-            }
-        };
-    };
-#endif
+    #endif
 
     // --- vstr ---------------------------------------------------------------------
-    //   vstr<"PE">        -> byte_block<2>
-    //   vstr<"PE", 4>     -> byte_block<4> (zero-padded)
+    //   vstr<"AB">        -> byte_block<2>
+    //   vstr<"AB", 4>     -> byte_block<4> (zero-padded)
     template<fixed_string Str, size_t N = Str.size()>
         requires (N >= Str.size())
     constexpr byte_block<N> vstr = [] {
@@ -1217,9 +1216,9 @@ namespace lbyte::stx::ct
     }();
 
     // --- vstr_of ------------------------------------------------------------------
-    //   vstr_of<"PE", std::array<char, 4>>     -> std::array<char, 4> = {'P','E',0,0}
-    //   vstr_of<"EMOJIDAT", std::array<u8, 8>> -> std::array<u8, 8>   (exact fit)
-    //   vstr_of<"PE", byte_block<4>>           -> byte_block<4>        = {0x50,0x45,0,0}
+    //   vstr_of<"AB", std::array<char, 4>>     -> std::array<char, 4> = {'A','B',0,0}
+    //   vstr_of<"ABCDEFGH", std::array<u8, 8>> -> std::array<u8, 8>   (exact fit)
+    //   vstr_of<"AB", byte_block<4>>           -> byte_block<4>        = {0x41,0x42,0,0}
     //   If Str.size() > N the string is truncated; if < N, zero-padded.
     //   Type must expose value_type and std::tuple_size (e.g. std::array, byte_block).
     template<fixed_string Str, typename Type>

@@ -11,7 +11,7 @@ Zero-overhead `constexpr` bit and byte manipulation for unsigned integer types.
 All template parameters are compile-time constants. `Pos` = bit position (0 = LSB). `Len` = number of bits (default 1).
 
 | Function                          | Description                                         |
-|-----------------------------------|-----------------------------------------------------|
+| --------------------------------- | --------------------------------------------------- |
 | `bit_extract<Pos, Len>(v)`        | Extract `Len` bits starting at `Pos`, right-shifted |
 | `bit_mask<Pos, Len>(v)`           | Keep only bits `[Pos, Pos+Len)`                     |
 | `bit_insert<Pos, Len>(dest, src)` | Insert `src` into bits `[Pos, Pos+Len)` of `dest`   |
@@ -25,7 +25,7 @@ All template parameters are compile-time constants. `Pos` = bit position (0 = LS
 `N`, `A`, `B` = byte indices (0 = LSB).
 
 | Function                    | Description                           |
-|-----------------------------|---------------------------------------|
+| --------------------------- | ------------------------------------- |
 | `byte_extract<N>(v)`        | Extract byte `N` as `u8`              |
 | `byte_insert<N>(dest, src)` | Replace byte `N` of `dest` with `src` |
 | `byte_mask<N>(v)`           | Keep only byte `N`, zero the rest     |
@@ -48,12 +48,12 @@ byte_swap<0, 3>(x);      // x -> 0x78345612
 
 ## Why stx bit operations?
 
-| Aspect       | Vanilla C++                                  | stx                                                     |
-|--------------|----------------------------------------------|---------------------------------------------------------|
-| Readability  | `(x >> 4) & 0xF` — what bits?                | `bit_extract<4, 4>(x)` — "extract 4 bits at position 4" |
-| Safety       | `x & (1u << 31)` — shift by >= width is UB   | `bit_test<31>(x)` — compile-time bounds checked         |
-| Modification | `x = (x & ~0xF) \| (val & 0xF)` — mask dance | `bit_insert<0, 4>(x, val)` — insert at position         |
-| Byte ops     | `uint8_t b = (x >> 8) & 0xFF`                | `byte_extract<1>(x)` — byte index, no magic numbers     |
+| Aspect       | Vanilla C++                                | stx                                                     |                                                 |
+| ------------ | ------------------------------------------ | ------------------------------------------------------- | ----------------------------------------------- |
+| Readability  | `(x >> 4) & 0xF` — what bits?              | `bit_extract<4, 4>(x)` — "extract 4 bits at position 4" |                                                 |
+| Safety       | `x & (1u << 31)` — shift by >= width is UB | `bit_test<31>(x)` — compile-time bounds checked         |                                                 |
+| Modification | `x = (x & ~0xF) \                          | (val & 0xF)` — mask dance                               | `bit_insert<0, 4>(x, val)` — insert at position |
+| Byte ops     | `uint8_t b = (x >> 8) & 0xFF`              | `byte_extract<1>(x)` — byte index, no magic numbers     |                                                 |
 
 ```cpp
 // Vanilla C++: what does this do?

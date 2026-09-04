@@ -44,25 +44,25 @@ mem::write(buf, off_s{0}, x);
 Each flag is a **type** inside `struct fmt` -- not an enum value. Parameterized
 transforms take template arguments.
 
-| Flag / Transform                   | Effect                                                                 |
-|------------------------------------|------------------------------------------------------------------------|
-| *(none)*                           | Raw string, no transformation                                          |
-| `fmt::strip`                       | Remove first line if empty (whitespace-only) and last line if empty    |
-| `fmt::unindent`                    | Strip common leading whitespace based on first text line's indentation |
-| `fmt::trim_left`                   | Per-line: remove leading whitespace (spaces/tabs) from each line       |
-| `fmt::trim_right`                  | Per-line: remove trailing whitespace (spaces/tabs) from each line      |
-| `fmt::trim_trailing_lines`         | Trim trailing whitespace on each line                                  |
-| `fmt::collapse_blank_lines`        | Collapse consecutive blank lines into one                              |
-| `fmt::remove_blank_lines`          | Remove entirely blank (or whitespace-only) lines                       |
-| `fmt::trim_each_line`              | Trim leading/trailing whitespace on each line                          |
-| `fmt::collapse_whitespace`         | Collapse horizontal whitespace (spaces/tabs) to single space           |
+| Flag / Transform                   | Effect                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| *(none)*                           | Raw string, no transformation                                           |
+| `fmt::strip`                       | Remove first line if empty (whitespace-only) and last line if empty     |
+| `fmt::unindent`                    | Strip common leading whitespace based on first text line's indentation  |
+| `fmt::trim_left`                   | Per-line: remove leading whitespace (spaces/tabs) from each line        |
+| `fmt::trim_right`                  | Per-line: remove trailing whitespace (spaces/tabs) from each line       |
+| `fmt::trim_trailing_lines`         | Trim trailing whitespace on each line                                   |
+| `fmt::collapse_blank_lines`        | Collapse consecutive blank lines into one                               |
+| `fmt::remove_blank_lines`          | Remove entirely blank (or whitespace-only) lines                        |
+| `fmt::trim_each_line`              | Trim leading/trailing whitespace on each line                           |
+| `fmt::collapse_whitespace`         | Collapse horizontal whitespace (spaces/tabs) to single space            |
 | `fmt::replace_all\<"from", "to"\>` | Replace all occurrences of `from` with `to` (output may grow or shrink) |
-| `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker                            |
+| `fmt::strip_line_comments\<"//"\>` | Remove line comments starting with a marker                             |
 | `fmt::fixed\<Size\>`               | Force the result to exactly `Size` bytes, null-terminated               |
-| `fmt::pad_end\<N\>`               | Append `N` zero bytes after the `\0`, grow only (never truncates)        |
-| `fmt::unescape`                   | Reinterpret a raw string as a normal literal (interpret escapes)         |
-| `fmt::chain\<Fs...\>`              | Apply multiple transforms in order                                     |
-| `fmt::trim_block`                  | Preset: `chain\<strip, unindent\>`                                     |
+| `fmt::pad_end\<N\>`                | Append `N` zero bytes after the `\0`, grow only (never truncates)       |
+| `fmt::unescape`                    | Reinterpret a raw string as a normal literal (interpret escapes)        |
+| `fmt::chain\<Fs...\>`              | Apply multiple transforms in order                                      |
+| `fmt::trim_block`                  | Preset: `chain\<strip, unindent\>`                                      |
 
 ## Usage
 
@@ -275,14 +275,14 @@ line2
 
 Recognized sequences:
 
-| Sequence       | Meaning                                                  |
-|----------------|----------------------------------------------------------|
-| `\n \t \r`     | newline, tab, carriage return                            |
-| `\a \b \f \v`  | bell, backspace, form feed, vertical tab                 |
-| `\' \" \? \\`  | the literal character                                    |
-| `\NNN`         | octal (1-3 digits); `\0` ends the content                |
-| `\xNN`         | hex (1+ digits), low byte kept                           |
-| `\` + newline  | line continuation: both removed (also handles CRLF)      |
+| Sequence      | Meaning                                             |
+| ------------- | --------------------------------------------------- |
+| `\n \t \r`    | newline, tab, carriage return                       |
+| `\a \b \f \v` | bell, backspace, form feed, vertical tab            |
+| `\' \" \? \\` | the literal character                               |
+| `\NNN`        | octal (1-3 digits); `\0` ends the content           |
+| `\xNN`        | hex (1+ digits), low byte kept                      |
+| `\` + newline | line continuation: both removed (also handles CRLF) |
 
 Anything else -- `\q`, `\u`/`\U` unicode names, a lone trailing `\` -- is kept
 literally. ANSI codes need no special support: `\033[31m` becomes a single ESC
@@ -481,11 +481,11 @@ struct ct::formatter<MyPoint> {
 
 ## C/C++ Comparison
 
-| Language | String Literal                                            | Transform               |
-|----------|-----------------------------------------------------------|-------------------------|
-| C        | `"..."`                                                   | Manual loops            |
-| C++ (stx)| `ct::str<"...", flags>` / `ct::str<"...", ct::args<...>>` | Compile-time, `.rodata` |
-| Python   | `"""..."""` + `.strip()` + `...`                          | Runtime                 |
+| Language  | String Literal                                            | Transform               |
+| --------- | --------------------------------------------------------- | ----------------------- |
+| C         | `"..."`                                                   | Manual loops            |
+| C++ (stx) | `ct::str<"...", flags>` / `ct::str<"...", ct::args<...>>` | Compile-time, `.rodata` |
+| Python    | `"""..."""` + `.strip()` + `...`                          | Runtime                 |
 
 ## Module
 
@@ -504,9 +504,9 @@ to `ct::endian::little`).
 using namespace lbyte::stx;
 static_assert( ct::istr<"\x01\x02">                       == u16{0x0201}      );
 static_assert( ct::istr<"\x01\x02", ct::endian::big>      == u16{0x0102}      );
-static_assert( ct::istr<"MZ", u64>                        == u64{0x5A4D}      );
-static_assert( ct::istr<"PE", u32>                        == u32{0x00004550}  );
-static_assert( ct::istr<"PE", u32, ct::endian::big>       == u32{0x50450000}  );
+static_assert( ct::istr<"AB", u64>                        == u64{0x4241}      );
+static_assert( ct::istr<"AB", u32>                        == u32{0x00004241}  );
+static_assert( ct::istr<"AB", u32, ct::endian::big>       == u32{0x41420000}  );
 ```
 
 Note: `ct::endian::big` and `ct::endian::little` are type tags (not enum values).
@@ -538,8 +538,8 @@ Packs a string into a `ct::byte_block<N>`. If `N > Str.size()`, the extra bytes
 are zero-padded. If `N == Str.size()` (default), exact fit.
 
 ```cpp
-auto sig = ct::vstr<"PE", 4>;   // byte_block<4>{'P','E',0,0}
-auto cmd = ct::vstr<"cmd.exe">; // byte_block<7>{'c','m','d','.','e','x','e'}
+auto sig = ct::vstr<"AB", 4>;   // byte_block<4>{'A','B',0,0}
+auto cmd = ct::vstr<"hello">;   // byte_block<5>{'h','e','l','l','o'}
 ```
 
 ## `ct::vstr_of<Str, Type>` -- typed value string
@@ -551,9 +551,9 @@ it is zero-padded; if longer, it is truncated.
 
 ```cpp
 using magic_type = std::array<char, 8>;
-constexpr auto magic = ct::vstr_of<"EMOJIDAT", magic_type>;       // {'E','M','O','J','I','D','A','T'}
-constexpr auto pe    = ct::vstr_of<"PE", std::array<char, 4>>;    // {'P','E',0,0}
-constexpr auto sig   = ct::vstr_of<"PE", ct::byte_block<4>>;      // {0x50,0x45,0,0}
+constexpr auto magic = ct::vstr_of<"ABCDEFGH", magic_type>;       // {'A','B','C','D','E','F','G','H'}
+constexpr auto sig   = ct::vstr_of<"AB", std::array<char, 4>>;    // {'A','B',0,0}
+constexpr auto blk   = ct::vstr_of<"AB", ct::byte_block<4>>;      // {0x41,0x42,0,0}
 ```
 
 ## `ct::re<Pattern>` -- compile-time regex transforms (optional)

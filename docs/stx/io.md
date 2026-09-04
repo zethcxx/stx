@@ -26,7 +26,7 @@ read(fd, buf.data(), buf.size());  // POSIX read into uninitialized memory
 Seek-origin enum for `memcur::seek` / `memcur::advance`.
 
 | Enumerator        | Behavior                   |
-|-------------------|----------------------------|
+| ----------------- | -------------------------- |
 | `origin::begin`   | Seek from start            |
 | `origin::current` | Seek from current position |
 | `origin::end`     | Seek from end              |
@@ -69,8 +69,8 @@ elements into a typed `stx::arr<Type, Size>` (indexable by enum / offset), ready
 to use without a separate span-to-arr copy:
 
 ```cpp
-auto table = io::read_arr<EmojiSection, kSections>(file, off_s{0});
-table->[sec::arena].count += 1;   // enum-indexed, mutable
+auto table = io::read_arr<Entry, kCount>(file, off_s{0});
+table->[kind::first].count += 1;   // enum-indexed, mutable
 ```
 
 ### Single-value write
@@ -127,7 +127,7 @@ io::write(file, off_s{0}, 0xDEADBEEF);
 Flags controlling `map_file::open` behavior.
 
 | Flag                 | Effect                                         |
-|----------------------|------------------------------------------------|
+| -------------------- | ---------------------------------------------- |
 | `map_flag::none`     | Read-only, private, no populate                |
 | `map_flag::write`    | Read-write mapping                             |
 | `map_flag::exec`     | Executable mapping                             |
@@ -151,7 +151,7 @@ position. `ByteType` must satisfy `buffer_type` (`char`, `std::byte`,
 ### State
 
 | Method            | Returns | Description                        |
-|-------------------|---------|------------------------------------|
+| ----------------- | ------- | ---------------------------------- |
 | `base()`          | `uptr`  | Start address of the buffer        |
 | `size()`          | `usize` | Total size in elements             |
 | `tell()`          | `off_s` | Current byte offset from base      |
@@ -309,7 +309,7 @@ map_file(const map_file&) = delete;
 ### Re-exported from `memcur`
 
 | Category | Members                                             |
-|----------|-----------------------------------------------------|
+| -------- | --------------------------------------------------- |
 | State    | `operator bool`, `size()`, `base()`                 |
 | Cursor   | `seek()`, `advance()`, `tell()`, `remaining()`      |
 | Read     | `pop()`, `as_view()`, `read_into()`, `read_strvw()` |
@@ -352,7 +352,7 @@ if (mapping.is_alive()) {
 ## Why map_file?
 
 | Aspect         | Vanilla C++ (POSIX)                                                           | stx                                            |
-|----------------|-------------------------------------------------------------------------------|------------------------------------------------|
+| -------------- | ----------------------------------------------------------------------------- | ---------------------------------------------- |
 | Open/map       | `int fd = open(...); void* p = mmap(0, size, prot, flags, fd, 0); close(fd);` | `auto m = map_file::open(path);` — single call |
 | Cleanup        | `munmap(p, size);` — manual, must not forget                                  | Destructor calls `munmap` automatically        |
 | Safety         | Raw `void*` — no bounds, no type                                              | `memcur` base — bounds-checked, cursor-based   |
@@ -430,7 +430,7 @@ std::expected<void, std::errc> write(map_file& m, off_s offset, const R& buffer,
 ```cpp
 auto m = map_file::open("file.bin");
 auto magic = io::read<u32>(*m, off_s{0});
-auto table = io::read_arr<EmojiSection, kSections>(*m, off_s{0x100});
+auto table = io::read_arr<Entry, kCount>(*m, off_s{0x100});
 ```
 
 ---
@@ -449,6 +449,6 @@ std::expected<stx::arr<Type, Size>, std::errc> read_arr(std::span<const std::byt
 
 ```cpp
 auto v = io::read<u32>(std::span<const std::byte>{buf}, off_s{0});
-auto t = io::read_arr<EmojiSection, kSections>(std::span<const std::byte>{buf}, off_s{0});
+auto t = io::read_arr<Entry, kCount>(std::span<const std::byte>{buf}, off_s{0});
 ```
 

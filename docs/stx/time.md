@@ -14,7 +14,7 @@ Everything lives in `namespace stx::time`.
 ## Clock Aliases
 
 | Alias                | Underlying Type                      | Purpose                            |
-|----------------------|--------------------------------------|------------------------------------|
+| -------------------- | ------------------------------------ | ---------------------------------- |
 | `time::wall_clock`   | `std::chrono::system_clock`          | Wall-clock / UNIX epoch clock      |
 | `time::hires_clock`  | `std::chrono::high_resolution_clock` | Highest-resolution clock available |
 | `time::steady_clock` | `std::chrono::steady_clock`          | Monotonic clock (never adjusted)   |
@@ -97,7 +97,7 @@ struct stopwatch
 ### Members
 
 | Member         | Returns | Description                                       |
-|----------------|---------|---------------------------------------------------|
+| -------------- | ------- | ------------------------------------------------- |
 | `elapsed<D>()` | `D`     | Time since construction or last `reset()`/`lap()` |
 | `lap<D>()`     | `D`     | Elapsed since last lap, then resets the counter   |
 | `reset()`      | `void`  | Restarts the timer                                |
@@ -146,7 +146,7 @@ Convert raw integers read from binary data (via `ptr::read`, `memcur::pop`,
 `fs::read`, etc.) into `wall_clock::time_point` and back.
 
 | Function                                 | Input            | Description                            |
-|------------------------------------------|------------------|----------------------------------------|
+| ---------------------------------------- | ---------------- | -------------------------------------- |
 | `from_filetime(u64)` / `to_filetime(tp)` | Windows FILETIME | 100-ns intervals since 1601-01-01 UTC  |
 | `from_dos(u32)` / `to_dos(tp)`           | DOS date/time    | Bit-packed 32-bit (FAT/ZIP/EXE)        |
 | `from_ntp(u32)` / `to_ntp(tp)`           | NTP timestamp    | Seconds since 1900-01-01 UTC           |
@@ -194,7 +194,7 @@ them).
 ## Why stopwatch?
 
 | Aspect        | Vanilla C++                                                         | stx                                                    |
-|---------------|---------------------------------------------------------------------|--------------------------------------------------------|
+| ------------- | ------------------------------------------------------------------- | ------------------------------------------------------ |
 | Boilerplate   | `auto t0 = high_resolution_clock::now(); ... auto dt = now() - t0;` | `stopwatch sw; ... auto ms = sw.elapsed();` — one line |
 | Lap timing    | Manual `t0 = now()` in code                                         | `sw.lap()` — returns and resets in one call            |
 | Duration type | `auto ms = duration_cast<milliseconds>(dt)`                         | `sw.elapsed<milliseconds>()` — typed directly          |

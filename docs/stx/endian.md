@@ -57,14 +57,14 @@ static_assert(!is_endian_value_v<u32>           );
 
 ## Methods
 
-| Method                  | Description                                |
-|-------------------------|--------------------------------------------|
-| `get()`                 | Returns value in native endian             |
-| `operator T()`          | Implicit conversion to native endian       |
-| `operator=(U)`          | Assign raw value, auto-converts to storage |
+| Method                  | Description                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| `get()`                 | Returns value in native endian                                                                       |
+| `operator T()`          | Implicit conversion to native endian                                                                 |
+| `operator=(U)`          | Assign raw value, auto-converts to storage                                                           |
 | `endian_value(U other)` | Explicit converting ctor from another `endian_value` of different width (e.g. `le<u32>` → `le<u64>`) |
-| `data()`                | Pointer to raw storage (for serialization) |
-| `swap()`                | Exchange two values                        |
+| `data()`                | Pointer to raw storage (for serialization)                                                           |
+| `swap()`                | Exchange two values                                                                                  |
 
 ## Operators
 
@@ -91,7 +91,7 @@ static_assert(!is_endian_value_v<u32>           );
 ## Why endian_value / le\<T\>?
 
 | Aspect         | Vanilla C++                                       | stx                                                   |
-|----------------|---------------------------------------------------|-------------------------------------------------------|
+| -------------- | ------------------------------------------------- | ----------------------------------------------------- |
 | Declaration    | `u32 sig;` — no endianness info                   | `le<u32> sig;` — self-documenting byte order          |
 | Cross-platform | Manual `#ifdef` / `htole32` / `be32toh`           | Same code works on LE and BE hosts                    |
 | Readability    | `struct { u32 sig; u16 ver; }` — what endian?     | `struct { le<u32> sig; le<u16> ver; }` — explicit     |

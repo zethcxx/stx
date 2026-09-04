@@ -48,13 +48,13 @@ for (auto i : stx::cycle(stx::range(0, 3), 2))
     process(i);   // 0 1 2 0 1 2
 ```
 
-| Call                   | Result          |
-|------------------------|-----------------|
-| `cycle(r, 2)`          | `r` twice       |
-| `cycle(r, 1)`          | single pass     |
-| `cycle(r, 0)`          | empty           |
-| `cycle(empty, n)`      | empty           |
-| `cycle(empty)`         | empty (no UB)   |
+| Call              | Result        |
+| ----------------- | ------------- |
+| `cycle(r, 2)`     | `r` twice     |
+| `cycle(r, 1)`     | single pass   |
+| `cycle(r, 0)`     | empty         |
+| `cycle(empty, n)` | empty         |
+| `cycle(empty)`    | empty (no UB) |
 
 ---
 
@@ -192,12 +192,12 @@ struct cycle_view
 
 # Why cycle?
 
-| Aspect        | Vanilla C++                                                   | stx                                             |
-|---------------|---------------------------------------------------------------|-------------------------------------------------|
-| Infinite      | Manual `for` + index reset with `%` and awkward sentinel logic | `cycle(r)` — declarative, `break` to stop       |
-| Bounded       | `for (int k = 0; k < n; ++k) for (auto& x : r) ...` — nesting  | `cycle(r, n)` — single loop, no nesting         |
-| Range interop | `%` needs `size()` / indexing — fails for sentinel ranges      | Iterator-based wrap works with `stx::range`     |
-| Constexpr     | Manual counters fine but verbose                               | Same, less boilerplate                          |
+| Aspect        | Vanilla C++                                                    | stx                                         |
+| ------------- | -------------------------------------------------------------- | ------------------------------------------- |
+| Infinite      | Manual `for` + index reset with `%` and awkward sentinel logic | `cycle(r)` — declarative, `break` to stop   |
+| Bounded       | `for (int k = 0; k < n; ++k) for (auto& x : r) ...` — nesting  | `cycle(r, n)` — single loop, no nesting     |
+| Range interop | `%` needs `size()` / indexing — fails for sentinel ranges      | Iterator-based wrap works with `stx::range` |
+| Constexpr     | Manual counters fine but verbose                               | Same, less boilerplate                      |
 
 # Design Characteristics
 

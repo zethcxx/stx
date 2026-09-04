@@ -110,19 +110,19 @@ underlying integer at compile time (zero-cost). This lets you index tables
 semantically instead of scattering magic numbers:
 
 ```cpp
-enum class sec : u8 { arena, stream, font, glyph };
+enum class kind : u8 { first, second, third, fourth };
 
 arr<off_t, 4> off{ 0x00, 0x40, 0x80, 0xC0 };
 arr<usize, 4> cnt{ 1, 2, 3, 4 };
 
-auto at = [&](sec s) -> pair<off_t, usize> {
-    return { off[s], cnt[s] };   // semantic, no cast, no magic numbers
+auto at = [&](kind k) -> pair<off_t, usize> {
+    return { off[k], cnt[k] };   // semantic, no cast, no magic numbers
 };
 
-let [aoff, acnt] = at(sec::arena);   // { 0x00, 1 }
+let [aoff, acnt] = at(kind::first);   // { 0x00, 1 }
 ```
 
-The enum stays a compact distinct type (`sec : u8` above) — it never "decays" to
+The enum stays a compact distinct type (`kind : u8` above) — it never "decays" to
 an integral, and the array index is resolved at compile time.
 
 ### By byte-offset newtype
@@ -154,17 +154,17 @@ bytes[off_s{2}] = 0xFF;     // element 2 == byte 2
 
 ## Accessors and capacity
 
-| Member | Notes |
-|--------|-------|
-| `a[i]` | raw index (no check) — integral or enum/offset key |
-| `a.at(i)` | bounds-checked, throws `std::out_of_range` on failure |
-| `a.front()` / `a.back()` | first / last element |
-| `a.data()` | pointer to contiguous buffer |
-| `a.size()` | number of elements |
-| `a.max_size()` | max elements |
-| `a.is_empty()` | true if `N == 0` (renamed from `empty`) |
-| `a.fill(v)` | assign `v` to all elements |
-| `a.swap(o)` | swap contents |
+| Member                   | Notes                                                 |
+| ------------------------ | ----------------------------------------------------- |
+| `a[i]`                   | raw index (no check) — integral or enum/offset key    |
+| `a.at(i)`                | bounds-checked, throws `std::out_of_range` on failure |
+| `a.front()` / `a.back()` | first / last element                                  |
+| `a.data()`               | pointer to contiguous buffer                          |
+| `a.size()`               | number of elements                                    |
+| `a.max_size()`           | max elements                                          |
+| `a.is_empty()`           | true if `N == 0` (renamed from `empty`)               |
+| `a.fill(v)`              | assign `v` to all elements                            |
+| `a.swap(o)`              | swap contents                                         |
 
 ```cpp
 arr<usize, 4> v{ 10, 20, 30, 40 };
