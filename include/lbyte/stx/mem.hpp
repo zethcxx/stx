@@ -1,5 +1,6 @@
 #pragma once
 #include "core.hpp"
+#include "arr.hpp"
 #include "fn.hpp"
 #include <bit>
 #include <compare>
@@ -8,6 +9,7 @@
 #include <memory>
 #include <span>
 #include <string_view>
+#include <tuple>
 
 #if defined(__GNUC__) || defined(__clang__)
     #define STX_FORCE_INLINE [[gnu::always_inline]] inline
@@ -435,6 +437,33 @@ namespace lbyte::stx
             bounded_array_t<U> arr;
             std::memcpy( &arr, rcast<const std::byte*>(address), sizeof(arr) );
             return arr;
+        }
+
+        // ---- READ AS stx::arr (copy, no advance) -------------------
+        // Reads N elements as a typed stx::arr<U, N>. Two forms:
+        //   read_arr<U[N]>()          N deduced from the C-array bound
+        //   read_arr<U, N>()          N explicit as a template parameter
+
+        template<bounded_array U>
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_arr() const noexcept
+        {
+            using flat = bounded_array_t<U>;
+            using elem = std::remove_cv_t<typename flat::value_type>;
+            flat raw{};
+            std::memcpy( &raw, rcast<const std::byte*>(address), sizeof(flat) );
+            return stx::arr<elem, std::tuple_size_v<flat>>{ raw };
+        }
+
+        template<typename U = T, usize N>
+            requires ( not std::is_void_v<U> && binary_readable<std::remove_cv_t<U>> )
+        [[nodiscard]] STX_FORCE_INLINE
+        auto read_arr() const noexcept
+        {
+            using elem = std::remove_cv_t<U>;
+            std::array<elem, N> raw{};
+            std::memcpy( &raw, rcast<const std::byte*>(address), sizeof(raw) );
+            return stx::arr<elem, N>{ raw };
         }
 
         template<typename U = T>

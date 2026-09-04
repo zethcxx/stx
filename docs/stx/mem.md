@@ -246,6 +246,8 @@ auto old = p++;  // post-increment
 ```cpp
 template<binary_readable   U> U     read() const noexcept;
 template<bounded_array     U> auto  read() const noexcept;
+template<bounded_array     U> auto  read_arr() const noexcept;       // as stx::arr, N deduced
+template<typename U, usize N> auto  read_arr() const noexcept;       // as stx::arr, N explicit
 template<binary_readable   U> U     pop ()       noexcept; // read + advance
 template<bounded_array     U> auto  pop ()       noexcept;
 
@@ -276,6 +278,32 @@ p.push(42).push(3.14f); // chainable, returns ptr&
 auto v = (p + off_s{8}).read<u32>();
 (p + mem::gap_v<Header>).write(value);
 ```
+
+### Read as stx::arr (stx::ptr)
+
+`read_arr` copies `N` elements into a typed `stx::arr<U, N>` (no advance). It is
+the fixed-size, enum-indexable counterpart to `read<U[N]>()`. Two forms:
+
+```cpp
+// N deduced from the C-array bound -> stx::arr<EmojiSection, kSections>
+auto table = p.read_arr<EmojiSection[kSections]>();
+
+// N explicit as a template parameter (same result)
+auto table = p.read_arr<EmojiSection, kSections>();
+```
+
+Both give a zero-overhead compile-time copy, indexable by enum, offset newtype,
+or raw integral — no separate span + manual fill loop:
+
+```cpp
+enum class sec : u8 { arena, stream, font };
+arr<EmojiSection, kSections> table = p.read_arr<EmojiSection[kSections]>();
+
+table[sec::stream].count += 1;   // mutable, enum-indexed
+if (table[sec::arena].count > limit) ...
+```
+
+Like `read`, a `const` pointer copies to a non-`const` `arr`; it never advances.
 
 ### Read Pointer from Memory (stx::ptr)
 
