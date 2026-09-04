@@ -1215,6 +1215,28 @@ namespace lbyte::stx::ct
             blk[i] = static_cast<u8>( static_cast<unsigned char>( Str.data[i] ) );
         return blk;
     }();
+
+    // --- vstr_of ------------------------------------------------------------------
+    //   vstr_of<"PE", std::array<char, 4>>     -> std::array<char, 4> = {'P','E',0,0}
+    //   vstr_of<"EMOJIDAT", std::array<u8, 8>> -> std::array<u8, 8>   (exact fit)
+    //   vstr_of<"PE", byte_block<4>>           -> byte_block<4>        = {0x50,0x45,0,0}
+    //   If Str.size() > N the string is truncated; if < N, zero-padded.
+    //   Type must expose value_type and std::tuple_size (e.g. std::array, byte_block).
+    template<fixed_string Str, typename Type>
+    struct vstr_of_t {
+        static constexpr auto value = [] {
+            constexpr size_t N = std::tuple_size_v<Type>;
+            using elem_t = typename Type::value_type;
+            Type out{};
+            for (size_t i = 0; i < Str.size() && i < N; ++i)
+                out[i] = static_cast<elem_t>(
+                    static_cast<unsigned char>(Str.data[i]));
+            return out;
+        }();
+    };
+
+    template<fixed_string Str, typename Type>
+    constexpr auto vstr_of = vstr_of_t<Str, Type>::value;
 }
 
 #include "detail/str_support.hpp"
