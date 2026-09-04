@@ -128,11 +128,28 @@ an integral, and the array index is resolved at compile time.
 ### By byte-offset newtype
 
 Byte-offset `newtype`s (see `offset_s`, `is_offset_tag`, `byte_offset`) are also
-valid index keys:
+valid index keys. A byte-offset key is treated as an **element index** — exactly
+like an integral — never as a byte displacement:
 
 ```cpp
-arr<int, 8> cache{};
-cache[off_s{4}] = 42;       // element at index 4
+arr<u64, 8> cache{};
+cache[off_s{4}] = 42;       // element at index 4 (the fifth u64)
+```
+
+Because the key is an element index, `sizeof(T)` is *not* factored in:
+
+```cpp
+arr<u64, 4> w{ 10, 20, 30, 40 };
+w[off_s{2}] = 99;           // third u64 (== w[2]), NOT bytes 16..23
+```
+
+The one case where index and byte offset coincide is byte-sized elements
+(`sizeof(T) == 1`, e.g. `arr<u8, N>`), so an `off_s` there reads naturally as a
+real byte offset:
+
+```cpp
+arr<u8, 8> bytes{};
+bytes[off_s{2}] = 0xFF;     // element 2 == byte 2
 ```
 
 ## Accessors and capacity

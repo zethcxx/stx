@@ -15,6 +15,10 @@ namespace lbyte::stx
     // byte-offset newtype (see byte_offset / offset_s). Raw integrals are
     // handled by the operator[](size_type) overload, so they are intentionally
     // excluded from arr_key to avoid overload ambiguity.
+    //
+    // A byte-offset key is an ELEMENT index (same as an integral): sizeof(T)
+    // is not factored in. Only for byte-sized elements (sizeof(T)==1) does the
+    // element index coincide with the byte offset.
 
     template<typename K>
     concept arr_key
@@ -29,7 +33,7 @@ namespace lbyte::stx
             using U = std::remove_cvref_t<K>;
             if constexpr ( std::is_enum_v<U> )
                 return static_cast<usize>( std::to_underlying( key ) );
-            else // byte_offset newtype
+            else // byte_offset newtype: used as element index, not byte offset
                 return static_cast<usize>( key.get() );
         }
     }
