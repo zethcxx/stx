@@ -7,6 +7,7 @@
 #include <memory>
 #include <ostream>
 #include <system_error>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include <span>
@@ -165,6 +166,19 @@ namespace lbyte::stx
                 return std::unexpected(result.error());
 
             return arr;
+        }
+
+        template<binary_readable Type, usize Size >
+        requires ( Size > 0 ) [[nodiscard]]
+        std::expected<stx::arr<Type, Size>, std::errc> read_arr(
+            std::istream& file  ,
+            const off_s   offset = off_s{0},
+            const origin  dir = origin::begin
+        ) noexcept {
+            auto result = read<Type, Size>(file, offset, dir);
+            if (!result) [[unlikely]]
+                return std::unexpected(result.error());
+            return stx::arr<Type, Size>{ *result };
         }
 
         inline
@@ -468,6 +482,18 @@ namespace lbyte::stx
             return *this;
         }
 
+        // --- read as stx::arr (copy, no advance) ----------------------------
+
+        template<bounded_array U>
+        stx::arr<std::remove_cv_t<std::remove_all_extents_t<U>>, std::tuple_size_v<bounded_array_t<U>>> read_arr() noexcept
+        {
+            using flat = bounded_array_t<U>;
+            using elem = std::remove_cv_t<std::remove_all_extents_t<U>>;
+            std::array<elem, std::tuple_size_v<flat>> raw{};
+            std::memcpy( &raw, rcast<const void*>(cur_.addr()), sizeof(raw) );
+            return stx::arr<elem, std::tuple_size_v<flat>>{ raw };
+        }
+
         std::string_view read_strvw() noexcept
         {
             return read_strvw(size_ - static_cast<usize>(tell().get()));
@@ -709,6 +735,34 @@ namespace lbyte::stx
             const R& buffer,
             const origin dir = origin::begin
         ) noexcept { return lbyte::stx::io::write( m, off_s{0}, buffer, dir ); }
+
+        template<binary_readable Type, usize Size> [[nodiscard]]
+        std::expected<stx::arr<Type, Size>, std::errc> read_arr(
+            const map_file& m,
+            const off_s offset
+        ) noexcept
+        {
+            auto const byte_off = offset.get();
+            if (byte_off + static_cast<off_s::value_type>(sizeof(Type) * Size)
+                    > static_cast<off_s::value_type>(m.size()))
+                return std::unexpected(std::errc::argument_out_of_domain);
+            auto target = m.base() + static_cast<uptr>(byte_off);
+            return ptr<Type>(target).template read_arr<Type, Size>();
+        }
+
+        template<binary_readable Type, usize Size> [[nodiscard]]
+        std::expected<stx::arr<Type, Size>, std::errc> read_arr(
+            std::span<const std::byte> buf,
+            const off_s offset = off_s{0}
+        ) noexcept
+        {
+            auto const byte_off = offset.get();
+            if (byte_off + static_cast<off_s::value_type>(sizeof(Type) * Size)
+                    > static_cast<off_s::value_type>(buf.size()))
+                return std::unexpected(std::errc::argument_out_of_domain);
+            return ptr<Type>(buf.data() + static_cast<usize>(byte_off))
+                .template read_arr<Type, Size>();
+        }
 
         // --- read overloads for spans (positional, no reader_view needed) -
 

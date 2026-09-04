@@ -59,6 +59,18 @@ auto read(std::istream&, off_s, usize count, origin = begin) noexcept -> std::ex
 
 template<binary_readable Type, usize Size>
 auto read(std::istream&, off_s = {}, origin = begin) noexcept -> std::expected<std::array<Type, Size>, std::errc> ;
+
+template<binary_readable Type, usize Size>
+auto read_arr(std::istream&, off_s = {}, origin = begin) noexcept -> std::expected<stx::arr<Type, Size>, std::errc> ;
+```
+
+`read_arr` is the `stx::arr` counterpart of `read<Type, Size>`: it reads `Size`
+elements into a typed `stx::arr<Type, Size>` (indexable by enum / offset), ready
+to use without a separate span-to-arr copy:
+
+```cpp
+auto table = io::read_arr<EmojiSection, kSections>(file, off_s{0});
+table->[sec::arena].count += 1;   // enum-indexed, mutable
 ```
 
 ### Single-value write
@@ -404,6 +416,9 @@ Positional access into a `map_file` without moving its cursor.
 template<binary_readable Type>
 std::expected<Type, std::errc> read(const map_file& m, off_s offset) noexcept;
 
+template<binary_readable Type, usize Size>
+std::expected<stx::arr<Type, Size>, std::errc> read_arr(const map_file& m, off_s offset) noexcept;
+
 template<binary_readable Type>
     requires (not contiguous_buffer<Type>)
 std::expected<void, std::errc> write(map_file& m, off_s offset, const Type& value, origin = begin) noexcept;
@@ -415,6 +430,7 @@ std::expected<void, std::errc> write(map_file& m, off_s offset, const R& buffer,
 ```cpp
 auto m = map_file::open("file.bin");
 auto magic = io::read<u32>(*m, off_s{0});
+auto table = io::read_arr<EmojiSection, kSections>(*m, off_s{0x100});
 ```
 
 ---
@@ -426,9 +442,13 @@ Positional read from a `std::span<const std::byte>`.
 ```cpp
 template<binary_readable Type>
 std::expected<Type, std::errc> read(std::span<const std::byte> buf, off_s offset) noexcept;
+
+template<binary_readable Type, usize Size>
+std::expected<stx::arr<Type, Size>, std::errc> read_arr(std::span<const std::byte> buf, off_s offset = off_s{0}) noexcept;
 ```
 
 ```cpp
 auto v = io::read<u32>(std::span<const std::byte>{buf}, off_s{0});
+auto t = io::read_arr<EmojiSection, kSections>(std::span<const std::byte>{buf}, off_s{0});
 ```
 
