@@ -19,6 +19,7 @@ target("stx")
     add_includedirs( "include", { public = true })
     add_headerfiles( "include/(lbyte/stx/*.hpp)" )
     add_headerfiles( "include/(lbyte/stx/detail/*.hpp)" )
+    add_headerfiles( "include/(lbyte/stx/ct/*.hpp)" )
     add_headerfiles( "include/(lbyte/stx.hpp)"   )
 
     if has_config( "use_modules" ) then

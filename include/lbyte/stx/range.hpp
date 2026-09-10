@@ -69,8 +69,10 @@ namespace lbyte::stx
     //    range(1, 10)          → Type = int (same-type args)
     //    range(1, 10, -1)      → Type = int
     //
-    // Explicit overloads: require explicit template argument.
-    //    range<usize>(off_s_var, rva_var)  → for mixed/non-common types
+    // Explicit-Type overloads: the first template parameter is the element
+    // type and is NOT deducible, so it can only be given explicitly. Useful
+    // for mixed/non-common argument types (from/to are converted to Type):
+    //    range<usize>(width, 0, -1)   → Type = usize, from/to kept as usize
 
     // ── Deduction overloads ──────────────────────────────────────────────────
 
@@ -91,8 +93,8 @@ namespace lbyte::stx
     {
         using Type = T1;
         using ValueT = details::base_type_t<Type>;
-        ValueT from = details::unwrap( Type{ _from } );
-        ValueT to   = details::unwrap( Type{ _to   } );
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
         auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
         return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Exclusive };
     }
@@ -104,8 +106,8 @@ namespace lbyte::stx
         using Type = T1;
         using ValueT = details::base_type_t<Type>;
         using SignedT = std::make_signed_t<ValueT>;
-        ValueT from = details::unwrap( Type{ _from } );
-        ValueT to   = details::unwrap( Type{ _to   } );
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
         SignedT step = static_cast<SignedT>( _step );
         auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
         using UnsignedT = std::make_unsigned_t<SignedT>;
@@ -130,8 +132,8 @@ namespace lbyte::stx
     {
         using Type = T1;
         using ValueT = details::base_type_t<Type>;
-        ValueT from = details::unwrap( Type{ _from } );
-        ValueT to   = details::unwrap( Type{ _to   } );
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
         auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
         return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Inclusive };
     }
@@ -143,8 +145,70 @@ namespace lbyte::stx
         using Type = T1;
         using ValueT = details::base_type_t<Type>;
         using SignedT = std::make_signed_t<ValueT>;
-        ValueT from = details::unwrap( Type{ _from } );
-        ValueT to   = details::unwrap( Type{ _to   } );
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
+        SignedT step = static_cast<SignedT>( _step );
+        auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
+        using UnsignedT = std::make_unsigned_t<SignedT>;
+        ValueT mag = static_cast<ValueT>( step >= 0 ? UnsignedT(step) : -UnsignedT(step) );
+        return details::range_view<Type>{ from, to, mag, d, range_mode::Inclusive };
+    }
+
+    // ── Explicit-Type overloads ─────────────────────────────────────────────
+    // `range<Type>(from, to[, step])` / `irange<Type>(...)`: the FIRST
+    // template parameter is the element type and is NOT deducible, so it can
+    // only be given explicitly. `from`/`to` are converted to `Type`, `step`
+    // sign decides the direction — handy for mixed argument types:
+    //     range<usize>(width /*usize*/, 0 /*int*/, -1 /*int*/)
+    // The `requires (not same_as<TFrom, TTo>)` guard keeps these from
+    // becoming ambiguous with the deduction overloads when the arguments
+    // already share a type.
+
+    template<details::rangeable Type, details::rangeable TFrom, details::rangeable TTo>
+        requires ( not std::same_as<TFrom, TTo> )
+    [[nodiscard]] constexpr auto range( TFrom _from, TTo _to ) noexcept
+    {
+        using ValueT = details::base_type_t<Type>;
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
+        auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
+        return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Exclusive };
+    }
+
+    template<details::rangeable Type, details::rangeable TFrom, details::rangeable TTo>
+        requires ( not std::same_as<TFrom, TTo> )
+    [[nodiscard]] constexpr auto range( TFrom _from, TTo _to, auto _step ) noexcept
+    {
+        using ValueT = details::base_type_t<Type>;
+        using SignedT = std::make_signed_t<ValueT>;
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
+        SignedT step = static_cast<SignedT>( _step );
+        auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
+        using UnsignedT = std::make_unsigned_t<SignedT>;
+        ValueT mag = static_cast<ValueT>( step >= 0 ? UnsignedT(step) : -UnsignedT(step) );
+        return details::range_view<Type>{ from, to, mag, d, range_mode::Exclusive };
+    }
+
+    template<details::rangeable Type, details::rangeable TFrom, details::rangeable TTo>
+        requires ( not std::same_as<TFrom, TTo> )
+    [[nodiscard]] constexpr auto irange( TFrom _from, TTo _to ) noexcept
+    {
+        using ValueT = details::base_type_t<Type>;
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
+        auto d = (to >= from) ? details::dir::fwd : details::dir::bwd;
+        return details::range_view<Type>{ from, to, ValueT{ 1 }, d, range_mode::Inclusive };
+    }
+
+    template<details::rangeable Type, details::rangeable TFrom, details::rangeable TTo>
+        requires ( not std::same_as<TFrom, TTo> )
+    [[nodiscard]] constexpr auto irange( TFrom _from, TTo _to, auto _step ) noexcept
+    {
+        using ValueT = details::base_type_t<Type>;
+        using SignedT = std::make_signed_t<ValueT>;
+        ValueT from = static_cast<ValueT>( details::unwrap( _from ) );
+        ValueT to   = static_cast<ValueT>( details::unwrap( _to   ) );
         SignedT step = static_cast<SignedT>( _step );
         auto d = (step >= 0) ? details::dir::fwd : details::dir::bwd;
         using UnsignedT = std::make_unsigned_t<SignedT>;
