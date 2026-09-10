@@ -5,9 +5,9 @@ Compile-time string literal transformations with `static` storage.
 ## Header
 
 ```cpp
-#include <lbyte/stx/ct/str.hpp>   // este módulo
-#include <lbyte/stx/ct/record.hpp> // mapa clave→tipo (ver ./ct_record.md)
-#include <lbyte/stx/ct.hpp>        // ambos
+#include <lbyte/stx/ct/str.hpp>   // this module
+#include <lbyte/stx/ct/record.hpp> // key→type map (see ./ct_record.md)
+#include <lbyte/stx/ct.hpp>        // both
 ```
 
 ## Overview

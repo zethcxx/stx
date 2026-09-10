@@ -358,6 +358,25 @@ namespace lbyte::stx::ct
                 return out;
             }
 
+            // ---- typed access by key -------------------------------------------
+            // Map-like `rec[key]` with a per-key return type needs reflection and
+            // is not expressible in C++23. `get<Key>(value_t)` is the analogue:
+            // (static) key, typed member reference.
+
+            template<auto Key>
+            [[nodiscard]] static constexpr auto& get( value_t& value ) noexcept
+            {
+                static_assert( has<Key>, "ct::record::get: key not in record" );
+                return std::get< index_of<Key>() >( value );
+            }
+
+            template<auto Key>
+            [[nodiscard]] static constexpr const auto& get( const value_t& value ) noexcept
+            {
+                static_assert( has<Key>, "ct::record::get: key not in record" );
+                return std::get< index_of<Key>() >( value );
+            }
+
             // ---- functional iteration ------------------------------------------
 
             template<typename F>
@@ -371,6 +390,37 @@ namespace lbyte::stx::ct
             {
                 ( ( init = std::forward<F>( f )( MS{}, init ) ), ... );
                 return init;
+            }
+
+            // ---- homogeneous descriptor tables ----------------------------------
+            // All keys share one type, so keys/sizes/meta are plain arrays:
+            // range-`for` and `[]` work at runtime (typed per-member access does
+            // not — that is what `visit`/`fold`/`std::get` are for).
+
+            static constexpr std::array<key_type, count> keys{ MS::key... };
+            static constexpr std::array<usize,    count> sizes{ sizeof( typename MS::value_type )... };
+
+            struct member_meta
+            {
+                key_type key;
+                usize    offset;
+                usize    size;
+
+                constexpr bool operator==( const member_meta& ) const = default;
+            };
+
+            static constexpr std::array<member_meta, count> meta = [] {
+                std::array<member_meta, count> m{};
+                for ( usize i = 0; i < count; ++i )
+                    m[i] = member_meta{ keys[i], offsets[i], sizes[i] };
+                return m;
+            }();
+
+            [[nodiscard]] static constexpr const member_meta& meta_of( key_type key ) noexcept
+            {
+                for ( usize i = 0; i < count; ++i )
+                    if ( meta[i].key == key ) return meta[i];
+                return meta[0];
             }
 
             // ---- iteration ------------------------------------------------------
