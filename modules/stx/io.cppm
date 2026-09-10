@@ -23,6 +23,7 @@ export namespace lbyte::stx::io
     using ::lbyte::stx::io::setpos;
     using ::lbyte::stx::io::read;
     using ::lbyte::stx::io::read_array;
+    using ::lbyte::stx::io::read_arr;
     using ::lbyte::stx::io::advance;
 
     using ::lbyte::stx::io::write;

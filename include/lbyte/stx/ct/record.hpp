@@ -43,6 +43,10 @@
 
 namespace lbyte::stx::ct
 {
+    // forward declarations (defined below record_ops)
+    template<typename Rec> struct loader;
+    template<typename Rec> struct store_impl;
+
     namespace attr
     {
         struct packed
@@ -236,7 +240,7 @@ namespace lbyte::stx::ct
         constexpr bool member_match = keys_equal<Key, M::key>;
 
         template<bool RecPacked, usize RecAlign, typename... MS>
-        struct record_core
+        struct record_ops
         {
             static constexpr usize count = sizeof...( MS );
 
@@ -304,6 +308,23 @@ namespace lbyte::stx::ct
             static constexpr usize byte_total   = total_size( RecPacked );
             static constexpr usize packed_total = total_size( true );
 
+            // ---- reader fingerprint ------------------------------------------
+            // Lets the generic ptr/memcur ops (details::record_like / read_value
+            // in mem.hpp) read this record "as a struct" through the mixin,
+            // without any reader_of/is_record specialization in mem/io.
+
+            struct reader
+            {
+                using value_t = record_ops::value_t;
+                static constexpr usize byte_size = record_ops::byte_total;
+
+                [[nodiscard]] static constexpr value_t read( const ::lbyte::stx::uptr addr ) noexcept
+                {
+                    return ::lbyte::stx::ct::loader<record_ops>::run(
+                        ::lbyte::stx::rcast<const std::byte*>( addr ) );
+                }
+            };
+
             // ---- lookup -------------------------------------------------------
 
             template<auto Key>
@@ -312,7 +333,7 @@ namespace lbyte::stx::ct
             template<auto Key>
             struct value_of_t
             {
-                static_assert( record_core::has<Key>,
+                static_assert( record_ops::has<Key>,
                     "ct::record::value_of: key not in record" );
                 using type = typename detail::find_key<Key, MS...>::type::value_type;
             };
@@ -322,7 +343,7 @@ namespace lbyte::stx::ct
             template<auto Key>
             [[nodiscard]] static constexpr usize index_of() noexcept
             {
-                static_assert( record_core::has<Key>,
+                static_assert( record_ops::has<Key>,
                     "ct::record::index_of: key not in record" );
                 usize i = 0, out = 0;
                 bool found = false;
@@ -437,7 +458,7 @@ namespace lbyte::stx::ct
         template<bool RecPacked, usize RecAlign, typename... MS>
         struct make_record_core<RecPacked, RecAlign, std::tuple<MS...>>
         {
-            using type = record_core<RecPacked, RecAlign, MS...>;
+            using type = record_ops<RecPacked, RecAlign, MS...>;
         };
 
         template<typename... Items>
@@ -542,21 +563,21 @@ namespace lbyte::stx::ct
     };
 
     template<typename Rec>
-        requires ( ::lbyte::stx::details::is_record<Rec> )
+        requires ( ::lbyte::stx::details::record_like<Rec> )
     [[nodiscard]] constexpr record_value_of_t<Rec> load( const void* src ) noexcept
     {
         return loader<Rec>::run( rcast<const std::byte*>( src ) );
     }
 
     template<typename Rec>
-        requires ( ::lbyte::stx::details::is_record<Rec> )
+        requires ( ::lbyte::stx::details::record_like<Rec> )
     [[nodiscard]] constexpr record_value_of_t<Rec> load( std::span<const std::byte> src ) noexcept
     {
         return load<Rec>( src.data() );
     }
 
     template<typename Rec, typename Value>
-        requires ( ::lbyte::stx::details::is_record<Rec> )
+        requires ( ::lbyte::stx::details::record_like<Rec> )
     constexpr void store( std::byte* dst, const Value& value ) noexcept
     {
         static_assert( std::same_as<std::remove_cvref_t<Value>, record_value_of_t<Rec>>,
@@ -565,35 +586,9 @@ namespace lbyte::stx::ct
     }
 
     template<typename Rec, typename Value>
-        requires ( ::lbyte::stx::details::is_record<Rec> )
+        requires ( ::lbyte::stx::details::record_like<Rec> )
     constexpr void store( std::span<std::byte> dst, const Value& value ) noexcept
     {
         store<Rec>( dst.data(), value );
     }
-}
-
-// ---- mem hooks --------------------------------------------------------------
-// Make `ptr<T>::read<rec>()`, `ptr<T>::pop<rec>()` and `memcur<T>::pop<rec>()`
-// work "as a struct": the record is read member-wise at its computed offsets
-// and returned as the value tuple.
-
-namespace lbyte::stx::details
-{
-    template<typename... Items>
-    inline constexpr bool is_record<::lbyte::stx::ct::record<Items...>> = true;
-
-    template<typename... Items>
-    struct reader_of<::lbyte::stx::ct::record<Items...>>
-    {
-        using rec = ::lbyte::stx::ct::record<Items...>;
-
-        using value_t = typename rec::value_t;
-
-        static constexpr usize bytes_count = rec::byte_total;
-
-        [[nodiscard]] static constexpr value_t read( const ::lbyte::stx::uptr addr ) noexcept
-        {
-            return ::lbyte::stx::ct::loader<rec>::run( ::lbyte::stx::rcast<const std::byte*>( addr ) );
-        }
-    };
 }

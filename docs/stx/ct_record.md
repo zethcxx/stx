@@ -171,8 +171,10 @@ behave identically.
 
 ## As a struct for `ptr` / `memcur`
 
-With the `reader_of`/`is_record` hooks in place, `ptr` and `memcur` read a record
-**member-by-member** — the same as casting to your struct:
+The record's `reader` fingerprint (see `details::record_like` in `mem.hpp`)
+lets `ptr` and `memcur` read a record **member-by-member** — the same as
+casting to your struct — through the generic `ptr_ops` mixin (no per-record
+specialization in `mem`/`io`):
 
 ```cpp
 ptr<std::byte> p{ raw };

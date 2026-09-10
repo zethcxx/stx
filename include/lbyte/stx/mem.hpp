@@ -1,5 +1,6 @@
 #pragma once
 #include "core.hpp"
+#include "arr.hpp"
 #include "fn.hpp"
 #include <bit>
 #include <compare>
@@ -18,6 +19,8 @@
 
 namespace lbyte::stx
 {
+    template<typename T> class ptr;   // fwd (used by ptr_ops and walk)
+
     namespace details {
         template<typename T>
         struct raw_for_endian { using type = T; };
@@ -25,13 +28,10 @@ namespace lbyte::stx
         template<typename T> requires std::is_enum_v<T>
         struct raw_for_endian<T> { using type = std::underlying_type_t<T>; };
 
-        // --- record hooks ---------------------------------------------------
-        // ct::record<...> specializes `is_record` and `reader_of` via
-        // include/lbyte/stx/ct/record.hpp. Anything else stays untouched, so
-        // the scalar fast path never pays for record support.
-
-        template<typename U>
-        inline constexpr bool is_record = false;
+        // --- scalar reader ---------------------------------------------------
+        // Pure scalar fast path (memcpy, well-defined, unaligned-safe).
+        // Fixed-size arrays use the dedicated bounded_array read/pop overloads,
+        // so `reader_of` deliberately has no read() here.
 
         template<typename U>
         struct reader_of {
@@ -46,13 +46,199 @@ namespace lbyte::stx
             }
         };
 
-        // Fixed-size arrays use the dedicated bounded_array read/pop overloads,
-        // so `reader_of` deliberately has no read() here.
         template<typename T, usize N>
         struct reader_of<T[N]>
         {
             using value_t = T[N];
             static constexpr usize bytes_count = sizeof(T[N]);
+        };
+
+        // --- record reader fingerprint ---------------------------------------
+        // A `ct::record<...>` (or any type) is readable through the generic
+        // ptr/memcur ops as soon as it exposes a nested `reader`:
+        //
+        //     struct reader {
+        //         using value_t      = ...;
+        //         static constexpr usize byte_size = ...;
+        //         static constexpr value_t read(uptr addr) noexcept;
+        //     };
+        //
+        // include/lbyte/stx/ct/record.hpp provides one via its `record_ops`
+        // base (`ct::record<...>::reader`), so mem.hpp never needs to name the
+        // record type nor specialize anything.
+
+        template<typename U>
+        concept record_like = requires {
+            typename U::reader::value_t;
+            { U::reader::read( ::lbyte::stx::uptr{} ) }
+                -> std::same_as<typename U::reader::value_t>;
+        };
+
+        template<record_like U>
+        [[nodiscard]] constexpr auto read_value( const ::lbyte::stx::uptr addr ) noexcept
+        {
+            return U::reader::read( addr );
+        }
+
+        template<typename U>
+            requires ( binary_readable<U> && not std::is_array_v<U> )
+        [[nodiscard]] constexpr U read_value( const ::lbyte::stx::uptr addr ) noexcept
+        {
+            U value;
+            std::memcpy( &value, rcast<const std::byte*>(addr), sizeof(U) );
+            return value;
+        }
+
+        template<typename U>
+        struct byte_count_t
+        {
+            static constexpr ::lbyte::stx::usize value = sizeof(U);
+        };
+
+        template<record_like U>
+        struct byte_count_t<U>
+        {
+            static constexpr ::lbyte::stx::usize value = U::reader::byte_size;
+        };
+
+        template<typename U>
+        constexpr ::lbyte::stx::usize byte_count_of = byte_count_t<U>::value;
+
+        // --- generic ptr ops (CRTP) ------------------------------------------
+        // The read family shared by `ptr<T>` and `memcur<ByteType>` lives here
+        // so new ops do not have to be added to those class bodies. The derived
+        // type must expose:
+        //   * `addr() const`      (current read address)
+        //   * `advance_bytes(n)`  (advance pop position by n bytes)
+        // `ValueT` is passed explicitly from the derived type (e.g. ...ptr<T>, T>)
+        // so the mixin never has to name the still-incomplete derived type.
+
+        template<typename Self, typename ValueT>
+        class ptr_ops
+        {
+            [[nodiscard]] constexpr Self& self() noexcept { return static_cast<Self&>(*this); }
+            [[nodiscard]] constexpr const Self& self() const noexcept { return static_cast<const Self&>(*this); }
+
+        public:
+            // stateless base: lets derived types default `operator==`/cmp
+            constexpr bool operator==( const ptr_ops& ) const noexcept = default;
+            constexpr auto operator<=>( const ptr_ops& ) const noexcept = default;
+
+            // ---- READ (scalar or record, no advance) ------------------------
+            // Every mixin member uses a trailing return type that is SFINAE-safe
+            // under eager instantiation (GCC substitutes the default U while the
+            // derived type is still incomplete), so signatures never touch the
+            // derived type — only the bodies do, and those are lazy.
+
+            template<typename U = ValueT>
+            [[nodiscard]] STX_FORCE_INLINE
+            auto read() const noexcept
+                -> decltype( read_value<U>( ::lbyte::stx::uptr{} ) )
+                requires ( not std::is_array_v<U> && ( binary_readable<U> || record_like<U> ) )
+            {
+                return read_value<U>( self().addr() );
+            }
+
+            template<bounded_array U>
+            [[nodiscard]] STX_FORCE_INLINE
+            auto read() const noexcept -> bounded_array_t<U>
+            {
+                bounded_array_t<U> arr;
+                std::memcpy( &arr, rcast<const std::byte*>( self().addr() ), sizeof(arr) );
+                return arr;
+            }
+
+            // ---- READ AS std::array (copy, no advance) ----------------------
+            // Reads N elements as a std::array<U, N>. Two forms:
+            //   read_array<U[N]>()          N deduced from the C-array bound
+            //   read_array<U, N>()          N explicit as a template parameter
+
+            template<bounded_array U>
+            [[nodiscard]] STX_FORCE_INLINE
+            auto read_array() const noexcept -> bounded_array_t<U>
+            {
+                bounded_array_t<U> raw{};
+                std::memcpy( &raw, rcast<const std::byte*>( self().addr() ), sizeof(raw) );
+                return raw;
+            }
+
+            template<typename U = ValueT, usize N>
+                requires ( not std::is_void_v<U> && binary_readable<std::remove_cv_t<U>> )
+            [[nodiscard]] STX_FORCE_INLINE
+            auto read_array() const noexcept -> std::array<std::remove_cv_t<U>, N>
+            {
+                using elem = std::remove_cv_t<U>;
+                std::array<elem, N> raw{};
+                std::memcpy( &raw, rcast<const std::byte*>( self().addr() ), sizeof(raw) );
+                return raw;
+            }
+
+            // ---- READ AS stx::arr (copy, no advance) ------------------------
+            // Fixed-size, value-semantic array type. Same two forms as
+            // read_array<...>, but returns `stx::arr<elem, N>`.
+
+            template<bounded_array U>
+            [[nodiscard]] STX_FORCE_INLINE
+            auto read_arr() const noexcept
+                -> stx::arr<std::remove_cv_t<std::remove_all_extents_t<U>>,
+                            std::tuple_size_v<bounded_array_t<U>>>
+            {
+                using flat = bounded_array_t<U>;
+                using elem = std::remove_cv_t<std::remove_all_extents_t<U>>;
+                std::array<elem, std::tuple_size_v<flat>> raw{};
+                std::memcpy( &raw, rcast<const std::byte*>( self().addr() ), sizeof(raw) );
+                return stx::arr<elem, std::tuple_size_v<flat>>{ raw };
+            }
+
+            template<typename U = ValueT, usize N>
+                requires ( not std::is_void_v<U> && binary_readable<std::remove_cv_t<U>> )
+            [[nodiscard]] STX_FORCE_INLINE
+            auto read_arr() const noexcept -> stx::arr<std::remove_cv_t<U>, N>
+            {
+                using elem = std::remove_cv_t<U>;
+                std::array<elem, N> raw{};
+                std::memcpy( &raw, rcast<const std::byte*>( self().addr() ), sizeof(raw) );
+                return stx::arr<elem, N>{ raw };
+            }
+
+            // ---- READ AS ptr<U> (pointer-sized, no advance) ------------------
+
+            template<typename U = ValueT>
+            [[nodiscard]] STX_FORCE_INLINE
+            auto read_p() const noexcept -> ptr<U>
+                requires ( not std::is_void_v<U> )
+            {
+                ::lbyte::stx::uptr value;
+                std::memcpy(
+                    &value,
+                    rcast<const std::byte*>( self().addr() ),
+                    sizeof(::lbyte::stx::uptr)
+                );
+                return ptr<U>( rcast<U*>( value ) );
+            }
+
+            // ---- POP (read + advance) --------------------------------------
+
+            template<typename U = ValueT>
+            [[nodiscard]] STX_FORCE_INLINE
+            auto pop() noexcept
+                -> decltype( read_value<U>( ::lbyte::stx::uptr{} ) )
+                requires ( not std::is_array_v<U> && ( binary_readable<U> || record_like<U> ) )
+            {
+                auto value = read_value<U>( self().addr() );
+                self().advance_bytes( byte_count_of<U> );
+                return value;
+            }
+
+            template<bounded_array U>
+            [[nodiscard]] STX_FORCE_INLINE
+            auto pop() noexcept -> bounded_array_t<U>
+            {
+                bounded_array_t<U> arr;
+                std::memcpy( &arr, rcast<const std::byte*>( self().addr() ), sizeof(arr) );
+                self().advance_bytes( sizeof(arr) );
+                return arr;
+            }
         };
     }
 
@@ -292,7 +478,7 @@ namespace lbyte::stx
     struct ptr_char<T, std::enable_if_t<std::is_void_v<std::remove_cv_t<T>>>> { using type = char; };
 
     template<typename T>
-    class ptr
+    class ptr : public details::ptr_ops<ptr<T>, T>
     {
         ::lbyte::stx::uptr address = 0;
 
@@ -342,6 +528,11 @@ namespace lbyte::stx
         [[nodiscard]]
         constexpr ::lbyte::stx::uptr addr() const noexcept {
             return address;
+        }
+
+        // mixin hook (details::ptr_ops): advance pop position by n raw bytes
+        constexpr void advance_bytes( const usize n ) noexcept {
+            address += n;
         }
 
         [[nodiscard]]
@@ -444,84 +635,7 @@ namespace lbyte::stx
         [[nodiscard]] constexpr ptr<T> operator[]( U offset, V step ) const && = delete;
 
         // ---- SAFE (memcpy) ---------------------------------------
-
-        template<typename U = T>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read() const noexcept -> decltype( details::reader_of<U>::read( address ) )
-            requires ( not std::is_void_v<U> && not std::is_array_v<U> && ( binary_readable<U> || details::is_record<U> ) )
-        {
-            return details::reader_of<U>::read( address );
-        }
-
-        template<bounded_array U>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read() const noexcept -> bounded_array_t<U>
-        {
-            bounded_array_t<U> arr;
-            std::memcpy( &arr, rcast<const std::byte*>(address), sizeof(arr) );
-            return arr;
-        }
-
-        // ---- READ AS std::array (copy, no advance) -------------------
-        // Reads N elements as a std::array<U, N>. Two forms:
-        //   read_array<U[N]>()          N deduced from the C-array bound
-        //   read_array<U, N>()          N explicit as a template parameter
-
-        template<bounded_array U>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read_array() const noexcept -> bounded_array_t<U>
-        {
-            bounded_array_t<U> raw{};
-            std::memcpy( &raw, rcast<const std::byte*>(address), sizeof(raw) );
-            return raw;
-        }
-
-        template<typename U = T, usize N>
-            requires ( not std::is_void_v<U> && binary_readable<std::remove_cv_t<U>> )
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read_array() const noexcept
-        {
-            using elem = std::remove_cv_t<U>;
-            std::array<elem, N> raw{};
-            std::memcpy( &raw, rcast<const std::byte*>(address), sizeof(raw) );
-            return raw;
-        }
-
-        template<typename U = T>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto read_p() const noexcept -> ptr<U>
-            requires ( not std::is_void_v<U> )
-        {
-            ::lbyte::stx::uptr value;
-            std::memcpy(
-                &value,
-                rcast<const std::byte*>(address),
-                sizeof(::lbyte::stx::uptr)
-            );
-            return ptr<U>( rcast<U*>( value ));
-        }
-
-        // ---- POP (read + advance) ---------------------------------
-
-        template<typename U = T>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto pop() noexcept -> decltype( details::reader_of<U>::read( address ) )
-            requires ( not std::is_void_v<U> && not std::is_array_v<U> && ( binary_readable<U> || details::is_record<U> ) )
-        {
-            auto value = details::reader_of<U>::read( address );
-            address += details::reader_of<U>::bytes_count;
-            return value;
-        }
-
-        template<bounded_array U>
-        [[nodiscard]] STX_FORCE_INLINE
-        auto pop() noexcept -> bounded_array_t<U>
-        {
-            bounded_array_t<U> arr;
-            std::memcpy( &arr, rcast<const std::byte*>(address), sizeof(arr) );
-            address += sizeof(arr);
-            return arr;
-        }
+        // read/read_array/read_arr/read_p/pop live in details::ptr_ops below.
 
         // ---- READ INTO (no advance) / POP INTO (advance) -----------
 

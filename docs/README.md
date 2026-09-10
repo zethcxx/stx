@@ -17,6 +17,7 @@
 | Cycle    | `cycle.hpp`       | Infinite / bounded range cycling ([docs](./stx/cycle.md))              |
 | Literals | `literals.hpp`    | Literal suffixes for all core types ([docs](./api/literals.md))        |
 | String   | `ct/str.hpp`      | Compile-time string transforms ([docs](./stx/ct.md))                   |
+| Array    | `arr.hpp`         | Fixed-size typed arrays (`stx::arr`, `arr_of`) ([docs](./stx/arr.md)) |
 | Record   | `ct/record.hpp`   | Compile-time key→type map with struct-like layout ([docs](./stx/ct_record.md)) |
 
 ---
@@ -90,4 +91,5 @@ auto main() -> int
 - [Cycle API](./stx/cycle.md) - Infinite / bounded range cycling
 - [Literals API](./stx/literals.md) - Literal suffixes for core types
 - [String API](./stx/ct.md) - Compile-time string literals
+- [Array API](./stx/arr.md) - Fixed-size typed arrays
 - [Record API](./stx/ct_record.md) - Compile-time key→type maps
