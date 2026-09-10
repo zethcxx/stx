@@ -265,11 +265,11 @@ auto old = p++;  // post-increment
 
 ```cpp
 template<binary_readable   U> U     read() const noexcept;
-template<bounded_array     U> auto  read() const noexcept;
-template<bounded_array     U> auto  read_arr() const noexcept;       // as stx::arr, N deduced
-template<typename U, usize N> auto  read_arr() const noexcept;       // as stx::arr, N explicit
-template<binary_readable   U> U     pop ()       noexcept; // read + advance
-template<bounded_array     U> auto  pop ()       noexcept;
+template<bounded_array   U> auto  read() const noexcept;
+template<bounded_array   U> auto  read_array() const noexcept;       // as std::array, N deduced
+template<typename U, usize N> auto  read_array() const noexcept;     // as std::array, N explicit
+template<binary_readable U> U     pop ()       noexcept; // read + advance
+template<bounded_array   U> auto  pop ()       noexcept;
 
 template<binary_readable   U> void  write (       U   value ) const noexcept;
 template<contiguous_buffer R> void  write (       R&& range ) const noexcept;
@@ -299,31 +299,32 @@ auto v = (p + off_s{8}).read<u32>();
 (p + mem::gap_v<Header>).write(value);
 ```
 
-### Read as stx::arr (stx::ptr)
+### Read as `std::array` (stx::ptr)
 
-`read_arr` copies `N` elements into a typed `stx::arr<U, N>` (no advance). It is
-the fixed-size, enum-indexable counterpart to `read<U[N]>()`. Two forms:
+`read_array` copies `N` elements into a typed `std::array<U, N>` (no advance). It is
+the fixed-size counterpart to `read<U[N]>()`. Two forms:
 
 ```cpp
-// N deduced from the C-array bound -> stx::arr<Entry, kCount>
-auto table = p.read_arr<Entry[kCount]>();
+// N deduced from the C-array bound -> std::array<Entry, kCount>
+auto table = p.read_array<Entry[kCount]>();
 
 // N explicit as a template parameter (same result)
-auto table = p.read_arr<Entry, kCount>();
+auto table = p.read_array<Entry, kCount>();
 ```
 
-Both give a zero-overhead compile-time copy, indexable by enum, offset newtype,
-or raw integral — no separate span + manual fill loop:
+Both give a zero-overhead compile-time copy — no separate span + manual fill loop:
 
 ```cpp
-enum class kind : u8 { first, second, third };
-arr<Entry, kCount> table = p.read_arr<Entry[kCount]>();
+std::array<Entry, kCount> table = p.read_array<Entry[kCount]>();
 
-table[kind::second].count += 1;   // mutable, enum-indexed
-if (table[kind::first].count > limit) ...
+table[1].count += 1;                // mutable, indexable
+if (table[0].count > limit) ...
 ```
 
-Like `read`, a `const` pointer copies to a non-`const` `arr`; it never advances.
+Like `read`, a `const` pointer copies to a non-`const` `std::array`; it never advances.
+To seed a `std::array` from a named C-array (including one using `[key] = value`
+designators), use `array_of(source)` from core — e.g.
+`inline constexpr auto a = array_of(raw);`.
 
 ### Read Pointer from Memory (stx::ptr)
 

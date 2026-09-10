@@ -61,16 +61,16 @@ template<binary_readable Type, usize Size>
 auto read(std::istream&, off_s = {}, origin = begin) noexcept -> std::expected<std::array<Type, Size>, std::errc> ;
 
 template<binary_readable Type, usize Size>
-auto read_arr(std::istream&, off_s = {}, origin = begin) noexcept -> std::expected<stx::arr<Type, Size>, std::errc> ;
+auto read_array(std::istream&, off_s = {}, origin = begin) noexcept -> std::expected<std::array<Type, Size>, std::errc> ;
 ```
 
-`read_arr` is the `stx::arr` counterpart of `read<Type, Size>`: it reads `Size`
-elements into a typed `stx::arr<Type, Size>` (indexable by enum / offset), ready
-to use without a separate span-to-arr copy:
+`read_array` is the `std::array` counterpart of `read<Type, Size>`: it reads `Size`
+elements into a typed `std::array<Type, Size>`, ready to use without a separate
+span-to-array copy:
 
 ```cpp
-auto table = io::read_arr<Entry, kCount>(file, off_s{0});
-table->[kind::first].count += 1;   // enum-indexed, mutable
+auto table = io::read_array<Entry, kCount>(file, off_s{0});
+if (table) (*table)[0].count += 1;
 ```
 
 ### Single-value write
@@ -417,7 +417,7 @@ template<binary_readable Type>
 std::expected<Type, std::errc> read(const map_file& m, off_s offset) noexcept;
 
 template<binary_readable Type, usize Size>
-std::expected<stx::arr<Type, Size>, std::errc> read_arr(const map_file& m, off_s offset) noexcept;
+std::expected<std::array<Type, Size>, std::errc> read_array(const map_file& m, off_s offset) noexcept;
 
 template<binary_readable Type>
     requires (not contiguous_buffer<Type>)
@@ -430,7 +430,7 @@ std::expected<void, std::errc> write(map_file& m, off_s offset, const R& buffer,
 ```cpp
 auto m = map_file::open("file.bin");
 auto magic = io::read<u32>(*m, off_s{0});
-auto table = io::read_arr<Entry, kCount>(*m, off_s{0x100});
+auto table = io::read_array<Entry, kCount>(*m, off_s{0x100});
 ```
 
 ---
@@ -444,11 +444,11 @@ template<binary_readable Type>
 std::expected<Type, std::errc> read(std::span<const std::byte> buf, off_s offset) noexcept;
 
 template<binary_readable Type, usize Size>
-std::expected<stx::arr<Type, Size>, std::errc> read_arr(std::span<const std::byte> buf, off_s offset = off_s{0}) noexcept;
+std::expected<std::array<Type, Size>, std::errc> read_array(std::span<const std::byte> buf, off_s offset = off_s{0}) noexcept;
 ```
 
 ```cpp
 auto v = io::read<u32>(std::span<const std::byte>{buf}, off_s{0});
-auto t = io::read_arr<Entry, kCount>(std::span<const std::byte>{buf}, off_s{0});
+auto t = io::read_array<Entry, kCount>(std::span<const std::byte>{buf}, off_s{0});
 ```
 

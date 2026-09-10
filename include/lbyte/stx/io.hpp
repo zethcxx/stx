@@ -170,7 +170,7 @@ namespace lbyte::stx
 
         template<binary_readable Type, usize Size >
         requires ( Size > 0 ) [[nodiscard]]
-        std::expected<stx::arr<Type, Size>, std::errc> read_arr(
+        std::expected<std::array<Type, Size>, std::errc> read_array(
             std::istream& file  ,
             const off_s   offset = off_s{0},
             const origin  dir = origin::begin
@@ -178,7 +178,7 @@ namespace lbyte::stx
             auto result = read<Type, Size>(file, offset, dir);
             if (!result) [[unlikely]]
                 return std::unexpected(result.error());
-            return stx::arr<Type, Size>{ *result };
+            return *result;
         }
 
         inline
@@ -252,6 +252,7 @@ namespace lbyte::stx
             const origin dir = origin::begin
         ) noexcept { return lbyte::stx::io::write( file, off_s{0}, buffer, dir ); }
 
+        inline
         void advance(
             std::ostream& file,
             const off_s offset
@@ -411,15 +412,16 @@ namespace lbyte::stx
 
         // --- pop (read + advance) ------------------------------------------
 
-        template<binary_readable T>
-        T pop() noexcept {
-            return cur_.template pop<T>();
-        }
+template<typename T>
+            requires ( not std::is_array_v<T> && ( binary_readable<T> || details::is_record<T> ) )
+            auto pop() noexcept -> decltype( cur_.template pop<T>() ) {
+                return cur_.template pop<T>();
+            }
 
-        template<bounded_array U>
-        bounded_array_t<U> pop() noexcept {
-            return cur_.template pop<U>();
-        }
+            template<bounded_array U>
+            bounded_array_t<U> pop() noexcept {
+                return cur_.template pop<U>();
+            }
 
         // --- push (write + advance) ----------------------------------------
 
@@ -482,16 +484,16 @@ namespace lbyte::stx
             return *this;
         }
 
-        // --- read as stx::arr (copy, no advance) ----------------------------
+        // --- read as std::array (copy, no advance) ---------------------------
 
         template<bounded_array U>
-        stx::arr<std::remove_cv_t<std::remove_all_extents_t<U>>, std::tuple_size_v<bounded_array_t<U>>> read_arr() noexcept
+        std::array<std::remove_cv_t<std::remove_all_extents_t<U>>, std::tuple_size_v<bounded_array_t<U>>> read_array() noexcept
         {
             using flat = bounded_array_t<U>;
             using elem = std::remove_cv_t<std::remove_all_extents_t<U>>;
             std::array<elem, std::tuple_size_v<flat>> raw{};
             std::memcpy( &raw, rcast<const void*>(cur_.addr()), sizeof(raw) );
-            return stx::arr<elem, std::tuple_size_v<flat>>{ raw };
+            return raw;
         }
 
         std::string_view read_strvw() noexcept
@@ -737,7 +739,7 @@ namespace lbyte::stx
         ) noexcept { return lbyte::stx::io::write( m, off_s{0}, buffer, dir ); }
 
         template<binary_readable Type, usize Size> [[nodiscard]]
-        std::expected<stx::arr<Type, Size>, std::errc> read_arr(
+        std::expected<std::array<Type, Size>, std::errc> read_array(
             const map_file& m,
             const off_s offset
         ) noexcept
@@ -747,11 +749,11 @@ namespace lbyte::stx
                     > static_cast<off_s::value_type>(m.size()))
                 return std::unexpected(std::errc::argument_out_of_domain);
             auto target = m.base() + static_cast<uptr>(byte_off);
-            return ptr<Type>(target).template read_arr<Type, Size>();
+            return ptr<Type>(target).template read_array<Type, Size>();
         }
 
         template<binary_readable Type, usize Size> [[nodiscard]]
-        std::expected<stx::arr<Type, Size>, std::errc> read_arr(
+        std::expected<std::array<Type, Size>, std::errc> read_array(
             std::span<const std::byte> buf,
             const off_s offset = off_s{0}
         ) noexcept
@@ -761,7 +763,7 @@ namespace lbyte::stx
                     > static_cast<off_s::value_type>(buf.size()))
                 return std::unexpected(std::errc::argument_out_of_domain);
             return ptr<Type>(buf.data() + static_cast<usize>(byte_off))
-                .template read_arr<Type, Size>();
+                .template read_array<Type, Size>();
         }
 
         // --- read overloads for spans (positional, no reader_view needed) -

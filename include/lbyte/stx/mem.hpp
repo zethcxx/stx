@@ -1,6 +1,5 @@
 #pragma once
 #include "core.hpp"
-#include "arr.hpp"
 #include "fn.hpp"
 #include <bit>
 #include <compare>
@@ -25,6 +24,36 @@ namespace lbyte::stx
 
         template<typename T> requires std::is_enum_v<T>
         struct raw_for_endian<T> { using type = std::underlying_type_t<T>; };
+
+        // --- record hooks ---------------------------------------------------
+        // ct::record<...> specializes `is_record` and `reader_of` via
+        // include/lbyte/stx/ct/record.hpp. Anything else stays untouched, so
+        // the scalar fast path never pays for record support.
+
+        template<typename U>
+        inline constexpr bool is_record = false;
+
+        template<typename U>
+        struct reader_of {
+            using value_t = U;
+            static constexpr usize bytes_count = sizeof(U);
+            static constexpr value_t read( const uptr addr ) noexcept
+                requires ( binary_readable<U> and not std::is_array_v<U> )
+            {
+                value_t value;
+                std::memcpy( &value, rcast<const std::byte*>(addr), sizeof(U) );
+                return value;
+            }
+        };
+
+        // Fixed-size arrays use the dedicated bounded_array read/pop overloads,
+        // so `reader_of` deliberately has no read() here.
+        template<typename T, usize N>
+        struct reader_of<T[N]>
+        {
+            using value_t = T[N];
+            static constexpr usize bytes_count = sizeof(T[N]);
+        };
     }
 
     namespace mem {
@@ -418,16 +447,10 @@ namespace lbyte::stx
 
         template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read() const noexcept -> U
-            requires ( not std::is_void_v<U> && binary_readable<U> )
+        auto read() const noexcept -> decltype( details::reader_of<U>::read( address ) )
+            requires ( not std::is_void_v<U> && not std::is_array_v<U> && ( binary_readable<U> || details::is_record<U> ) )
         {
-            U value;
-            std::memcpy(
-                &value,
-                rcast<const std::byte*>(address),
-                sizeof(U)
-            );
-            return value;
+            return details::reader_of<U>::read( address );
         }
 
         template<bounded_array U>
@@ -439,31 +462,29 @@ namespace lbyte::stx
             return arr;
         }
 
-        // ---- READ AS stx::arr (copy, no advance) -------------------
-        // Reads N elements as a typed stx::arr<U, N>. Two forms:
-        //   read_arr<U[N]>()          N deduced from the C-array bound
-        //   read_arr<U, N>()          N explicit as a template parameter
+        // ---- READ AS std::array (copy, no advance) -------------------
+        // Reads N elements as a std::array<U, N>. Two forms:
+        //   read_array<U[N]>()          N deduced from the C-array bound
+        //   read_array<U, N>()          N explicit as a template parameter
 
         template<bounded_array U>
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_arr() const noexcept
+        auto read_array() const noexcept -> bounded_array_t<U>
         {
-            using flat = bounded_array_t<U>;
-            using elem = std::remove_cv_t<typename flat::value_type>;
-            flat raw{};
-            std::memcpy( &raw, rcast<const std::byte*>(address), sizeof(flat) );
-            return stx::arr<elem, std::tuple_size_v<flat>>{ raw };
+            bounded_array_t<U> raw{};
+            std::memcpy( &raw, rcast<const std::byte*>(address), sizeof(raw) );
+            return raw;
         }
 
         template<typename U = T, usize N>
             requires ( not std::is_void_v<U> && binary_readable<std::remove_cv_t<U>> )
         [[nodiscard]] STX_FORCE_INLINE
-        auto read_arr() const noexcept
+        auto read_array() const noexcept
         {
             using elem = std::remove_cv_t<U>;
             std::array<elem, N> raw{};
             std::memcpy( &raw, rcast<const std::byte*>(address), sizeof(raw) );
-            return stx::arr<elem, N>{ raw };
+            return raw;
         }
 
         template<typename U = T>
@@ -484,12 +505,11 @@ namespace lbyte::stx
 
         template<typename U = T>
         [[nodiscard]] STX_FORCE_INLINE
-        auto pop() noexcept -> U
-            requires ( not std::is_void_v<U> && binary_readable<U> )
+        auto pop() noexcept -> decltype( details::reader_of<U>::read( address ) )
+            requires ( not std::is_void_v<U> && not std::is_array_v<U> && ( binary_readable<U> || details::is_record<U> ) )
         {
-            U value;
-            std::memcpy( &value, rcast<const std::byte*>(address), sizeof(U) );
-            address += sizeof(U);
+            auto value = details::reader_of<U>::read( address );
+            address += details::reader_of<U>::bytes_count;
             return value;
         }
 

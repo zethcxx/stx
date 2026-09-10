@@ -358,6 +358,28 @@ namespace lbyte::stx
     };
 
     inline constexpr null_t null{};
+
+    // ---- array_of factory (std::to_array style) -----------------------------
+    // Deduces Type and N from a C-array: `array_of<T>({...})` and
+    // `array_of({...})` both work. The lvalue overload accepts named arrays,
+    // which lets C array-designators `[idx] = v` (valid only in a C-array, not
+    // in a class) seed a typed std::array in a single constexpr:
+    //     inline constexpr u64 raw[k] = { [3] = 9 };
+    //     inline constexpr auto a = array_of( raw );   // std::array<u64, k>
+
+    template<typename Type, usize N>
+    [[nodiscard]] constexpr auto array_of( Type (&& source)[N] ) noexcept
+        -> std::array<Type, N>
+    {
+        return std::to_array( std::move( source ) );
+    }
+
+    template<typename Type, usize N>
+    [[nodiscard]] constexpr auto array_of( Type const ( &source )[N] ) noexcept
+        -> std::array<Type, N>
+    {
+        return std::to_array( source );
+    }
 }
 
 #ifndef STX_MODULE_BUILD

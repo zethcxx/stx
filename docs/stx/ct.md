@@ -1,11 +1,13 @@
-# Compile-Time Literals (`ct.hpp`)
+# Compile-Time Strings (`ct/str.hpp`)
 
 Compile-time string literal transformations with `static` storage.
 
 ## Header
 
 ```cpp
-#include <lbyte/stx/ct.hpp>
+#include <lbyte/stx/ct/str.hpp>   // este módulo
+#include <lbyte/stx/ct/record.hpp> // mapa clave→tipo (ver ./ct_record.md)
+#include <lbyte/stx/ct.hpp>        // ambos
 ```
 
 ## Overview
