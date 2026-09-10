@@ -73,6 +73,33 @@ using header = ct::record<
 // packed: no padding except the gap and explicit align
 ```
 
+### Aligning the whole record
+
+Put `attr::align<N>` at the top of the list and the record behaves like an
+over-aligned `struct aligment(N)`: the reported alignment (`max_align`) rises
+to `N` and the total gets **trailing padding up to `N`**, while each member
+keeps its own natural offset:
+
+```cpp
+using r = ct::record<
+    ct::attr::align<16>,                         // whole record aligned to 16
+    ct::member<sec::a, u8>,
+    ct::member<sec::b, u16>,
+    ct::member<sec::c, u32>
+>;
+
+static_assert( r::offsets[0] == 0 );        // members keep natural offsets
+static_assert( r::offsets[1] == 2 );
+static_assert( r::offsets[2] == 4 );
+static_assert( r::byte_total   == 16 );     // trailing padding up to N
+static_assert( r::packed_total == 7 );      // fully packed would be 7 bytes
+static_assert( r::max_align    == 16 );     // whole record reported align
+```
+
+Combine both levels freely: `align<N>` on a member forces *that* member's
+offset, `attr::packed` at the top disables all auto padding (kept only where a
+member or gap explicitly asks for it).
+
 ## Queries
 
 ```cpp
