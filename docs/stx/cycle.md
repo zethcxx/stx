@@ -6,8 +6,8 @@
 
 It supports:
 
-- Infinite repetition (`cycle(r)`) — terminates with `break` or composition
-- Bounded repetition (`cycle(r, n)`) — exactly `n` passes
+- Infinite repetition (`cycle(r)`) - terminates with `break` or composition
+- Bounded repetition (`cycle(r, n)`) - exactly `n` passes
 - Interop with `stx::range` / `irange` and standard containers (`vector`, `span`, `array`, `string`)
 - Sentinel-based iteration, models `std::ranges::input_range` / `view` and composes with `std::views` adaptors (`views::zip`, ...)
 - No dynamic allocation, no vtable, all `constexpr`
@@ -18,13 +18,13 @@ Nothing in the C++ standard (C++23 or C++26) provides this facility; the proposa
 
 ## Public API
 
-### `cycle(r)` — infinite
+### `cycle(r)` - infinite
 
 ```cpp
 template<cycleable R> constexpr auto cycle( R&& r ) noexcept;
 ```
 
-Repeats the range endlessly. `end()` is a sentinel that is never reached — stop with `break` or by composing with a bounded count.
+Repeats the range endlessly. `end()` is a sentinel that is never reached - stop with `break` or by composing with a bounded count.
 
 ```cpp
 for (auto c : stx::cycle(palette))
@@ -35,7 +35,7 @@ for (auto c : stx::cycle(palette))
 }
 ```
 
-### `cycle(r, n)` — bounded
+### `cycle(r, n)` - bounded
 
 ```cpp
 template<cycleable R> constexpr auto cycle( R&& r, usize passes ) noexcept;
@@ -72,9 +72,9 @@ concept cycleable
 
 Any range-like type with `begin()` / `end()`. The iteration machinery only needs:
 
-- `*it` — dereference
-- `++it` — advance
-- `it == end` — pass completion (works with sentinels, e.g. `range_iter` vs `range_sentinel`)
+- `*it` - dereference
+- `++it` - advance
+- `it == end` - pass completion (works with sentinels, e.g. `range_iter` vs `range_sentinel`)
 
 This is why the same `cycle` works for `stx::range` and for `std::vector` with no special cases.
 
@@ -85,7 +85,7 @@ This is why the same `cycle` works for `stx::range` and for `std::vector` with n
 Iterators are copied out of the underlying range at construction:
 
 - `stx::range` / `irange` return value-carrying iterators, so `cycle(range(...))` and even temporaries are safe.
-- Container iterators reference the container — the caller must keep it alive while iterating (same contract as standard views).
+- Container iterators reference the container - the caller must keep it alive while iterating (same contract as standard views).
 
 ---
 
@@ -95,7 +95,7 @@ Iterators are copied out of the underlying range at construction:
 
 ```cpp
 for (auto off : stx::cycle(stx::range<stx::off_s>(0, 0x100, 0x10), 4))
-    probe(off);   // 0x00 0x10 ... 0xf0, repeated 4×
+    probe(off);   // 0x00 0x10 ... 0xf0, repeated 4x
 ```
 
 ### 2. Palette / spinner
@@ -166,7 +166,7 @@ struct cycle_iter
 };
 ```
 
-- `passes_left_ == usize(-1)` encodes **infinite** — on wrap the iterator resets to `first_` forever.
+- `passes_left_ == usize(-1)` encodes **infinite** - on wrap the iterator resets to `first_` forever.
 - On wrap with `passes_left_ > 1`, the counter decrements and `cur_` resets to `first_`.
 - On the final wrap, `passes_left_` is set to `0`, making the iterator compare equal to the sentinel.
 - `operator*` returns `decltype(auto)`: by value for `stx::range` iterators, by reference for container iterators.
@@ -194,16 +194,16 @@ struct cycle_view
 
 | Aspect        | Vanilla C++                                                    | stx                                         |
 | ------------- | -------------------------------------------------------------- | ------------------------------------------- |
-| Infinite      | Manual `for` + index reset with `%` and awkward sentinel logic | `cycle(r)` — declarative, `break` to stop   |
-| Bounded       | `for (int k = 0; k < n; ++k) for (auto& x : r) ...` — nesting  | `cycle(r, n)` — single loop, no nesting     |
-| Range interop | `%` needs `size()` / indexing — fails for sentinel ranges      | Iterator-based wrap works with `stx::range` |
+| Infinite      | Manual `for` + index reset with `%` and awkward sentinel logic | `cycle(r)` - declarative, `break` to stop   |
+| Bounded       | `for (int k = 0; k < n; ++k) for (auto& x : r) ...` - nesting  | `cycle(r, n)` - single loop, no nesting     |
+| Range interop | `%` needs `size()` / indexing - fails for sentinel ranges      | Iterator-based wrap works with `stx::range` |
 | Constexpr     | Manual counters fine but verbose                               | Same, less boilerplate                      |
 
 # Design Characteristics
 
 - C++23 constexpr-friendly
 - No dynamic allocation
-- Models `std::ranges::input_range` / `view` — composes with `std::views` adaptors
+- Models `std::ranges::input_range` / `view` - composes with `std::views` adaptors
 - Sentinel-based iteration (works with sentinel-terminated ranges)
 - Works with `stx::range` and standard containers
 - Empty ranges are safe (empty cycle, no UB)

@@ -6,19 +6,19 @@
 
 ## Module Index
 
-| Module   | Header            | Description                                                            |
-| -------- | ----------------- | ---------------------------------------------------------------------- |
-| Core     | `core.hpp`        | Fundamental types, strong types, concepts, `array_of`                  |
-| Memory   | `mem.hpp`         | Low-level memory access, `ptr<T>`                                      |
-| Function | `fn.hpp`          | Function pointer abstractions                                          |
-| File     | `io.hpp`          | Binary file stream utilities                                           |
-| Time     | `time.hpp`        | UNIX time and stopwatch utilities                                      |
-| Range    | `range.hpp`       | Integer range iteration                                                |
-| Cycle    | `cycle.hpp`       | Infinite / bounded range cycling ([docs](./stx/cycle.md))              |
-| Literals | `literals.hpp`    | Literal suffixes for all core types ([docs](./api/literals.md))        |
-| String   | `ct/str.hpp`      | Compile-time string transforms ([docs](./stx/ct.md))                   |
-| Array    | `arr.hpp`         | Fixed-size typed arrays (`stx::arr`, `arr_of`) ([docs](./stx/arr.md)) |
-| Record   | `ct/record.hpp`   | Compile-time key→type map with struct-like layout ([docs](./stx/ct_record.md)) |
+| Module   | Header            | Description                                                                     |
+| -------- | ----------------- | ------------------------------------------------------------------------------- |
+| Core     | `core.hpp`        | Fundamental types, strong types, concepts, `array_of`                           |
+| Memory   | `mem.hpp`         | Low-level memory access, `ptr<T>`                                               |
+| Function | `fn.hpp`          | Function pointer abstractions                                                   |
+| File     | `io.hpp`          | Binary file stream utilities                                                    |
+| Time     | `time.hpp`        | UNIX time and stopwatch utilities                                               |
+| Range    | `range.hpp`       | Integer range iteration                                                         |
+| Cycle    | `cycle.hpp`       | Infinite / bounded range cycling ([docs](./stx/cycle.md))                       |
+| Literals | `literals.hpp`    | Literal suffixes for all core types ([docs](./api/literals.md))                 |
+| String   | `ct/str.hpp`      | Compile-time string transforms ([docs](./stx/ct.md))                            |
+| Array    | `arr.hpp`         | Fixed-size typed arrays (`stx::arr`, `arr_of`) ([docs](./stx/arr.md))           |
+| Record   | `ct/record.hpp`   | Compile-time key->type map with struct-like layout ([docs](./stx/ct_record.md)) |
 
 ---
 
@@ -34,10 +34,10 @@
 
 ### Pointer Wrappers
 
-| Type     | Description                                                                                                 |
-| -------- | ----------------------------------------------------------------------------------------------------------- |
-| `ptr<T>` | Typed non-owning pointer: `->`, `raw()` → `T*`, `addr()` → `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
-| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator>>`, `read/write<T>`, `align_up/down`                     |
+| Type     | Description                                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------- |
+| `ptr<T>` | Typed non-owning pointer: `->`, `raw()` -> `T*`, `addr()` -> `uptr`, `read<T>()`, `write<T>()`, `call<Sig>()` |
+| `ptr<T>` | Typed pointer with walk/chase: `walk()`, `operator>>`, `read/write<T>`, `align_up/down`                       |
 
 ### Fundamental Aliases
 
@@ -92,4 +92,4 @@ auto main() -> int
 - [Literals API](./stx/literals.md) - Literal suffixes for core types
 - [String API](./stx/ct.md) - Compile-time string literals
 - [Array API](./stx/arr.md) - Fixed-size typed arrays
-- [Record API](./stx/ct_record.md) - Compile-time key→type maps
+- [Record API](./stx/ct_record.md) - Compile-time key->type maps

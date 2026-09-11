@@ -1,4 +1,4 @@
-# Bit & Byte — `bit_extract`, `byte_extract`, etc.
+# Bit & Byte - `bit_extract`, `byte_extract`, etc.
 
 ```cpp
 #include <lbyte/stx/bit.hpp>
@@ -50,10 +50,10 @@ byte_swap<0, 3>(x);      // x -> 0x78345612
 
 | Aspect       | Vanilla C++                                | stx                                                     |                                                 |
 | ------------ | ------------------------------------------ | ------------------------------------------------------- | ----------------------------------------------- |
-| Readability  | `(x >> 4) & 0xF` — what bits?              | `bit_extract<4, 4>(x)` — "extract 4 bits at position 4" |                                                 |
-| Safety       | `x & (1u << 31)` — shift by >= width is UB | `bit_test<31>(x)` — compile-time bounds checked         |                                                 |
-| Modification | `x = (x & ~0xF) \                          | (val & 0xF)` — mask dance                               | `bit_insert<0, 4>(x, val)` — insert at position |
-| Byte ops     | `uint8_t b = (x >> 8) & 0xFF`              | `byte_extract<1>(x)` — byte index, no magic numbers     |                                                 |
+| Readability  | `(x >> 4) & 0xF` - what bits?              | `bit_extract<4, 4>(x)` - "extract 4 bits at position 4" |                                                 |
+| Safety       | `x & (1u << 31)` - shift by >= width is UB | `bit_test<31>(x)` - compile-time bounds checked         |                                                 |
+| Modification | `x = (x & ~0xF) \                          | (val & 0xF)` - mask dance                               | `bit_insert<0, 4>(x, val)` - insert at position |
+| Byte ops     | `uint8_t b = (x >> 8) & 0xFF`              | `byte_extract<1>(x)` - byte index, no magic numbers     |                                                 |
 
 ```cpp
 // Vanilla C++: what does this do?
@@ -75,5 +75,5 @@ x     = bit_set<31>(x);          // test? set? the name says "set"
 
 ## See Also
 
-- `core.hpp` — type aliases (`u8`, `u32`, `u64`)
+- `core.hpp` - type aliases (`u8`, `u32`, `u64`)
 

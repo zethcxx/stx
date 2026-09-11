@@ -79,17 +79,17 @@ using lbyte::stx::literals::operator""_off_s;
 | `_ptr64` | `ptr<u64>`       | `0x1000_ptr64` |
 | `_ptrv`  | `ptr<void>`      | `0x1000_ptrv`  |
 
-### Size Multiples (IEC binary — powers of 1024)
+### Size Multiples (IEC binary - powers of 1024)
 
 | Suffix | Type    | Value        | Example              |
 | ------ | ------- | ------------ | -------------------- |
 | `_kib` | `usize` | `v * 1024`   | `4_kib` = 4096       |
 | `_mib` | `usize` | `v * 1024^2` | `2_mib` = 2097152    |
 | `_gib` | `usize` | `v * 1024^3` | `1_gib` = 1073741824 |
-| `_tib` | `usize` | `v * 1024^4` | `1_tib` ≈ 1.1e12     |
-| `_pib` | `usize` | `v * 1024^5` | `1_pib` ≈ 1.13e15    |
+| `_tib` | `usize` | `v * 1024^4` | `1_tib` ~ 1.1e12     |
+| `_pib` | `usize` | `v * 1024^5` | `1_pib` ~ 1.13e15    |
 
-### Size Multiples (SI decimal — powers of 1000)
+### Size Multiples (SI decimal - powers of 1000)
 
 | Suffix | Type    | Value        | Example                   |
 | ------ | ------- | ------------ | ------------------------- |
@@ -110,10 +110,10 @@ The return type is the smallest endian-wrapped unsigned integer that can hold th
 
 | Value Range               | Return Type           |
 | ------------------------- | --------------------- |
-| `0` – `0xFF`              | `le<u8>` / `be<u8>`   |
-| `0x100` – `0xFFFF`        | `le<u16>` / `be<u16>` |
-| `0x10000` – `0xFFFF'FFFF` | `le<u32>` / `be<u32>` |
-| `≥ 0x1'0000'0000`         | `le<u64>` / `be<u64>` |
+| `0` - `0xFF`              | `le<u8>` / `be<u8>`   |
+| `0x100` - `0xFFFF`        | `le<u16>` / `be<u16>` |
+| `0x10000` - `0xFFFF'FFFF` | `le<u32>` / `be<u32>` |
+| `>= 0x1'0000'0000`        | `le<u64>` / `be<u64>` |
 
 Literals are implemented as template char-pack operators for compile-time value extraction:
 
@@ -135,20 +135,20 @@ constexpr auto operator""_le() noexcept;
 
 Unlike `_le`/`_be`, these always return the specified width regardless of the value.
 
-### String → Integer (ASCII pack)
+### String -> Integer (ASCII pack)
 
-| Suffix     | Return Type                        | Example                |
-| ---------- | ---------------------------------- | ---------------------- |
-| `_istr`    | `u8`, `u16`, `u32` or `u64` (auto) | `"AB"_istr` → `u16`    |
-| `_istr_be` | `u8`, `u16`, `u32` or `u64` (auto) | `"AB"_istr_be` → `u16` |
+| Suffix     | Return Type                        | Example                 |
+| ---------- | ---------------------------------- | ----------------------- |
+| `_istr`    | `u8`, `u16`, `u32` or `u64` (auto) | `"AB"_istr` -> `u16`    |
+| `_istr_be` | `u8`, `u16`, `u32` or `u64` (auto) | `"AB"_istr_be` -> `u16` |
 
 Packs ASCII characters into an unsigned integer. The size is deduced from the string length (up to 8 bytes). `_istr` packs in little-endian order, `_istr_be` in big-endian.
 
-### String → Byte Block
+### String -> Byte Block
 
-| Suffix  | Return Type     | Example                   |
-| ------- | --------------- | ------------------------- |
-| `_vstr` | `byte_block<N>` | `"AB"_vstr` → `{'A','B'}` |
+| Suffix  | Return Type     | Example                    |
+| ------- | --------------- | -------------------------- |
+| `_vstr` | `byte_block<N>` | `"AB"_vstr` -> `{'A','B'}` |
 
 Produces a `byte_block<N>` from a string literal.
 

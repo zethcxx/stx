@@ -121,10 +121,10 @@ auto v  = (p + off_s{8}).read<u32>(); // read at byte 8
 
 | Aspect        | Vanilla C++                                          | stx                                                    |
 | ------------- | ---------------------------------------------------- | ------------------------------------------------------ |
-| Domain safety | `int off, rva, va` — all interchangeable by accident | `off_s`, `rva_s`, `va_s` — compiler rejects mismatches |
-| Arithmetic    | `ptr + (int)offset` — no intent documented           | `ptr + off_s{n}` — self-documenting, byte-level        |
-| API boundary  | `read(void* base, int off)` — what unit is `off`?    | `read(address_like, off_s)` — type says "bytes"        |
-| Format        | `printf("%td", off)`                                 | `std::print("{}", off)` — works via `operator T`       |
+| Domain safety | `int off, rva, va` - all interchangeable by accident | `off_s`, `rva_s`, `va_s` - compiler rejects mismatches |
+| Arithmetic    | `ptr + (int)offset` - no intent documented           | `ptr + off_s{n}` - self-documenting, byte-level        |
+| API boundary  | `read(void* base, int off)` - what unit is `off`?    | `read(address_like, off_s)` - type says "bytes"        |
+| Format        | `printf("%td", off)`                                 | `std::print("{}", off)` - works via `operator T`       |
 
 ```cpp
 // Vanilla C++: what does this function expect?
@@ -144,9 +144,9 @@ auto p2 = base + rva;           // but rva is not an offset!
 off_s file_off {0x400};
 rva_s image_rva{0x1000};
 va_s  image_va {0x140000000};
-auto p  = base + file_off;   // ✓ byte offset
-// auto p2 = base + image_rva; // ✗ error: rva_s + ptr is not defined
-auto p2 = base + off_s{image_rva}; // ✓ explicit conversion documents intent
+auto p  = base + file_off;   // ok byte offset
+// auto p2 = base + image_rva; // x error: rva_s + ptr is not defined
+auto p2 = base + off_s{image_rva}; // ok explicit conversion documents intent
 ```
 
 ### Defining your own strong types (stx::newtype)
@@ -160,7 +160,7 @@ own strong types without editing this header.
 template<typename Type, typename Tag> class newtype;
 ```
 
-A user-defined type is declared with an explicit tag — two lines:
+A user-defined type is declared with an explicit tag - two lines:
 
 ```cpp
 struct user_id_tag {};
@@ -176,8 +176,8 @@ using user_id_s = stx::newtype<stx::u64, user_id_tag>;
 
 #### Byte offsets for external types (stx::offset_s)
 
-The convenient way to make a newtype an **offset-like** type — one that
-qualifies for byte-level `ptr<T>[N]`, `ptr + off`, `gap_v`, etc. — is the
+The convenient way to make a newtype an **offset-like** type - one that
+qualifies for byte-level `ptr<T>[N]`, `ptr + off`, `gap_v`, etc. - is the
 `offset_s<Type>` alias. It reuses the built-in `offset_tag`, so it is
 mutually convertible with `off_s`/`rva_s`:
 
@@ -236,7 +236,7 @@ static_assert(!address_like<float>);
 
 ### `binary_readable` (concept)
 
-Types safe for `memcpy` — trivially copyable, standard layout, non-empty, non-pointer.
+Types safe for `memcpy` - trivially copyable, standard layout, non-empty, non-pointer.
 
 ```cpp
 static_assert(binary_readable<u32>);
@@ -247,7 +247,7 @@ static_assert(!binary_readable<int*>);
 
 ### `byte_swappable` (concept)
 
-Integral/enum types suitable for byte-swapping — excludes `bool`, `char` variants.
+Integral/enum types suitable for byte-swapping - excludes `bool`, `char` variants.
 
 ```cpp
 static_assert(byte_swappable<u16>);
@@ -282,7 +282,7 @@ static_assert(writable_buffer<decltype(raw)>);
 
 ### `buffer_type` (concept)
 
-Byte-wide element types for `memcur` — `sizeof == 1`, no `bool`, `void`, pointers.
+Byte-wide element types for `memcur` - `sizeof == 1`, no `bool`, `void`, pointers.
 
 ```cpp
 static_assert(buffer_type<char>);
@@ -345,7 +345,7 @@ auto bits = bcast<float>(0x40490FDB_u32);   // 3.14159...
 
 ## `defer` (stx::defer)
 
-Scope guard — executes a callable on scope exit. Cancelable, non-copyable, non-movable.
+Scope guard - executes a callable on scope exit. Cancelable, non-copyable, non-movable.
 
 ```cpp
 template<std::invocable<> F>
@@ -423,7 +423,7 @@ Deleted operators (compile-time error): `null + x`, `null - x`
 ```cpp
 null_t n;
 
-int* raw = n;           // T* overload → nullptr
+int* raw = n;           // T* overload -> nullptr
 auto up = std::unique_ptr<int>{n};   // unique_ptr from null
 auto sp = std::shared_ptr<int>{n};   // shared_ptr from null
 if (n == up) {}         // compare with unique_ptr
@@ -458,8 +458,8 @@ if ( p ) {}          // bool conversion works too
 | Generic null       | `nullptr` (satisfies `address_like`) | `null` (rejected by `address_like` APIs) |
 | Smart pointer init | `unique_ptr<int>{}` or `nullptr`     | `unique_ptr<int>{null}` (implicit)       |
 | Pointer check      | `if (p == nullptr)`                  | `if (p == null)` (same but explicit)     |
-| Format             | Manual `"null"` string               | `std::print("{}", null)` → `"null"`      |
-| Hash               | No standard null hash                | `std::hash<null_t>{}` → `0`              |
+| Format             | Manual `"null"` string               | `std::print("{}", null)` -> `"null"`     |
+| Hash               | No standard null hash                | `std::hash<null_t>{}` -> `0`             |
 
 ```cpp
 // Vanilla C++: discard with (void)

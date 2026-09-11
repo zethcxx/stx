@@ -1,4 +1,4 @@
-# Endian — `le<T>` / `be<T>`
+# Endian - `le<T>` / `be<T>`
 
 ```cpp
 #include <lbyte/stx/endian.hpp>
@@ -24,7 +24,7 @@ using be = endian_value<T, order::big>;
 - `sizeof(le<T>) == sizeof(T)`
 - Trivially copyable (`memcpy`-safe)
 - Standard layout
-- Satisfies `binary_readable` — works with `read<endian::le<u32>>(addr)`
+- Satisfies `binary_readable` - works with `read<endian::le<u32>>(addr)`
 - Fully `constexpr` (C++23)
 
 ## Example
@@ -57,14 +57,14 @@ static_assert(!is_endian_value_v<u32>           );
 
 ## Methods
 
-| Method                  | Description                                                                                          |
-| ----------------------- | ---------------------------------------------------------------------------------------------------- |
-| `get()`                 | Returns value in native endian                                                                       |
-| `operator T()`          | Implicit conversion to native endian                                                                 |
-| `operator=(U)`          | Assign raw value, auto-converts to storage                                                           |
-| `endian_value(U other)` | Explicit converting ctor from another `endian_value` of different width (e.g. `le<u32>` → `le<u64>`) |
-| `data()`                | Pointer to raw storage (for serialization)                                                           |
-| `swap()`                | Exchange two values                                                                                  |
+| Method                  | Description                                                                                           |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `get()`                 | Returns value in native endian                                                                        |
+| `operator T()`          | Implicit conversion to native endian                                                                  |
+| `operator=(U)`          | Assign raw value, auto-converts to storage                                                            |
+| `endian_value(U other)` | Explicit converting ctor from another `endian_value` of different width (e.g. `le<u32>` -> `le<u64>`) |
+| `data()`                | Pointer to raw storage (for serialization)                                                            |
+| `swap()`                | Exchange two values                                                                                   |
 
 ## Operators
 
@@ -84,19 +84,19 @@ static_assert(!is_endian_value_v<u32>           );
 
 ## STL Compatibility
 
-- `std::hash<endian::le<T>>` — same as `hash<T>` of the native value
-- `std::formatter<endian::le<T>>` — reuses formatter of `T` (if `<format>` is available)
-- `std::swap` — via friend `swap()`
+- `std::hash<endian::le<T>>` - same as `hash<T>` of the native value
+- `std::formatter<endian::le<T>>` - reuses formatter of `T` (if `<format>` is available)
+- `std::swap` - via friend `swap()`
 
 ## Why endian_value / le\<T\>?
 
 | Aspect         | Vanilla C++                                       | stx                                                   |
 | -------------- | ------------------------------------------------- | ----------------------------------------------------- |
-| Declaration    | `u32 sig;` — no endianness info                   | `le<u32> sig;` — self-documenting byte order          |
+| Declaration    | `u32 sig;` - no endianness info                   | `le<u32> sig;` - self-documenting byte order          |
 | Cross-platform | Manual `#ifdef` / `htole32` / `be32toh`           | Same code works on LE and BE hosts                    |
-| Readability    | `struct { u32 sig; u16 ver; }` — what endian?     | `struct { le<u32> sig; le<u16> ver; }` — explicit     |
-| Serialization  | `hdr.sig = htole32(val); hdr.ver = htole16(val);` | `hdr.sig = val; hdr.ver = val;` — implicit conversion |
-| Format         | Manual byteswap for display                       | `std::print("{}", le_val)` — via `formatter<T>`       |
+| Readability    | `struct { u32 sig; u16 ver; }` - what endian?     | `struct { le<u32> sig; le<u16> ver; }` - explicit     |
+| Serialization  | `hdr.sig = htole32(val); hdr.ver = htole16(val);` | `hdr.sig = val; hdr.ver = val;` - implicit conversion |
+| Format         | Manual byteswap for display                       | `std::print("{}", le_val)` - via `formatter<T>`       |
 
 ```cpp
 // Vanilla C++: manual endian handling everywhere
@@ -128,6 +128,6 @@ if (h.sig == 0x4550)       // auto-converts from LE to native
 
 ## See Also
 
-- `core.hpp` — type aliases (`u32`, `u64`, etc.)
-- `mem.hpp` — `read<T>(addr)` reads `endian::le<T>` correctly from memory
+- `core.hpp` - type aliases (`u32`, `u64`, etc.)
+- `mem.hpp` - `read<T>(addr)` reads `endian::le<T>` correctly from memory
 

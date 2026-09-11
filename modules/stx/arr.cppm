@@ -11,6 +11,7 @@ export namespace lbyte::stx
 {
     using ::lbyte::stx::arr;
     using ::lbyte::stx::arr_key;
+    using ::lbyte::stx::dirty_arr;
 
     using ::lbyte::stx::arr_of;
 }

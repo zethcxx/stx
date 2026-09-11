@@ -100,7 +100,7 @@ enum class range_mode : u8 {
 
 # Public API (Explicit Type Only, Auto-Converting Args)
 
-All functions require an explicit `Type` template argument. The direction of iteration is **never** a parameter — it is inferred automatically:
+All functions require an explicit `Type` template argument. The direction of iteration is **never** a parameter - it is inferred automatically:
 
 - **1-arg / 2-arg overloads:** direction = `fwd` if `to >= from`, else `bwd`
 - **3-arg overloads:** direction = `fwd` if `step >= 0`, else `bwd`
@@ -128,8 +128,8 @@ Step defaults to `+1` in the 1-arg and 2-arg overloads.
 The 3-arg overload accepts a **signed** step. A negative step selects backward iteration; the step magnitude is used as the increment.
 
 ```cpp
-range<int>(0, 10,  2)  // forward , step=2 →  0, 2, 4, 6, 8
-range<int>(10, 0, -2)  // backward, step=2 → 10, 8, 6, 4, 2
+range<int>(0, 10,  2)  // forward , step=2 ->  0, 2, 4, 6, 8
+range<int>(10, 0, -2)  // backward, step=2 -> 10, 8, 6, 4, 2
 ```
 
 ## `irange` (Inclusive)
@@ -166,14 +166,14 @@ This provides a safety net against accidental truncation.
 
 ## Direction Rules Summary
 
-| Overload                    | Step          | Direction Source    |
-| --------------------------- | ------------- | ------------------- |
-| `range<T>(to)`              | `+1`          | `to >= 0     → fwd` |
-| `range<T>(from, to)`        | `+1`          | `to >= from  → fwd` |
-| `range<T>(from, to, step)`  | user-provided | `step >= 0   → fwd` |
-| `irange<T>(to)`             | `+1`          | `to >= 0     → fwd` |
-| `irange<T>(from, to)`       | `+1`          | `to >= from  → fwd` |
-| `irange<T>(from, to, step)` | user-provided | `step >= 0   → fwd` |
+| Overload                    | Step          | Direction Source     |
+| --------------------------- | ------------- | -------------------- |
+| `range<T>(to)`              | `+1`          | `to >= 0     -> fwd` |
+| `range<T>(from, to)`        | `+1`          | `to >= from  -> fwd` |
+| `range<T>(from, to, step)`  | user-provided | `step >= 0   -> fwd` |
+| `irange<T>(to)`             | `+1`          | `to >= 0     -> fwd` |
+| `irange<T>(from, to)`       | `+1`          | `to >= from  -> fwd` |
+| `irange<T>(from, to, step)` | user-provided | `step >= 0   -> fwd` |
 
 When direction is `bwd`, the iteration starts at `from` and counts **down** toward `to`.
 
@@ -181,7 +181,7 @@ When direction is `bwd`, the iteration starts at `from` and counts **down** towa
 
 ## Enum Iteration
 
-Enums are `rangeable` — iterate over enum values without casting:
+Enums are `rangeable` - iterate over enum values without casting:
 
 ```cpp
 enum class Perms : u32 { Read = 1, Write = 2, Exec = 4, All = 7 };
@@ -194,7 +194,7 @@ for (auto p : stx::irange<Perms>(Perms{0}, Perms{7}))
 
 ## Strong Type Iteration
 
-Domain separation is preserved — the iteration variable retains the strong type:
+Domain separation is preserved - the iteration variable retains the strong type:
 
 ```cpp
 for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
@@ -268,12 +268,12 @@ struct range_iter
 
 The interval is always `[from, to)` for `range` and `[from, to]` for `irange`.
 
-| Direction | Mode      | Interval     | First Value | Last Value  | Example                               |
-| --------- | --------- | ------------ | ----------- | ----------- | ------------------------------------- |
-| fwd       | Exclusive | `[from, to)` | `from`      | `to - step` | `range<int> (0, 5)` → `{0,1,2,3,4}`   |
-| fwd       | Inclusive | `[from, to]` | `from`      | `to`        | `irange<int>(0, 5)` → `{0,1,2,3,4,5}` |
-| bwd       | Exclusive | `[from, to)` | `from`      | `to + step` | `range<int> (5, 0)` → `{5,4,3,2,1}`   |
-| bwd       | Inclusive | `[from, to]` | `from`      | `to`        | `irange<int>(5, 0)` → `{5,4,3,2,1,0}` |
+| Direction | Mode      | Interval     | First Value | Last Value  | Example                                |
+| --------- | --------- | ------------ | ----------- | ----------- | -------------------------------------- |
+| fwd       | Exclusive | `[from, to)` | `from`      | `to - step` | `range<int> (0, 5)` -> `{0,1,2,3,4}`   |
+| fwd       | Inclusive | `[from, to]` | `from`      | `to`        | `irange<int>(0, 5)` -> `{0,1,2,3,4,5}` |
+| bwd       | Exclusive | `[from, to)` | `from`      | `to + step` | `range<int> (5, 0)` -> `{5,4,3,2,1}`   |
+| bwd       | Inclusive | `[from, to]` | `from`      | `to`        | `irange<int>(5, 0)` -> `{5,4,3,2,1,0}` |
 
 #### With `step > 1`
 
@@ -294,7 +294,7 @@ The interval is always `[from, to)` for `range` and `[from, to]` for `irange`.
 
 Where `dist = to - from` (fwd) or `dist = from - to` (bwd).
 
-A `step == 0` produces an empty range — the loop body never executes. This is safe and constexpr-friendly; no assertion or UB.
+A `step == 0` produces an empty range - the loop body never executes. This is safe and constexpr-friendly; no assertion or UB.
 
 ---
 
@@ -307,7 +307,7 @@ for (auto off : stx::range<stx::off_s>(0, 0x200, 0x28))
 {
     auto name = reader.read<stx::u64>(off);
     auto vmsz = reader.read<stx::u32>(off + 0x18);
-    // off is off_s — type-safe against rva_s/va_s
+    // off is off_s - type-safe against rva_s/va_s
 }
 ```
 
@@ -327,9 +327,9 @@ for (auto off : stx::range<stx::off_s>(1024, 0))
 
 ```cpp
 for (auto off : stx::range<stx::off_s>(1024, 0, 16, /* implicitly exclusive */))
-    // Wait — no 4-arg overload. Use:
-    //   range<off_s>(1024, 0)  → step=+1, backward
-    //   range<off_s>(1024, 0, -16)  → step=16, backward (exclusive of 0)
+    // Wait - no 4-arg overload. Use:
+    //   range<off_s>(1024, 0)  -> step=+1, backward
+    //   range<off_s>(1024, 0, -16)  -> step=16, backward (exclusive of 0)
 ```
 
 ## 4. Compile-Time Sequence Generation
@@ -374,11 +374,11 @@ for (auto off : stx::range<stx::off_s>(file_off, file_off + 0x200))
 
 | Aspect       | Vanilla C++                                                        | stx                                                                   |
 | ------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Loop syntax  | `for (int i = 0; i < n; ++i)` — verbose, error-prone               | `for (auto i : range<int>(n))` — intent, not mechanics                |
-| Direction    | Manual `for (int i = n-1; i >= 0; --i)` — signed/unsigned pitfalls | `range<int>(n, 0)` — inferred backward, `irange<int>(n, 0)` inclusive |
-| Step         | `for (int i = 0; i < n; i += 2)` — step mixed with loop header     | `range<int>(0, n, 2)` — step as a parameter                           |
-| Enums        | `for (int i = (int)First; i <= (int)Last; ++i)` — casting          | `range<Enum>(first, last)` — no casts, preserves enum type            |
-| Strong types | Not possible — raw integers only                                   | `range<off_s>(from, to)` — preserves domain safety                    |
+| Loop syntax  | `for (int i = 0; i < n; ++i)` - verbose, error-prone               | `for (auto i : range<int>(n))` - intent, not mechanics                |
+| Direction    | Manual `for (int i = n-1; i >= 0; --i)` - signed/unsigned pitfalls | `range<int>(n, 0)` - inferred backward, `irange<int>(n, 0)` inclusive |
+| Step         | `for (int i = 0; i < n; i += 2)` - step mixed with loop header     | `range<int>(0, n, 2)` - step as a parameter                           |
+| Enums        | `for (int i = (int)First; i <= (int)Last; ++i)` - casting          | `range<Enum>(first, last)` - no casts, preserves enum type            |
+| Strong types | Not possible - raw integers only                                   | `range<off_s>(from, to)` - preserves domain safety                    |
 | Constexpr    | `for` loops are constexpr (C++23) but verbose                      | Same, with less boilerplate                                           |
 
 ```cpp
@@ -387,7 +387,7 @@ for (int i = 0; i < 10; ++i)      process(i);
 for (int i = 9; i >= 0; --i)      process(i);
 for (int i = 0; i < 10; i += 2)   process(i);
 
-// stx: declarative — say what, not how
+// stx: declarative - say what, not how
 for (auto i : range<int>(10))      process(i);  // 0..9
 for (auto i : range<int>(10, 0))   process(i);  // 10..1
 for (auto i : range<int>(0, 10, 2)) process(i); // 0,2,4,6,8
@@ -408,10 +408,10 @@ for (auto c : range<Color>(Color::Red, Color::Blue))
 - C++23 constexpr-friendly
 - No dynamic allocation
 - Sentinel-based iteration
-- Models `std::ranges::input_range` / `view` — composes with `std::views` adaptors
+- Models `std::ranges::input_range` / `view` - composes with `std::views` adaptors
 - Strong type safe
 - Direction inferred (no `dir` parameter in public API)
-- Compile-time narrowing check on `auto` → `Type` conversion
+- Compile-time narrowing check on `auto` -> `Type` conversion
 - Header-only
 - Zero abstraction overhead
 

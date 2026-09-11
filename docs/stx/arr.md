@@ -2,9 +2,9 @@
 
 All examples assume `using namespace lbyte::stx;` for brevity.
 
-## `arr<T, N>` — Modern fixed-size array
+## `arr<T, N>` - Modern fixed-size array
 
-A contiguously-stored, zero-cost fixed-size array — a modern, std::array-compatible
+A contiguously-stored, zero-cost fixed-size array - a modern, std::array-compatible
 refit that is also **indexable by enum** and by **byte-offset newtype**.
 It holds a `std::array<T, N>` member (staying an aggregate so brace-init and
 `constexpr` work in all compilers), giving the same layout and performance as
@@ -25,7 +25,15 @@ arr          b{ 1, 2, 3 };   // CTAD -> arr<int, 3>
 arr<off_t,4> c{};            // value-initialized (matches legacy off_t)
 ```
 
-### `arr_of<T>({...})` — std::to_array style factory
+Initialization semantics are exactly `std::array`'s:
+
+| Form                | Result                                                    |
+| ------------------- | --------------------------------------------------------- |
+| `arr<T,N> a{}`      | value-initialization: elements zero-filled                |
+| `arr<T,N> a{...}`   | brace-initialized from the listed elements                |
+| `arr<T,N> a;`       | default-initialization: elements left uninitialized       |
+
+### `arr_of<T>({...})` - std::to_array style factory
 
 ```cpp
 template<typename Type, usize N> constexpr arr<Type, N> arr_of( Type (&&)[N] );
@@ -38,6 +46,50 @@ auto vals = arr_of({ 7, 8, 9 });                        // arr<int, 3> (deduced)
 The rvalue overload handles a brace array in a single call; the lvalue overload
 accepts a **named C-array**, which is what lets C array-designators seed a typed
 `arr` (see "Seeding an indexed table" below).
+
+## Uninitialized storage: `dirty_arr`
+
+`dirty_arr<T, N>` is an `arr<T, N>` whose **default constructor does not touch
+the backing array**: the elements start with indeterminate values. It exists so
+a fixed-size buffer that is filled entirely before being read can be declared
+with `auto` without spending clock cycles zero-initializing it first (the same
+idea as `io::dirty_vector`, but for a fixed-size array):
+
+```cpp
+template<typename Type, usize N> struct dirty_arr : arr<Type, N>;
+```
+
+```cpp
+static constexpr usize kBatch = 4096;
+
+// before: explicit type, default-init (fine) but no `auto` + array-like...
+alignas(16) std::array<char, kBatch>   batch_a{};
+
+// `dirty_arr` lets you use `auto`, and `{}` does NOT zero the buffer:
+alignas(16) auto batch_buff = dirty_arr<char, kBatch>{};
+```
+
+`dirty_arr` inherits the full `arr<T, N>` interface (integral / enum /
+byte-offset indexing, `data()`, iterators, `size()`, `fill()`, `swap()`,
+ordering) and is a `dirty_arr` is-a `arr`: pass it anywhere an `arr<T, N>`
+is accepted.
+
+```cpp
+void load_into( arr<char, kBatch>& dst, std::istream& file );
+
+alignas(16) auto batch_buff = dirty_arr<char, kBatch>{};
+load_into( batch_buff, file );          // no implicit zeroing before the read
+```
+
+To initialize with explicit values instead, use the `arr` copy/move
+constructors:
+
+```cpp
+dirty_arr<int, 4> counts{ arr<int, 4>{ 7, 8, 9, 10 } };
+```
+
+The value-initialization rules of the base `arr` are unchanged: only the
+`dirty_arr<T, N>{}` case skips the fill, everything else behaves like `arr`.
 
 ## Seeding an indexed table
 
@@ -95,7 +147,7 @@ u64 budget = limit[kind::medium];             // runtime friendly read
 
 ### By integral (raw)
 
-Same as `std::array::operator[]` — no bounds check, zero-cost:
+Same as `std::array::operator[]` - no bounds check, zero-cost:
 
 ```cpp
 arr<int, 4> a{ 1, 2, 3, 4 };
@@ -122,14 +174,14 @@ auto at = [&](kind k) -> pair<off_t, usize> {
 let [aoff, acnt] = at(kind::first);   // { 0x00, 1 }
 ```
 
-The enum stays a compact distinct type (`kind : u8` above) — it never "decays" to
+The enum stays a compact distinct type (`kind : u8` above) - it never "decays" to
 an integral, and the array index is resolved at compile time.
 
 ### By byte-offset newtype
 
 Byte-offset `newtype`s (see `offset_s`, `is_offset_tag`, `byte_offset`) are also
-valid index keys. A byte-offset key is treated as an **element index** — exactly
-like an integral — never as a byte displacement:
+valid index keys. A byte-offset key is treated as an **element index** - exactly
+like an integral - never as a byte displacement:
 
 ```cpp
 arr<u64, 8> cache{};
@@ -156,7 +208,7 @@ bytes[off_s{2}] = 0xFF;     // element 2 == byte 2
 
 | Member                   | Notes                                                 |
 | ------------------------ | ----------------------------------------------------- |
-| `a[i]`                   | raw index (no check) — integral or enum/offset key    |
+| `a[i]`                   | raw index (no check) - integral or enum/offset key    |
 | `a.at(i)`                | bounds-checked, throws `std::out_of_range` on failure |
 | `a.front()` / `a.back()` | first / last element                                  |
 | `a.data()`               | pointer to contiguous buffer                          |
@@ -201,6 +253,9 @@ a <  arr<int, 4>{ 2, 0, 0, 0 };  // defaulted <=>
 - **No exceptions by default**: `operator[]` is unchecked (like `std::array`);
   use `at()` for checked access. An `std::expected`-based checked accessor is
   anticipated for C++26.
+- **Uninitialized variant**: `dirty_arr<T, N>` (see above) inherits the whole
+  interface but never zero-fills on `{}`, for buffers that are overwritten
+  entirely before being read.
 - **Extensible**: the enum/offset key mechanism mirrors the `byte_offset` /
   `is_offset_tag` extension points in `core.hpp`, so custom index keys can be
   registered the same way.

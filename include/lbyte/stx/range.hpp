@@ -64,17 +64,17 @@ namespace lbyte::stx
     // Direction is inferred: 1-arg/2-arg from to>=from, 3-arg from step sign.
     //
     // Deduction overloads (preferred): infer Type from arguments.
-    //    range(5)              → Type = int
-    //    range(off_s{5})       → Type = off_s
-    //    range(1, 10)          → Type = int (same-type args)
-    //    range(1, 10, -1)      → Type = int
+    //    range(5)              -> Type = int
+    //    range(off_s{5})       -> Type = off_s
+    //    range(1, 10)          -> Type = int (same-type args)
+    //    range(1, 10, -1)      -> Type = int
     //
     // Explicit-Type overloads: the first template parameter is the element
     // type and is NOT deducible, so it can only be given explicitly. Useful
     // for mixed/non-common argument types (from/to are converted to Type):
-    //    range<usize>(width, 0, -1)   → Type = usize, from/to kept as usize
+    //    range<usize>(width, 0, -1)   -> Type = usize, from/to kept as usize
 
-    // ── Deduction overloads ──────────────────────────────────────────────────
+    // -- Deduction overloads --------------------------------------------------
 
     template<details::rangeable T> [[nodiscard]]
     constexpr auto range( T _to ) noexcept
@@ -154,11 +154,11 @@ namespace lbyte::stx
         return details::range_view<Type>{ from, to, mag, d, range_mode::Inclusive };
     }
 
-    // ── Explicit-Type overloads ─────────────────────────────────────────────
+    // -- Explicit-Type overloads ---------------------------------------------
     // `range<Type>(from, to[, step])` / `irange<Type>(...)`: the FIRST
     // template parameter is the element type and is NOT deducible, so it can
     // only be given explicitly. `from`/`to` are converted to `Type`, `step`
-    // sign decides the direction — handy for mixed argument types:
+    // sign decides the direction - handy for mixed argument types:
     //     range<usize>(width /*usize*/, 0 /*int*/, -1 /*int*/)
     // The `requires (not same_as<TFrom, TTo>)` guard keeps these from
     // becoming ambiguous with the deduction overloads when the arguments
@@ -351,7 +351,7 @@ struct lbyte::stx::details::range_view
 // std::ranges conformance ---------------------------------------------------
 // `range_view` is a `view`: it owns only its scalar state and yields computed
 // values, so it is safe to pass as a prvalue to range adaptors
-// (`std::views::zip`, ...). It is intentionally NOT a `borrowed_range` — the
+// (`std::views::zip`, ...). It is intentionally NOT a `borrowed_range` - the
 // view owns its bounds/step state, so an rvalue must not outlive itself.
 
 template<lbyte::stx::details::rangeable T>

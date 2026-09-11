@@ -416,7 +416,7 @@ namespace lbyte::stx::ct
             // ---- homogeneous descriptor tables ----------------------------------
             // All keys share one type, so keys/sizes/meta are plain arrays:
             // range-`for` and `[]` work at runtime (typed per-member access does
-            // not — that is what `visit`/`fold`/`std::get` are for).
+            // not - that is what `visit`/`fold`/`std::get` are for).
 
             static constexpr std::array<key_type, count> keys{ MS::key... };
             static constexpr std::array<usize,    count> sizes{ sizeof( typename MS::value_type )... };

@@ -117,8 +117,8 @@ namespace lbyte::stx
         };
 
     // FACTORIES ---------------------------------------------------------------
-    // `cycle(r)`   — infinite repetition; end() is never reached, break/compose to stop.
-    // `cycle(r, n)` — exactly `n` passes over the underlying range.
+    // `cycle(r)`   - infinite repetition; end() is never reached, break/compose to stop.
+    // `cycle(r, n)` - exactly `n` passes over the underlying range.
     //
     // Iterators are copied out of `r`; for value-based ranges (stx::range) the
     // view stays valid, for container iterators the caller must keep `r` alive
@@ -145,7 +145,7 @@ namespace lbyte::stx
 // std::ranges conformance ---------------------------------------------------
 // `cycle_view` is a `view`: it copies the underlying iterators at construction
 // and owns no elements, so it is safe to pass as a prvalue to range adaptors
-// (`std::views::zip`, ...). It is intentionally NOT a `borrowed_range` — an
+// (`std::views::zip`, ...). It is intentionally NOT a `borrowed_range` - an
 // rvalue view is only valid while its copied iterators are (same lifetime
 // contract as standard views).
 

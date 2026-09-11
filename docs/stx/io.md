@@ -88,7 +88,7 @@ template<contiguous_buffer R>
 std::expected<void, std::errc> write(std::ostream&, off_s, const R& buffer, origin = begin) noexcept;
 ```
 
-Accepts `span`, `string`, `string_view`, `vector`, `array`, `str_type` — any type with `.data()` + `.size()` and trivially copyable elements.
+Accepts `span`, `string`, `string_view`, `vector`, `array`, `str_type` - any type with `.data()` + `.size()` and trivially copyable elements.
 
 ### Navigation helpers
 
@@ -353,11 +353,11 @@ if (mapping.is_alive()) {
 
 | Aspect         | Vanilla C++ (POSIX)                                                           | stx                                            |
 | -------------- | ----------------------------------------------------------------------------- | ---------------------------------------------- |
-| Open/map       | `int fd = open(...); void* p = mmap(0, size, prot, flags, fd, 0); close(fd);` | `auto m = map_file::open(path);` — single call |
-| Cleanup        | `munmap(p, size);` — manual, must not forget                                  | Destructor calls `munmap` automatically        |
-| Safety         | Raw `void*` — no bounds, no type                                              | `memcur` base — bounds-checked, cursor-based   |
-| Error handling | Returns `MAP_FAILED` (`(void*)-1`)                                            | Returns `std::expected` — composable errors    |
-| Move           | Manual `memcpy` the struct + null the source                                  | Move semantics — safe transfer of ownership    |
+| Open/map       | `int fd = open(...); void* p = mmap(0, size, prot, flags, fd, 0); close(fd);` | `auto m = map_file::open(path);` - single call |
+| Cleanup        | `munmap(p, size);` - manual, must not forget                                  | Destructor calls `munmap` automatically        |
+| Safety         | Raw `void*` - no bounds, no type                                              | `memcur` base - bounds-checked, cursor-based   |
+| Error handling | Returns `MAP_FAILED` (`(void*)-1`)                                            | Returns `std::expected` - composable errors    |
+| Move           | Manual `memcpy` the struct + null the source                                  | Move semantics - safe transfer of ownership    |
 
 ```cpp
 // Vanilla C++ (POSIX mmap): error-prone, manual cleanup

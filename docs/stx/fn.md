@@ -136,7 +136,7 @@ template<class Sig>
 inline constexpr auto caller(address_like auto addr) noexcept;
 ```
 
-Convenience factory — equivalent to `caller_t<Sig>(addr)`. Creates a `caller_t<Sig>` from any `address_like` value without naming the template parameter twice.
+Convenience factory - equivalent to `caller_t<Sig>(addr)`. Creates a `caller_t<Sig>` from any `address_like` value without naming the template parameter twice.
 
 Implementation:
 
@@ -282,11 +282,11 @@ This utility performs no runtime validation.
 
 | Aspect        | Vanilla C++                                            | stx                                                           |
 | ------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
-| Safety        | `auto fn = (int(*)(int))addr;` — no signature safety   | `auto fn = caller<int(int)>(addr);` — signature in type       |
-| Null check    | `if (fn) fn(42);` — manual                             | `if (fn) fn(42);` — same, via `operator bool`                 |
-| Address types | `uintptr_t` only — manual cast                         | Any `address_like` (`va_s`, `uptr`, `ptr<T>`)                 |
-| Intent        | `reinterpret_cast` — says "cast override"              | `caller<Sig>` — says "this is a function at address"          |
-| Debugging     | No way to grep for function pointer casts by signature | `caller<int(int)>` — signature is part of the type, greppable |
+| Safety        | `auto fn = (int(*)(int))addr;` - no signature safety   | `auto fn = caller<int(int)>(addr);` - signature in type       |
+| Null check    | `if (fn) fn(42);` - manual                             | `if (fn) fn(42);` - same, via `operator bool`                 |
+| Address types | `uintptr_t` only - manual cast                         | Any `address_like` (`va_s`, `uptr`, `ptr<T>`)                 |
+| Intent        | `reinterpret_cast` - says "cast override"              | `caller<Sig>` - says "this is a function at address"          |
+| Debugging     | No way to grep for function pointer casts by signature | `caller<int(int)>` - signature is part of the type, greppable |
 
 ```cpp
 // Vanilla C++: addr is a magic number

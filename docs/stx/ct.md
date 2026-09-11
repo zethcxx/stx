@@ -6,7 +6,7 @@ Compile-time string literal transformations with `static` storage.
 
 ```cpp
 #include <lbyte/stx/ct/str.hpp>   // this module
-#include <lbyte/stx/ct/record.hpp> // key→type map (see ./ct_record.md)
+#include <lbyte/stx/ct/record.hpp> // key->type map (see ./ct_record.md)
 #include <lbyte/stx/ct.hpp>        // both
 ```
 
@@ -345,7 +345,7 @@ std::println("{}", ct::str<"  hi  ", ct::fmt::trim_block>);
 
 > **C++20 modules:** a `std::formatter` specialization cannot be exported from a
 > module (it lives in `namespace std`), so it is *not* visible through
-> `import lbyte.stx.ct;` alone — `std::format`/`std::println` on `str_type` would
+> `import lbyte.stx.ct;` alone - `std::format`/`std::println` on `str_type` would
 > report "formatter must be specialized". When using modules, `#include
 > <lbyte/stx/ct.hpp>` in the importing translation unit (global module
 > fragment). This is ODR-safe: the module compiles the same header, so `str_type`

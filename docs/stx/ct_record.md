@@ -1,16 +1,16 @@
-# `ct::record` — compile-time `key → type` descriptor
+# `ct::record` - compile-time `key -> type` descriptor
 
 > Header: `#include <lbyte/stx/ct/record.hpp>` (or `#include <lbyte/stx/ct.hpp>`)
 > Module: `import lbyte.stx.ct.record;` (or `import lbyte.stx.ct;`)
 
 A `record` is a **layout descriptor** that works like a *struct*: certain keys exist
-at compile time, queries (`offset_of`, `byte_total`, `value_of`, …) resolve with
-`constexpr`, and binary reads redistribute the bytes member-by-member — exactly as
+at compile time, queries (`offset_of`, `byte_total`, `value_of`, ...) resolve with
+`constexpr`, and binary reads redistribute the bytes member-by-member - exactly as
 a real `struct` with the same alignment would.
 
 `record` is an **empty type**: only the *value tuple* (`value_t`) occupies memory at
 runtime, and only when you load it. Everything else is pure compile-time
-computation — zero cost.
+computation - zero cost.
 
 ## Definition
 
@@ -109,11 +109,11 @@ static_assert( info::key_of<u32>() == sec::stride );           // key by type
 ```
 
 All are `constexpr`, usable in `static_assert`, as a template argument,
-or inside `if constexpr` — no runtime cost.
+or inside `if constexpr` - no runtime cost.
 
 ### Typed access by key ("map-like")
 
-Given a loaded `value_t`, `get<Key>` returns the member **with its own type** —
+Given a loaded `value_t`, `get<Key>` returns the member **with its own type** -
 the analogue of `rec[key]` / `rec.field`:
 
 ```cpp
@@ -158,7 +158,7 @@ std::apply(...);   // std::get<T>/get<I> over the tuple
 
 ### Homogeneous descriptor tables: `for (...)`, `[]` and `meta_of`
 
-All keys share one type, so the descriptor arrays are plain homogeneous arrays —
+All keys share one type, so the descriptor arrays are plain homogeneous arrays -
 that is where `for` and `[]` work at runtime:
 
 ```cpp
@@ -176,12 +176,12 @@ static_assert( m.offset == 4 && m.size == 4 );
 
 Those `for`/`[]` give you the **layout** (what is at each offset and how many
 bytes), which is what can change at runtime. What a `for` *cannot* do is
-re-type the loop variable per index — that requires reflection — so typed
+re-type the loop variable per index - that requires reflection - so typed
 member access goes through `visit`/`fold`/`std::get`.
 
 ## Reading and writing
 
-`value_t` is the tuple of value types — it does *not* carry the record layout.
+`value_t` is the tuple of value types - it does *not* carry the record layout.
 
 ```cpp
 info::value_t values{ 1, 0x1000, 0xDEADBEEF };
@@ -199,8 +199,8 @@ behave identically.
 ## As a struct for `ptr` / `memcur`
 
 The record's `reader` fingerprint (see `details::record_like` in `mem.hpp`)
-lets `ptr` and `memcur` read a record **member-by-member** — the same as
-casting to your struct — through the generic `ptr_ops` mixin (no per-record
+lets `ptr` and `memcur` read a record **member-by-member** - the same as
+casting to your struct - through the generic `ptr_ops` mixin (no per-record
 specialization in `mem`/`io`):
 
 ```cpp
@@ -222,7 +222,7 @@ This respects alignment, packing and gaps identically to `ct::load`/`ct::store`.
 - **Layout descriptor**: offsets and sizes without reserving memory.
 - **Change-order-proof lookups**: `has`/`value_of`/`index_of` by key, not by position.
 - **Seeding tree offsets**: `offset_of<K>` + a runtime value.
-- **Reading binary schemas/records**: `store`/`load`, or `pop<rec>` on a `memcur` —
+- **Reading binary schemas/records**: `store`/`load`, or `pop<rec>` on a `memcur` -
   physical and logical order defined in one place.
 
 ## See also

@@ -46,6 +46,15 @@ namespace lbyte::stx
     //
     // `arr` holds a std::array member (staying an aggregate so brace-init and
     // constexpr work); std::array itself cannot be inherited as an aggregate.
+    //
+    // Initialization follows std::array exactly:
+    //   * `arr<T,N> a{}`     -> value-initialization zero-fills the elements;
+    //   * `arr<T,N> a{...}`  -> brace-initialized from the given elements;
+    //   * `arr<T,N> a;`      -> default-initialization leaves the elements
+    //                           uninitialized (no zeroing cycle is spent).
+    // A subclass that never touches the backing storage is `stx::dirty_arr`
+    // (see below): the same interface, but cheap for a buffer that is about
+    // to be overwritten completely.
 
     template<typename Type, usize N>
     struct arr
@@ -62,7 +71,7 @@ namespace lbyte::stx
         using iterator        = typename base_array::iterator;
         using const_iterator  = typename base_array::const_iterator;
 
-        base_array elems{};
+        base_array elems;
 
         // ---- element access --------------------------------------------------
 
@@ -134,6 +143,31 @@ namespace lbyte::stx
     template<typename Type, typename... Us>
         requires ( std::same_as<Type, Us> and ... )
     arr( Type, Us... ) -> arr<Type, 1 + sizeof...( Us )>;
+
+    // ---- dirty_arr -----------------------------------------------------------
+    // An arr<T, N> whose default constructor does NOT touch the backing array:
+    // the elements start with indeterminate values. Use it for a fixed-size
+    // buffer that is filled entirely before being read, so no clock cycles are
+    // wasted zero-initializing it (same idea as io::dirty_vector).
+    //
+    //     alignas(16) auto batch_buff = dirty_arr<char, batch_buffer_size>{};
+    //
+    // Everything else is inherited from arr<T, N>: indexing (integral, enum,
+    // byte-offset key), data(), iterators, size(), fill(), swap(), ordering.
+
+    template<typename Type, usize N>
+    struct dirty_arr : arr<Type, N>
+    {
+        using base = arr<Type, N>;
+
+        constexpr dirty_arr() noexcept {}                            // leaves elems untouched
+
+        constexpr explicit dirty_arr( const base&  src ) noexcept : base( src ) {}
+        constexpr explicit dirty_arr( base&& src ) noexcept : base( std::move( src ) ) {}
+
+        // Re-export the base's comparison operators for dirty_arr itself.
+        [[nodiscard]] constexpr friend auto operator<=>( const dirty_arr&, const dirty_arr& ) = default;
+    };
 
     // ---- arr_of factory (std::to_array style) --------------------------------
     // Deduces Type and N from a brace array: `arr_of<T>({...})` (rvalue temp)

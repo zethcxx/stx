@@ -128,7 +128,7 @@ namespace lbyte::stx
             // Every mixin member uses a trailing return type that is SFINAE-safe
             // under eager instantiation (GCC substitutes the default U while the
             // derived type is still incomplete), so signatures never touch the
-            // derived type — only the bodies do, and those are lazy.
+            // derived type - only the bodies do, and those are lazy.
 
             template<typename U = ValueT>
             [[nodiscard]] STX_FORCE_INLINE
@@ -936,7 +936,7 @@ namespace lbyte::stx
         }
 
         // ---- ARITHMETIC -------------------------------------------
-        // Only byte_offset types (off_s / rva_s) — no raw integral arithmetic.
+        // Only byte_offset types (off_s / rva_s) - no raw integral arithmetic.
 
         template<byte_offset OffT>
         [[nodiscard]] constexpr ptr operator+( OffT offset ) const noexcept {

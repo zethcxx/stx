@@ -171,7 +171,7 @@ u32 dos     = time::to_dos(tp);
 The DOS format has:
 - **Date** (upper 16 bits): `year-1980` (7 bits) | `month` (4) | `day` (5)
 - **Time** (lower 16 bits): `hours` (5) | `minutes` (6) | `seconds/2` (5)
-- **Range**: 1980–2107, even seconds only (odd seconds truncated on round-trip)
+- **Range**: 1980-2107, even seconds only (odd seconds truncated on round-trip)
 
 ### NTP timestamp
 
@@ -195,9 +195,9 @@ them).
 
 | Aspect        | Vanilla C++                                                         | stx                                                    |
 | ------------- | ------------------------------------------------------------------- | ------------------------------------------------------ |
-| Boilerplate   | `auto t0 = high_resolution_clock::now(); ... auto dt = now() - t0;` | `stopwatch sw; ... auto ms = sw.elapsed();` — one line |
-| Lap timing    | Manual `t0 = now()` in code                                         | `sw.lap()` — returns and resets in one call            |
-| Duration type | `auto ms = duration_cast<milliseconds>(dt)`                         | `sw.elapsed<milliseconds>()` — typed directly          |
+| Boilerplate   | `auto t0 = high_resolution_clock::now(); ... auto dt = now() - t0;` | `stopwatch sw; ... auto ms = sw.elapsed();` - one line |
+| Lap timing    | Manual `t0 = now()` in code                                         | `sw.lap()` - returns and resets in one call            |
+| Duration type | `auto ms = duration_cast<milliseconds>(dt)`                         | `sw.elapsed<milliseconds>()` - typed directly          |
 | Readability   | Chrono verbosity mixed with business logic                          | Chrono hidden behind intent-named API                  |
 
 ```cpp
@@ -230,9 +230,9 @@ auto lap     = sw.lap<std::chrono::nanoseconds>();  // nanosecond lap
 
 // Reading from binary:
 auto ft = cur.pop<u64>();                           // raw FILETIME
-auto tp_ft = time::from_filetime(ft);               // → time_point
+auto tp_ft = time::from_filetime(ft);               // -> time_point
 
 auto dos = cur.pop<u32>();                          // raw DOS datetime
-auto tp_dos = time::from_dos(dos);                  // → time_point
+auto tp_dos = time::from_dos(dos);                  // -> time_point
 ```
 
