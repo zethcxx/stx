@@ -4,6 +4,7 @@
 #include "lbyte/stx/mem.hpp"
 
 #include <array>
+#include <compare>
 #include <concepts>
 #include <cstddef>
 #include <cstring>
@@ -29,8 +30,11 @@
 //     constexpr usize n = hdr::byte_total;        // the "sizeof" of the layout
 //     auto v = cur.pop<hdr>();                    // read a whole record "as a struct"
 //
-// `member` value types must be trivially copyable; keys are an enum or a
-// byte-offset newtype (off_s / rva_s / user tags). Attributes:
+// `member` value types must be trivially copyable; keys are an enum, a
+// byte-offset newtype (off_s / rva_s / user tags), or a string literal via
+// `ct::smember<"name", T>` (a compile-time `key_str` non-type parameter - no
+// enum to declare, no runtime strings, renames are not tracked by tooling).
+// Attributes:
 //
 //     ct::attr::packed     -> skip alignment for this member / whole record
 //     ct::attr::align<N>   -> force this member / trailing pad to alignment N
@@ -39,6 +43,14 @@
 // The value of a record is a std::tuple (hdr::value_t) of the member types.
 // Read it from bytes with ct::load<rec>(ptr), write it with ct::store<rec>,
 // or let memcur/ptr do it: cur.pop<rec>() / p.read<rec>().
+//
+// To walk raw bytes without copying (read or mutate in place, and iterate
+// member key / offset / size), build a zero-copy `ct::record_view<rec>` over
+// the buffer:
+//
+//     ct::record_view<hdr> r{ buf.data() };
+//     for ( auto m : r ) { m.key; m.offset; m.size; }   // walk members
+//     r.get<"flags">()        // zero copy, mutates the buffer
 // ===========================================================================
 
 namespace lbyte::stx::ct
@@ -70,18 +82,84 @@ namespace lbyte::stx::ct
         };
     }
 
+    // ---- key_str --------------------------------------------------------
+    // A compile-time string key for `member`: a fixed-capacity literal type
+    // that works as a non-type template parameter. `smember<"count", u16>`
+    // builds one from the string literal; every member of a record then
+    // shares the exact same key type, keeping the record's key_type
+    // homogeneous. A name that does not fit the capacity fails at compile
+    // time. It is a compile-time value: there are no runtime strings.
+
+    template<usize Cap = 32>
+    struct key_str
+    {
+        static_assert( Cap > 1, "ct::key_str<Cap>: Cap must be > 1" );
+
+        char data[Cap]{};
+
+        constexpr key_str() noexcept = default;
+
+        template<usize M>
+        constexpr key_str( const char (&s)[M] ) noexcept
+        {
+            static_assert( M <= Cap,
+                "ct::key_str<Cap>: string literal is longer than the capacity" );
+            for ( usize i = 0; i < M; ++i )
+                data[i] = s[i];
+        }
+
+        [[nodiscard]] constexpr usize size() const noexcept
+        {
+            usize n = 0;
+            while ( n < Cap && data[n] != '\0' ) ++n;
+            return n;
+        }
+
+        [[nodiscard]] constexpr const char* c_str() const noexcept { return data; }
+
+        friend constexpr bool operator==( const key_str& a, const key_str& b ) noexcept
+        {
+            for ( usize i = 0; i < Cap; ++i )
+                if ( a.data[i] != b.data[i] ) return false;
+            return true;
+        }
+
+        friend constexpr auto operator<=>( const key_str& a, const key_str& b ) noexcept
+        {
+            for ( usize i = 0; i < Cap; ++i )
+            {
+                if ( a.data[i] < b.data[i] ) return std::strong_ordering::less;
+                if ( a.data[i] > b.data[i] ) return std::strong_ordering::greater;
+            }
+            return std::strong_ordering::equal;
+        }
+    };
+
+    template<typename T> struct key_str_t : std::false_type {};
+    template<usize Cap> struct key_str_t<key_str<Cap>> : std::true_type {};
+    template<typename T> inline constexpr bool is_key_str =
+        key_str_t<std::remove_cvref_t<T>>::value;
+
     // ---- record_key --------------------------------------------------------
-    // Any value usable as a `member` key: an enum class, or a byte-offset
-    // newtype (off_s / rva_s / user tag opting into `is_offset_tag`).
+    // Any value usable as a `member` key: an enum class, a byte-offset
+    // newtype (off_s / rva_s / user tag opting into `is_offset_tag`), or a
+    // `key_str` built from a string literal.
 
     template<typename K>
     concept record_key
         =  std::is_enum_v<std::remove_cvref_t<K>>
-        or byte_offset<std::remove_cvref_t<K>>;
+        or byte_offset<std::remove_cvref_t<K>>
+        or is_key_str<K>;
 
+    // keyed member (enum / byte-offset) and string-keyed member, forward
+    // declared so the collectors below can match their patterns.
     template<record_key auto Key, typename ValueT, typename... Attrs>
         requires ( std::is_trivially_copyable_v<ValueT> )
     struct member;
+
+    template<key_str<32> Key, typename ValueT, typename... Attrs>
+        requires ( std::is_trivially_copyable_v<ValueT> )
+    struct smember;
 
     namespace detail
     {
@@ -118,6 +196,26 @@ namespace lbyte::stx::ct
         template<typename... A>
         inline constexpr usize gap_total = usize{0} + ( gap_attr_of<A> + ... + usize{0} );
 
+        // Layout-relevant facts shared by `member` and `smember`.
+        template<typename ValueT, typename... Attrs>
+        struct member_shape
+        {
+            static_assert( ( is_attr_v<Attrs> and ... ),
+                "ct::member<Key, T, Attrs...>: each attr must be ct::attr::{packed, align<N>, gap<N>}" );
+
+            using value_type = ValueT;
+
+            // requested alignment: attr::align<N> wins, else natural alignment
+            static constexpr usize align
+                = alignof( ValueT ) > max_align_attr<Attrs...>::value
+                    ? alignof( ValueT ) : max_align_attr<Attrs...>::value;
+
+            // bytes of explicit padding placed before this member
+            static constexpr usize gap = gap_total<Attrs...>;
+
+            static constexpr bool is_packed = ( is_packed_attr<Attrs> or ... );
+        };
+
         template<usize... Vs> struct max_usize_list;
         template<> struct max_usize_list<> : std::integral_constant<usize, 1> {};
         template<usize V0, usize... Rest>
@@ -133,21 +231,13 @@ namespace lbyte::stx::ct
             return ( value + alignment - 1 ) / alignment * alignment;
         }
 
-        template<auto Key>
-        [[nodiscard]] constexpr usize key_as_index() noexcept
-        {
-            using K = std::remove_cvref_t<decltype( Key )>;
-            if constexpr ( std::is_enum_v<K> )
-                return static_cast<usize>( std::to_underlying( Key ) );
-            else
-                return static_cast<usize>( Key.get() );
-        }
-
         // --- member detection / collection ----------------------------------
 
         template<typename T> struct is_member_t : std::false_type {};
         template<record_key auto Key, typename T, typename... A>
         struct is_member_t<member<Key, T, A...>> : std::true_type {};
+        template<key_str<32> Key, typename T, typename... A>
+        struct is_member_t<smember<Key, T, A...>> : std::true_type {};
         template<typename T> inline constexpr bool is_member = is_member_t<T>::value;
 
         template<typename... Acc> struct collect_members;
@@ -186,6 +276,14 @@ namespace lbyte::stx::ct
                     P == 0,
                     std::tuple<member<Key, T, A...>>,
                     std::tuple<member<Key, T, A..., attr::gap<P>>>>;
+            };
+            template<usize P, key_str<32> Key, typename T, typename... A>
+            struct rebuild<P, smember<Key, T, A...>>
+            {
+                using type = std::conditional_t<
+                    P == 0,
+                    std::tuple<smember<Key, T, A...>>,
+                    std::tuple<smember<Key, T, A..., attr::gap<P>>>>;
             };
 
             template<bool IsMember, typename Tup, usize Pend, typename H>
@@ -239,6 +337,17 @@ namespace lbyte::stx::ct
         template<auto Key, typename M>
         constexpr bool member_match = keys_equal<Key, M::key>;
 
+        // Duplicate detection by content equality (key_str ==, enum ==,
+        // offset ==) instead of a numeric hash, so string keys work too.
+        template<typename... MS> struct all_distinct_t;
+        template<> struct all_distinct_t<> { static constexpr bool value = true; };
+        template<typename Head, typename... Rest>
+        struct all_distinct_t<Head, Rest...>
+        {
+            static constexpr bool value = ( ( !member_match<Head::key, Rest> ) and ... )
+                                          and all_distinct_t<Rest...>::value;
+        };
+
         template<bool RecPacked, usize RecAlign, typename... MS>
         struct record_ops
         {
@@ -253,14 +362,7 @@ namespace lbyte::stx::ct
                         std::remove_cvref_t<decltype( MS::key )>> and ... ),
                 "ct::record: all member keys must share the same type" );
 
-            static constexpr bool all_distinct = [] {
-                std::array<usize, count> keys{ detail::key_as_index<MS::key>()... };
-                for ( usize i = 0; i < count; ++i )
-                    for ( usize j = i + 1; j < count; ++j )
-                        if ( keys[i] == keys[j] )
-                            return false;
-                return true;
-            }();
+            static constexpr bool all_distinct = detail::all_distinct_t<MS...>::value;
             static_assert( all_distinct, "ct::record: duplicate member keys" );
 
             // ---- layout math -------------------------------------------------
@@ -340,8 +442,13 @@ namespace lbyte::stx::ct
             template<auto Key>
             using value_of = typename value_of_t<Key>::type;
 
-            template<auto Key>
-            [[nodiscard]] static constexpr usize index_of() noexcept
+            // Plain lookup takes any `record_key` value (enum, offset, or a key_str
+            // built from a literal). The `key_str<32>` overloads let callers
+            // hand the string literal directly:
+            //     rec::index_of<sec::crc>()    rec::index_of<"crc">()
+
+            template<record_key auto Key>
+            [[nodiscard]] static constexpr usize index_of_impl() noexcept
             {
                 static_assert( record_ops::has<Key>,
                     "ct::record::index_of: key not in record" );
@@ -357,10 +464,34 @@ namespace lbyte::stx::ct
                 return out;
             }
 
-            template<auto Key>
+            template<record_key auto Key>
+            [[nodiscard]] static constexpr usize index_of() noexcept
+            {
+                return index_of_impl<Key>();
+            }
+
+            template<key_str<32> Key>
+            [[nodiscard]] static constexpr usize index_of() noexcept
+            {
+                return index_of_impl<Key>();
+            }
+
+            template<record_key auto Key>
+            [[nodiscard]] static constexpr usize offset_of_impl() noexcept
+            {
+                return offsets[ index_of_impl<Key>() ];
+            }
+
+            template<record_key auto Key>
             [[nodiscard]] static constexpr usize offset_of() noexcept
             {
-                return offsets[ index_of<Key>() ];
+                return offset_of_impl<Key>();
+            }
+
+            template<key_str<32> Key>
+            [[nodiscard]] static constexpr usize offset_of() noexcept
+            {
+                return offset_of_impl<Key>();
             }
 
             template<typename T>
@@ -382,20 +513,46 @@ namespace lbyte::stx::ct
             // ---- typed access by key -------------------------------------------
             // Map-like `rec[key]` with a per-key return type needs reflection and
             // is not expressible in C++23. `get<Key>(value_t)` is the analogue:
-            // (static) key, typed member reference.
+            // (static) key, typed member reference. A string literal is accepted
+            // the same way (it is normalized to a key_str value, still compile
+            // time): rec::get<sec::crc>(v)    rec::get<"crc">(v)
 
-            template<auto Key>
-            [[nodiscard]] static constexpr auto& get( value_t& value ) noexcept
+            template<record_key auto Key>
+            [[nodiscard]] static constexpr auto& get_impl( value_t& value ) noexcept
             {
                 static_assert( has<Key>, "ct::record::get: key not in record" );
-                return std::get< index_of<Key>() >( value );
+                return std::get< index_of_impl<Key>() >( value );
             }
 
-            template<auto Key>
-            [[nodiscard]] static constexpr const auto& get( const value_t& value ) noexcept
+            template<record_key auto Key>
+            [[nodiscard]] static constexpr const auto& get_impl( const value_t& value ) noexcept
             {
                 static_assert( has<Key>, "ct::record::get: key not in record" );
-                return std::get< index_of<Key>() >( value );
+                return std::get< index_of_impl<Key>() >( value );
+            }
+
+            template<record_key auto Key>
+            [[nodiscard]] static constexpr auto& get( value_t& value ) noexcept
+            {
+                return get_impl<Key>( value );
+            }
+
+            template<record_key auto Key>
+            [[nodiscard]] static constexpr const auto& get( const value_t& value ) noexcept
+            {
+                return get_impl<Key>( value );
+            }
+
+            template<key_str<32> Key>
+            [[nodiscard]] static constexpr auto& get( value_t& value ) noexcept
+            {
+                return get_impl<Key>( value );
+            }
+
+            template<key_str<32> Key>
+            [[nodiscard]] static constexpr const auto& get( const value_t& value ) noexcept
+            {
+                return get_impl<Key>( value );
             }
 
             // ---- functional iteration ------------------------------------------
@@ -474,29 +631,22 @@ namespace lbyte::stx::ct
         };
     }
 
-    // ---- member ---------------------------------------------------------------
+    // ---- member / smember -----------------------------------------------------
+    // `member` takes an enum / byte-offset key, `smember` a string-literal
+    // key (`smember<"count", u16>`); both share the same shape and attributes.
 
     template<record_key auto Key, typename ValueT, typename... Attrs>
         requires ( std::is_trivially_copyable_v<ValueT> )
-    struct member
+    struct member : detail::member_shape<ValueT, Attrs...>
     {
-        static_assert( ( detail::is_attr_v<Attrs> and ... ),
-            "ct::member<Key, T, Attrs...>: each attr must be ct::attr::{packed, align<N>, gap<N>}" );
-
         static constexpr auto key = Key;
+    };
 
-        using value_type = ValueT;
-
-        // requested alignment: attr::align<N> wins, else natural alignment
-        static constexpr usize align
-
-            = alignof( ValueT ) > detail::max_align_attr<Attrs...>::value
-                ? alignof( ValueT ) : detail::max_align_attr<Attrs...>::value;
-
-        // bytes of explicit padding placed before this member
-        static constexpr usize gap = detail::gap_total<Attrs...>;
-
-        static constexpr bool is_packed = ( detail::is_packed_attr<Attrs> or ... );
+    template<key_str<32> Key, typename ValueT, typename... Attrs>
+        requires ( std::is_trivially_copyable_v<ValueT> )
+    struct smember : detail::member_shape<ValueT, Attrs...>
+    {
+        static constexpr key_str<32> key = Key;
     };
 
     // ---- record ---------------------------------------------------------------
@@ -590,5 +740,153 @@ namespace lbyte::stx::ct
     constexpr void store( std::span<std::byte> dst, const Value& value ) noexcept
     {
         store<Rec>( dst.data(), value );
+    }
+
+    // ---- record_view -----------------------------------------------------------
+    // A zero-copy window over the raw bytes a record describes. It never
+    // copies: `get<Key>()` / `get<"name">()` return references straight into
+    // the buffer (mutating them changes the buffer), and the iterators walk
+    // the constexpr member table (key / offset / size) without touching a
+    // single member.
+
+    template<typename Rec>
+        requires ( ::lbyte::stx::details::record_like<Rec> )
+    class record_view
+    {
+        std::byte* base_{};
+
+    public:
+        using record_type = Rec;
+        using member_meta = typename Rec::member_meta;
+
+        constexpr record_view() noexcept = default;
+        constexpr record_view( void* base ) noexcept
+            : base_( scast<std::byte*>( base ) ) {}
+        constexpr record_view( ::lbyte::stx::uptr addr ) noexcept
+            : base_( rcast<std::byte*>( addr ) ) {}
+        constexpr record_view( const record_view& ) noexcept = default;
+        constexpr record_view& operator=( const record_view& ) noexcept = default;
+
+        constexpr bool operator==( const record_view& ) const noexcept = default;
+
+        [[nodiscard]] static constexpr usize count() noexcept { return Rec::count; }
+        [[nodiscard]] static constexpr usize byte_count() noexcept { return Rec::byte_total; }
+        [[nodiscard]] constexpr std::byte* data() const noexcept { return base_; }
+
+        // ---- descriptor walk (no bytes touched) --------------------------------
+
+        [[nodiscard]] constexpr const typename Rec::member_meta& meta_of( usize i ) const noexcept
+        {
+            return Rec::meta[ i ];
+        }
+
+        [[nodiscard]] constexpr usize offset_of( usize i ) const noexcept { return Rec::offsets[ i ]; }
+        [[nodiscard]] constexpr usize size_of(   usize i ) const noexcept { return Rec::sizes[ i ]; }
+        [[nodiscard]] constexpr typename Rec::key_type key_of( usize i ) const noexcept
+        {
+            return Rec::keys[ i ];
+        }
+
+        // ---- typed access into the buffer (zero copy) --------------------------
+
+        template<record_key auto Key>
+        [[nodiscard]] constexpr const typename Rec::template value_of<Key>&
+            get_typed() const noexcept
+        {
+            return *rcast<const typename Rec::template value_of<Key>*>(
+                base_ + Rec::template offset_of_impl<Key>() );
+        }
+
+        template<record_key auto Key>
+        [[nodiscard]] constexpr typename Rec::template value_of<Key>& get_typed() noexcept
+        {
+            return *rcast<typename Rec::template value_of<Key>*>(
+                base_ + Rec::template offset_of_impl<Key>() );
+        }
+
+        template<record_key auto Key>
+        [[nodiscard]] constexpr const typename Rec::template value_of<Key>& get() const noexcept
+        {
+            return get_typed<Key>();
+        }
+
+        template<record_key auto Key>
+        [[nodiscard]] constexpr typename Rec::template value_of<Key>& get() noexcept
+        {
+            return get_typed<Key>();
+        }
+
+        template<key_str<32> Key>
+        [[nodiscard]] constexpr const typename Rec::template value_of<Key>& get() const noexcept
+        {
+            return get_typed<Key>();
+        }
+
+        template<key_str<32> Key>
+        [[nodiscard]] constexpr typename Rec::template value_of<Key>& get() noexcept
+        {
+            return get_typed<Key>();
+        }
+
+        template<usize I>
+        [[nodiscard]] constexpr const std::tuple_element_t<I, typename Rec::value_t>&
+            at() const noexcept
+        {
+            using T = std::tuple_element_t<I, typename Rec::value_t>;
+            return *rcast<const T*>( base_ + Rec::offsets[ I ] );
+        }
+
+        template<usize I>
+        [[nodiscard]] constexpr std::tuple_element_t<I, typename Rec::value_t>& at() noexcept
+        {
+            using T = std::tuple_element_t<I, typename Rec::value_t>;
+            return *rcast<T*>( base_ + Rec::offsets[ I ] );
+        }
+
+        // ---- iteration -----------------------------------------------------------
+
+        class iterator
+        {
+            const record_view* self_{};
+            usize i_{};
+
+        public:
+            using value_type = typename Rec::member_meta;
+
+            constexpr iterator() noexcept = default;
+            constexpr iterator( const record_view* self, usize i ) noexcept
+                : self_( self ), i_( i ) {}
+
+            [[nodiscard]] constexpr usize index() const noexcept { return i_; }
+
+            [[nodiscard]] constexpr value_type operator*() const noexcept
+            {
+                return Rec::meta[ i_ ];
+            }
+
+            constexpr iterator& operator++() noexcept { ++i_; return *this; }
+            constexpr iterator operator++( int ) noexcept { auto c = *this; ++i_; return c; }
+
+            friend constexpr bool operator==( const iterator&, const iterator& ) noexcept = default;
+            friend constexpr bool operator!=( const iterator&, const iterator& ) noexcept = default;
+        };
+
+        [[nodiscard]] constexpr iterator begin() const noexcept { return { this, 0 }; }
+        [[nodiscard]] constexpr iterator end()   const noexcept { return { this, Rec::count }; }
+        [[nodiscard]] static constexpr bool empty() noexcept { return Rec::count == 0; }
+    };
+
+    template<typename Rec>
+        requires ( ::lbyte::stx::details::record_like<Rec> )
+    [[nodiscard]] constexpr record_view<Rec> view( void* src ) noexcept
+    {
+        return record_view<Rec>( src );
+    }
+
+    template<typename Rec>
+        requires ( ::lbyte::stx::details::record_like<Rec> )
+    [[nodiscard]] constexpr record_view<Rec> view( ::lbyte::stx::uptr addr ) noexcept
+    {
+        return record_view<Rec>( addr );
     }
 }

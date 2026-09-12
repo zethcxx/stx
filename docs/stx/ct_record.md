@@ -26,8 +26,8 @@ using info = ct::record<
 >;
 ```
 
-- Each **`member<Key, Type>`** binds a key (an `enum class` or `off_s`/`rva_s`)
-  to a binary type (`binary_readable`).
+- Each **`member<Key, Type>`** binds a key (an `enum class`, an `off_s`/`rva_s`,
+  or a string literal via `smember`) to a binary type (`binary_readable`).
 - All keys must **share the same type** and be **unique**; all values must be
   **trivially copyable**. Enforced with `static_assert`.
 
@@ -129,6 +129,43 @@ info::get<sec::stride>(val) = 0x2000;     // lvalue: supports writes
 > (`index_of<Key>()` resolves the index at compile time). To dispatch by a
 > **runtime** key, use the homogeneous descriptor tables `meta`/`meta_of` below.
 
+## String keys (`smember`)
+
+Instead of an enum, a key can be a string literal carried by the compile-time
+type `key_str<N>` (default capacity 32) via `ct::smember<"name", Type>`:
+
+```cpp
+using header = ct::record<
+    ct::smember<"count", u16>,
+    ct::smember<"stride", u32>,
+    ct::smember<"crc",   u32>
+>;
+```
+
+Every `smember` key has the same C++ type (`key_str<32>`), so the homogeneity
+rules hold unchanged and the layout is **identical** to the enum-keyed twin.
+Queries and `get` accept a string literal directly; `value_of`/`has` take a
+`key_str` value:
+
+```cpp
+static_assert( header::index_of<"crc">()  == 2 );
+static_assert( header::offset_of<"crc">() == 4 );
+static_assert( header::key_of<u32>()      == ct::key_str<32>{ "crc" } );
+
+header::value_t val{ 1, 0x1000, 0xDEADBEEF };
+auto crc  = header::get<"crc">( val );          // u32
+header::get<"stride">( val ) = 0x2000;
+
+static_assert( not header::has<ct::key_str<32>{ "nope" }> );  // unknown key
+static_assert( std::same_as<header::value_of<ct::key_str<32>{ "count" }>, u16> );
+```
+
+> String keys traded compile-time rename checking for readability: a typo (or a
+> rename) in a literal is a compile error at *use* (the `static_assert`s above),
+> but your **editor/LSP does not track renames** the way it tracks `enum`
+> members. Prefer `smember` for stable or one-off schemas and `enum` keys for
+> schemas that evolve.
+
 ## Iterating members
 
 Because each member has a **distinct type**, *typed* iteration uses `visit`/`fold`
@@ -216,6 +253,33 @@ auto [count, stride, crc] = cur.pop<info>();  // same member-wise layout
 ```
 
 This respects alignment, packing and gaps identically to `ct::load`/`ct::store`.
+
+## Zero-copy views (`record_view`)
+
+`ct::record_view<Rec>` is an **unowned window** over the raw bytes a record
+describes. It never copies: `get<Key>()` returns a reference *into* the buffer
+(mutating it changes the buffer) and iteration walks the constexpr member table
+(key / offset / size) without touching a single byte.
+
+```cpp
+std::byte  raw[header::byte_total]{};
+ct::record_view<header> r{ raw };            // or ct::view<header>(ptr)
+
+r.get<"crc">()    = 0xCAFEBABEu;             // writes land in raw
+r.get<"stride">() = 0x1000;
+r.at<0>()         = 7;                       // by ordinal index
+
+for ( auto m : r )                           // { key, offset, size }
+    std::printf( "%s @ %zu (%zu bytes)\n", m.key.c_str(), m.offset, m.size );
+
+static_assert( ct::record_view<header>::count()      == 3 );
+static_assert( ct::record_view<header>::byte_count() == header::byte_total );
+```
+
+Construct from a `void*` (or a raw `uptr` address - e.g. device/section space);
+a `const` view yields `const` references. The view reads/writes the same
+member-wise offsets as `ct::store`/`ct::load`, so a view and a loaded `value_t`
+never disagree about where a field lives.
 
 ## Typical use cases
 

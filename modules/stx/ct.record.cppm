@@ -18,9 +18,14 @@ export namespace lbyte::stx::ct
     }
 
     using ::lbyte::stx::ct::record_key;
+    using ::lbyte::stx::ct::key_str;
     using ::lbyte::stx::ct::member;
+    using ::lbyte::stx::ct::smember;
     using ::lbyte::stx::ct::record;
     using ::lbyte::stx::ct::record_value_of_t;
+
+    using ::lbyte::stx::ct::record_view;
+    using ::lbyte::stx::ct::view;
 
     using ::lbyte::stx::ct::loader;
     using ::lbyte::stx::ct::store_impl;
