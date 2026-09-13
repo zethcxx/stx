@@ -190,4 +190,18 @@ namespace lbyte::stx
     {
         return arr<Type, N>{ std::to_array( source ) };
     }
+
+    // From a fixed byte block (std::array<u8, N> / ct::byte_block) -- e.g. the
+    // result of a `"_vstr"` literal or `ct::vstr<"..">` -- into a typed stx::arr:
+    //     "EMOJIDAT"_vstr           -> byte_block<8> (std::array<u8, 8>)
+    //     arr_of("EMOJIDAT"_vstr)   -> arr<u8, 8>
+    //     arr_of<u8>("EMOJIDAT"_vstr) -> arr<u8, 8>
+    template<typename Type = u8, usize N>
+    [[nodiscard]] constexpr auto arr_of( std::array<u8, N> const& block ) noexcept
+        -> arr<Type, N>
+    {
+        arr<Type, N> out{};
+        for ( usize i = 0; i < N; ++i ) out[ i ] = static_cast<Type>( block[ i ] );
+        return out;
+    }
 }

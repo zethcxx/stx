@@ -29,3 +29,9 @@ export namespace lbyte::stx::ct
     using ::lbyte::stx::ct::repeat_t;
     using ::lbyte::stx::ct::repeat;
 }
+
+export namespace lbyte::stx
+{
+    // arr_of overload for ct::str_type (the arr.hpp overloads come from lbyte.stx.arr)
+    using ::lbyte::stx::arr_of;
+}

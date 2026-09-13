@@ -1,5 +1,6 @@
 #pragma once
 #include "lbyte/stx/core.hpp"
+#include "lbyte/stx/arr.hpp"
 #include <array>
 #include <tuple>
 #include <string>
@@ -1236,6 +1237,22 @@ namespace lbyte::stx::ct
 
     template<fixed_string Str, typename Type>
     constexpr auto vstr_of = vstr_of_t<Str, Type>::value;
+}
+
+// --- arr_of over ct::str_type ----------------------------------------------------
+// arr_of<u8>(ct::str<"EMOJIDAT">) -> arr<u8, 8>; the Str NTTP carries the size
+// (the trailing '\0' of the literal is excluded by fixed_string::size()).
+namespace lbyte::stx
+{
+    template<typename Type = u8, ::lbyte::stx::ct::fixed_string Str, typename CharT, typename... Flags>
+    [[nodiscard]] constexpr auto arr_of( ::lbyte::stx::ct::str_type<Str, CharT, Flags...> ) noexcept
+        -> arr<Type, Str.size()>
+    {
+        arr<Type, Str.size()> out{};
+        for ( size_t i = 0; i < Str.size(); ++i )
+            out[ i ] = static_cast<Type>( Str.data[ i ] );
+        return out;
+    }
 }
 
 #include "lbyte/stx/detail/str_support.hpp"
