@@ -2,8 +2,8 @@
 
 #include "lbyte/stx/core.hpp"
 #include "lbyte/stx/mem.hpp"
+#include "lbyte/stx/arr.hpp"
 
-#include <array>
 #include <compare>
 #include <concepts>
 #include <cstddef>
@@ -374,9 +374,9 @@ namespace lbyte::stx::ct
 
             static constexpr usize max_align = max_usize_list<RecAlign, (MS::is_packed ? usize{1} : MS::align)...>::value;
 
-            [[nodiscard]] static consteval std::array<usize, count> make_offsets( bool packed_all )
+            [[nodiscard]] static consteval ::lbyte::stx::arr<usize, count> make_offsets( bool packed_all )
             {
-                std::array<usize, count> out{};
+                ::lbyte::stx::arr<usize, count> out{};
                 usize cur = 0;
                 usize i   = 0;
                 ( [&] {
@@ -404,8 +404,8 @@ namespace lbyte::stx::ct
                 return cur;
             }
 
-            static constexpr std::array<usize, count> offsets        = make_offsets( RecPacked );
-            static constexpr std::array<usize, count> packed_offsets = make_offsets( true );
+            static constexpr ::lbyte::stx::arr<usize, count> offsets        = make_offsets( RecPacked );
+            static constexpr ::lbyte::stx::arr<usize, count> packed_offsets = make_offsets( true );
 
             static constexpr usize byte_total   = total_size( RecPacked );
             static constexpr usize packed_total = total_size( true );
@@ -575,8 +575,8 @@ namespace lbyte::stx::ct
             // range-`for` and `[]` work at runtime (typed per-member access does
             // not - that is what `visit`/`fold`/`std::get` are for).
 
-            static constexpr std::array<key_type, count> keys{ MS::key... };
-            static constexpr std::array<usize,    count> sizes{ sizeof( typename MS::value_type )... };
+            static constexpr ::lbyte::stx::arr<key_type,     count> keys{ MS::key... };
+            static constexpr ::lbyte::stx::arr<usize,        count> sizes{ sizeof( typename MS::value_type )... };
 
             struct member_meta
             {
@@ -587,8 +587,8 @@ namespace lbyte::stx::ct
                 constexpr bool operator==( const member_meta& ) const = default;
             };
 
-            static constexpr std::array<member_meta, count> meta = [] {
-                std::array<member_meta, count> m{};
+            static constexpr ::lbyte::stx::arr<member_meta, count> meta = [] {
+                ::lbyte::stx::arr<member_meta, count> m{};
                 for ( usize i = 0; i < count; ++i )
                     m[i] = member_meta{ keys[i], offsets[i], sizes[i] };
                 return m;

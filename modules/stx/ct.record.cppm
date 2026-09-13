@@ -7,6 +7,7 @@ export module lbyte.stx.ct.record;
 
 import lbyte.stx.core;
 import lbyte.stx.mem;
+export import lbyte.stx.arr;
 
 export namespace lbyte::stx::ct
 {

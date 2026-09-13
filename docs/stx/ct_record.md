@@ -53,7 +53,7 @@ static_assert( info::packed_total == 6 );     // packed total (no pad)
 static_assert( info::max_align == 4 );
 ```
 
-- `offsets`   - aligned per-member offsets (`std::array<usize, count>`).
+- `offsets`   - aligned per-member offsets (`stx::arr<usize, count>`).
 - `packed_offsets` - the same offsets as if every member were packed (the
   `attr::packed` layout, no member padding - but record-level `gap`/`align`
   attributes still apply).
@@ -209,7 +209,7 @@ All keys share one type, so the descriptor arrays are plain homogeneous arrays -
 that is where `for` and `[]` work at runtime:
 
 ```cpp
-// keys / sizes / meta are std::array of size count
+// keys / sizes / meta are stx::arr of size count
 for ( auto k : info::keys )      // "count", "stride", "crc"
     table_for[k] = nullptr;
 
@@ -225,10 +225,26 @@ constexpr auto m = info::meta_of( sec::crc );   // by key, constexpr
 static_assert( m.offset == 4 && m.size == 4 );
 ```
 
-- `keys`  - the member keys (`std::array<key_type, count>`).
-- `sizes` - `sizeof` of each member's value type, in order (`std::array<usize, count>`).
-- `meta`  - `{ key, offset, size }` per member (`std::array<member_meta, count>`).
+All four (`keys`, `sizes`, `meta`, and the `offsets`/`packed_offsets` table) are
+`stx::arr` (not `std::array`), so unlike records with runtime keys there is an
+extra convenience: an `arr` is indexable by its own key type when that key is an
+`enum` or byte-offset newtype. Because ordinal position equals `to_underlying`
+for a contiguous `enum` (and the arrays keep member declaration order), enum keys
+index straight in:
+
+```cpp
+info::sizes[sec::crc];        // 4 - O(1), enum keys accepted by arr
+info::meta[sec::stride];      // { stride, 2, 4 }
+```
+
+- `keys`  - the member keys (`stx::arr<key_type, count>`).
+- `sizes` - `sizeof` of each member's value type, in order (`stx::arr<usize, count>`).
+- `meta`  - `{ key, offset, size }` per member (`stx::arr<member_meta, count>`).
 - `meta_of(key)` - the same one entry, looked up **by key** (`const member_meta&`).
+
+`arr` also keeps the whole-table iteration (`ranges::from`/`begin`/`end`) and the
+O(1) ordinal indexing above working identically; the enum-key overload simply
+removes the `to_underlying` noise.
 
 ### Lookup semantics (compile-time vs runtime)
 
@@ -250,16 +266,16 @@ compareable by plain equality and avoids collision machinery.
 
 When you know the key is a **contiguous `enum class`** starting at 0 (or you have
 the ordinal another way), skip `meta_of` entirely and index the arrays directly -
-`keys[i]` / `sizes[i]` / `meta[i]` are O(1). For a contiguous enum the ordinal is
-just `to_underlying(key)`:
+`keys[i]` / `sizes[i]` / `meta[i]` are O(1) (and the `arr` overload lands on the
+same slot via `to_underlying`, so the `enum` itself works as an index):
 
 ```cpp
 // sec { count=0, stride=1, crc=2 } is contiguous
-static constexpr usize crc_size = info::sizes[ to_underlying(sec::crc) ];  // 4
+static constexpr usize crc_size = info::sizes[sec::crc];  // 4
 
 usize total = 0;
 for ( usize i = 0; i < info::count; ++i )
-    total += info::sizes[i];                               // O(count) once, no per-key scan
+    total += info::sizes[i];                        // O(count) once, no per-key scan
 ```
 
 Prefer `meta_of` when the keys are sparse/non-contiguous or reorders/renames are
