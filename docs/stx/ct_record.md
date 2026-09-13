@@ -40,9 +40,10 @@ and the total includes trailing padding.
 ```cpp
 static_assert( info::count == 3 );
 
-static_assert( info::offsets       [0] == 0 );   // aligned offsets
-static_assert( info::offsets       [1] == 2 );
-static_assert( info::offsets       [2] == 4 );
+static_assert( info::offsets        [0] == 0 );   // aligned offsets
+static_assert( info::offsets        [1] == 2 );
+static_assert( info::offsets        [2] == 4 );
+static_assert( info::packed_offsets [2] == 4 );   // offsets if fully packed
 
 static_assert( info::offset_of<sec::crc>() == 4 );   // key-level "offsetof"
 static_assert( info::index_of<sec::stride>() == 1 );  // ordinal position
@@ -51,6 +52,15 @@ static_assert( info::byte_total == 8 );       // aligned total (trailing pad)
 static_assert( info::packed_total == 6 );     // packed total (no pad)
 static_assert( info::max_align == 4 );
 ```
+
+- `offsets`   - aligned per-member offsets (`std::array<usize, count>`).
+- `packed_offsets` - the same offsets as if every member were packed (the
+  `attr::packed` layout, no member padding - but record-level `gap`/`align`
+  attributes still apply).
+- `byte_total` / `packed_total` - totals for those two layouts.
+- `member_max_align` / `trailing_align` / `max_align` - the per-member maximum
+  alignment, the alignment used for trailing padding, and the record's reported
+  alignment (rises to `attr::align<N>` if given).
 
 ### Attributes
 
@@ -203,13 +213,57 @@ that is where `for` and `[]` work at runtime:
 for ( auto k : info::keys )      // "count", "stride", "crc"
     table_for[k] = nullptr;
 
+for ( auto s : info::sizes )     // 2, 4, 4  -> sizeof(each value type)
+    total += s;
+
 for ( const auto& m : info::meta )   // {key, offset, size}
     std::printf( "%zu @ %zu (%zu bytes)\n", m.key, m.offset, m.size );
 
 info::meta[1];                    // index by ordinal position
+info::sizes[1];                   // same ordinal as keys/meta
 constexpr auto m = info::meta_of( sec::crc );   // by key, constexpr
 static_assert( m.offset == 4 && m.size == 4 );
 ```
+
+- `keys`  - the member keys (`std::array<key_type, count>`).
+- `sizes` - `sizeof` of each member's value type, in order (`std::array<usize, count>`).
+- `meta`  - `{ key, offset, size }` per member (`std::array<member_meta, count>`).
+- `meta_of(key)` - the same one entry, looked up **by key** (`const member_meta&`).
+
+### Lookup semantics (compile-time vs runtime)
+
+Lookups split into two families:
+
+- **Compile-time key queries** - `has`, `value_of`, `index_of`, `offset_of`,
+  `key_of`, `get`: a `constexpr` fold over the member pack. The result is a
+  constant, so there is **zero runtime cost** regardless of `count`.
+- **Runtime lookup** - `meta_of(key)`: a **linear scan** comparing keys by
+  *value* (content equality - the same comparison works for `enum`, byte-offset
+  newtypes and `key_str` strings alike). That is O(count) whenever the key is
+  only known at runtime (e.g. a loop variable). `count` is fixed at compile
+  time and the function is `constexpr`, so the scan is usually fully unrolled by
+  the optimizer into a branch chain.
+
+No compile-time hash table or sorted index is built: the arrays above are only
+ever walked linearly. That trade-off is deliberate - it keeps *every* key kind
+compareable by plain equality and avoids collision machinery.
+
+When you know the key is a **contiguous `enum class`** starting at 0 (or you have
+the ordinal another way), skip `meta_of` entirely and index the arrays directly -
+`keys[i]` / `sizes[i]` / `meta[i]` are O(1). For a contiguous enum the ordinal is
+just `to_underlying(key)`:
+
+```cpp
+// sec { count=0, stride=1, crc=2 } is contiguous
+static constexpr usize crc_size = info::sizes[ to_underlying(sec::crc) ];  // 4
+
+usize total = 0;
+for ( usize i = 0; i < info::count; ++i )
+    total += info::sizes[i];                               // O(count) once, no per-key scan
+```
+
+Prefer `meta_of` when the keys are sparse/non-contiguous or reorders/renames are
+expected, so no code assumes `ordinal == to_underlying(key)`.
 
 Those `for`/`[]` give you the **layout** (what is at each offset and how many
 bytes), which is what can change at runtime. What a `for` *cannot* do is
